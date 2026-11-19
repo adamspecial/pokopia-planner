@@ -92,8 +92,24 @@ button{cursor:pointer}
 .arealine svg{width:18px;height:18px;flex:none;margin-top:1px;color:var(--accent)}
 
 /* inspector card */
-.inspector{position:absolute;left:8px;bottom:44px;width:min(360px,calc(100% - 64px));background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:12px 14px;display:none;max-height:55%;overflow:auto}
-.inspector.open{display:block}
+.inspector{position:absolute;left:8px;bottom:44px;width:min(380px,calc(100% - 64px));background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.16);display:none;flex-direction:column;max-height:calc(100% - 104px);overflow:hidden}
+.inspector.open{display:flex}
+.insp-top{flex:none;padding:12px 14px 10px}
+.insp-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.insp-acts:empty{display:none}
+.insp-acts .btn.sm{padding:7px 11px;font-size:13px}
+.insp-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 14px 14px;border-top:1px solid var(--line)}
+.insp-body:empty{display:none}
+.insp-body>:first-child{margin-top:10px}
+.inspector.min .insp-body{display:none}
+.insp-min svg{transition:transform .15s}
+.inspector.min .insp-min svg{transform:rotate(180deg)}
+.insp-head .close + .close{margin-left:0}
+.choice{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.choice .btn{justify-content:flex-start;text-align:left;padding:10px 12px;flex-direction:column;align-items:flex-start;gap:2px}
+.choice .btn .note{font-weight:400}
+.toast.act{pointer-events:auto}
+.toast button{border:0;background:none;color:inherit;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;margin-left:12px;padding:2px 4px}
 .inspector h3{margin:0 0 2px;font-family:var(--font-display);font-size:17px;text-wrap:balance}
 .insp-head{display:flex;gap:10px;align-items:flex-start}
 .insp-head .swatch{width:34px;height:34px;border-radius:9px}
@@ -253,7 +269,7 @@ button.res{cursor:pointer}
   .tab{padding:6px 2px 8px;font-size:11.5px}
   .status{bottom:calc(var(--sheet-h) + 8px)}
   .zoomctl{bottom:calc(var(--sheet-h) + 8px)}
-  .inspector{bottom:calc(var(--sheet-h) + 44px);width:calc(100% - 64px)}
+  .inspector{bottom:calc(var(--sheet-h) + 44px);width:calc(100% - 64px);max-height:calc(100% - var(--sheet-h) - 96px)}
   .top{padding:6px 12px}
   .brand h1{font-size:16px}
   .planname{max-width:34vw}
@@ -301,6 +317,7 @@ button.res{cursor:pointer}
     <symbol id="i-area" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 3" d="M3 3h18v18H3z"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5" fill="currentColor"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 20V9m-5 5 5-5 5 5M5 4h14"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-expand" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
     <symbol id="i-shrink" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
   </defs>
@@ -408,7 +425,8 @@ const icon = (id) => { const s = document.createElementNS('http://www.w3.org/200
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmt = (n) => Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-function toast(msg, ms = 2400) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), ms); }
+function toast(msg, ms = 2400, act) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('act', !!act); if (act) t.append(h('button', { onclick: () => { clearTimeout(toast._t); t.classList.remove('on', 'act'); act.fn(); } }, act.label)); t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on', 'act'), ms); }
+const undoToast = (msg) => toast(msg, 6000, { label: 'Undo', fn: () => undo() });
 const LS = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
@@ -535,7 +553,8 @@ function stampOcc(p, ob, val) { for (let yy = ob.y; yy < ob.y + ob.h; yy++) for 
 
 /* ---------- transactions (undo/redo) ---------- */
 let tx = null; const undoStack = [], redoStack = [];
-function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [], z: null, in: null }; }
+function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [], z: null, in: null, r: null }; }
+function setRes(next) { beginTx(); if (!tx.r) tx.r = [plan.res || []]; plan.res = next; tx.r[1] = next; }
 function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.g.has(k)) tx.g.set(k, [plan.ground[k], v]); else tx.g.get(k)[1] = v; plan.ground[k] = v; }
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
 /* item sizes: the data has most furniture as 1×1, so a plan can set its own footprint per item type (plan.isz) */
@@ -547,7 +566,7 @@ function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.de
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
   if (!tx) return; const t = tx; tx = null;
-  if (!t.g.size && !t.e.size && !t.add.length && !t.del.length && !t.z && !t.in) return;
+  if (!t.g.size && !t.e.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r) return;
   t.label = label; undoStack.push(t); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; changed();
 }
 function applyTx(t, dir) { // dir -1 undo, +1 redo
@@ -559,6 +578,7 @@ function applyTx(t, dir) { // dir -1 undo, +1 redo
   for (const ob of put) { plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); }
   if (t.z) plan.zones = t.z[bi];
   if (t.in) t.in[0].int = t.in[bi + 1];
+  if (t.r) plan.res = t.r[bi];
 }
 function undo() { if (tx) commitTx(); const t = undoStack.pop(); if (!t) return; applyTx(t, -1); redoStack.push(t); selection = null; closeInspector(); changed(); }
 function redo() { const t = redoStack.pop(); if (!t) return; applyTx(t, 1); undoStack.push(t); changed(); }
@@ -738,11 +758,7 @@ function residentsSection(home) {
     const n = kitFurniture(home.ob), cv = favCoverage(home);
     wrap.append(h('div', { class: 'reqs' }, h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss') }, n >= 3 ? '✓' : '✗', n + ' furniture inside (needs 3)'), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : '') }, cv.have + '/' + cv.total + ' favourites inside') : ''));
   } else if (pks.length) { const cv = favCoverage(home); wrap.append(h('div', { class: 'note', style: 'margin-top:4px' }, 'Their favourite kinds of things already in the active area: ' + cv.have + ' of ' + cv.total + '.')); }
-  const acts = h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px' });
-  if (home.kind === 'kit') acts.append(h('button', { class: 'btn sm primary', onclick: () => interiorEditor(home.ob) }, icon('leaf'), 'Decorate inside'));
-  if (list.length < home.cap) acts.append(h('button', { class: 'btn sm' + (home.kind === 'kit' ? '' : ' primary'), onclick: () => residentPicker(home) }, icon('plus'), 'Add resident'));
-  if (pks.length && home.kind !== 'kit') acts.append(h('button', { class: 'btn sm', onclick: () => decorModal(home) }, icon('leaf'), 'Decorate for them'));
-  wrap.append(acts); return wrap;
+  return wrap; // its buttons (Add resident, Decorate) sit in the inspector's pinned bar
 }
 function afterResChange(home) { refreshHomeInspector(home); if (IED.ob) iedRender(); }
 function refreshHomeInspector(home) { if (home.kind === 'house') { const hs = houseById.get(home.hs.id); if (hs) selectHouse(hs); } else if (home.ob && plan.objs.has(home.ob.id)) { selection = { obj: home.ob }; showObjInspector(home.ob); } requestDraw(); if (activeTab !== 'build') renderPanel(); }
@@ -1758,10 +1774,16 @@ function tapSelect(x, y) {
   closeInspector();
 }
 function closeInspector() { $('#inspector').classList.remove('open'); $('#inspector').textContent = ''; if (selection && !selection.rect) selection = null; requestDraw(); }
-function inspectorShell(title, sw, sub) {
+let inspMin = LS.get('pokopia-planner:inspmin') === '1';
+function setInspMin(on) { inspMin = on; LS.set('pokopia-planner:inspmin', on ? '1' : '0'); const box = $('#inspector'); box.classList.toggle('min', on); const b = box.querySelector('.insp-min'); if (b) { b.setAttribute('aria-expanded', on ? 'false' : 'true'); b.title = on ? 'Show details' : 'Hide details'; b.setAttribute('aria-label', b.title); } }
+function inspectorShell(title, sw, sub) { // the title and the buttons stay put at the top; the details below scroll
   const box = $('#inspector'); box.textContent = '';
-  const head = h('div', { class: 'insp-head' }, sw || '', h('div', null, h('h3', null, title), sub ? h('div', { class: 'sub', style: 'margin:0' }, sub) : ''), h('button', { class: 'close', 'aria-label': 'Close', onclick: () => { selection = null; closeInspector(); } }, icon('close')));
-  box.append(head); box.classList.add('open'); return box;
+  const head = h('div', { class: 'insp-head' }, sw || '', h('div', { style: 'min-width:0' }, h('h3', null, title), sub ? h('div', { class: 'sub', style: 'margin:0' }, sub) : ''),
+    h('button', { class: 'close insp-min', onclick: () => setInspMin(!inspMin) }, icon('chev')),
+    h('button', { class: 'close', 'aria-label': 'Close', onclick: () => { selection = null; closeInspector(); } }, icon('close')));
+  const acts = h('div', { class: 'insp-acts' }), body = h('div', { class: 'insp-body' });
+  box.append(h('div', { class: 'insp-top' }, head, acts), body); box.classList.add('open'); setInspMin(inspMin);
+  body.acts = acts; return body;
 }
 function recipeChips(it) { const w = h('div', { class: 'reqs' }); if (it.m && it.m.length) for (const [m, q] of it.m) w.append(h('span', { class: 'req' }, h('b', null, q + '×'), m)); else w.append(h('span', { class: 'note' }, it.c === 'Kits' ? 'Bought as a kit; materials not listed.' : 'Not crafted: gather, plant or find it.')); return w; }
 function showObjInspector(ob) {
@@ -1789,15 +1811,15 @@ function showObjInspector(ob) {
       box.append(h('div', { class: 'field', style: 'margin-top:8px' }, sel));
     }
   }
-  const acts = h('div', { class: 'card acts', style: 'border:0;padding:0;margin:8px 0 0' });
+  const acts = box.acts;
+  if (it.cap) { acts.append(h('button', { class: 'btn sm primary', onclick: () => interiorEditor(ob) }, icon('leaf'), 'Decorate inside')); const hm = kitHome(ob); if (residentsOf(hm).length < hm.cap) acts.append(h('button', { class: 'btn sm', onclick: () => residentPicker(hm) }, icon('plus'), 'Add resident')); }
   acts.append(h('button', { class: 'btn sm', onclick: () => { selectItem(it.n); toast('Placing ' + it.n); } }, icon('brush'), 'Place more'));
   acts.append(h('button', { class: 'btn sm', onclick: () => { moving = ob; setTool('move'); } }, icon('move'), 'Move'));
   if (ob.w !== ob.h) {
     acts.append(h('button', { class: 'btn sm', onclick: () => { const nw = ob.h, nh = ob.w; if (fits(plan, ob.x, ob.y, nw, nh, ob.id)) { delObj(ob); const n = addObj(ob.i, ob.x, ob.y, nw, nh); if (n && ob.int) n.int = ob.int; commitTx('Rotate'); selection = { obj: n }; showObjInspector(n); } else toast('Not enough room to rotate'); } }, icon('rotate'), 'Rotate'));
   }
   acts.append(h('button', { class: 'btn sm', onclick: () => resizeObjDialog(ob) }, 'Resize'));
-  acts.append(h('button', { class: 'btn sm danger', onclick: () => { delObj(ob); commitTx('Delete'); closeInspector(); } }, icon('trash'), 'Delete'));
-  box.append(acts);
+  acts.append(h('button', { class: 'btn sm danger', onclick: () => deleteObjNow(ob) }, icon('trash'), 'Delete'));
   const used = USED_IN.get(it.i);
   if (used && used.length) box.append(h('div', { class: 'note', style: 'margin-top:8px' }, 'Used by ' + used.length + ' habitat' + (used.length > 1 ? 's' : '') + ': ' + used.slice(0, 6).map(id => HAB_BY_ID.get(id).n).join(', ') + (used.length > 6 ? '…' : '')));
   requestDraw();
@@ -1844,14 +1866,83 @@ function showRegionInspector() {
   const r = selection.rect; let objs = 0, ground = 0; const seen = new Set();
   for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; if (plan.ground[k]) ground++; const o = plan.occ[k]; if (o && !seen.has(o)) { seen.add(o); objs++; } }
   const box = inspectorShell('Area ' + r.w + ' × ' + r.h, null, objs + ' items · ' + ground + ' ground tiles');
-  const acts = h('div', { class: 'card acts', style: 'border:0;padding:0;margin:8px 0 0' });
+  const acts = box.acts;
   acts.append(h('button', { class: 'btn sm', onclick: () => { copyRegion(r); } }, icon('copy'), 'Copy'));
   acts.append(h('button', { class: 'btn sm', onclick: () => { createZone(r); } }, icon('zone'), 'Make zone'));
   acts.append(h('button', { class: 'btn sm danger', onclick: () => { clearRegion(r, true); } }, icon('trash'), 'Clear items'));
   acts.append(h('button', { class: 'btn sm danger', onclick: () => { clearRegion(r, false); } }, 'Clear all'));
-  box.append(acts);
 }
-function deleteSelection() { if (!selection) return; if (selection.obj) { delObj(selection.obj); commitTx('Delete'); } else if (selection.zone) { setZones(plan.zones.filter(z => z !== selection.zone)); commitTx('Delete zone'); } else if (selection.rect) clearRegion(selection.rect, true); selection = null; closeInspector(); }
+function deleteSelection() { if (!selection) return; if (selection.obj) { deleteObjNow(selection.obj); return; } if (selection.zone) { confirmDeleteZone(selection.zone); return; } if (selection.house) { const hs = houseById.get(selection.house); if (hs) confirmDeleteHouse(hs); return; } if (selection.rect) clearRegion(selection.rect, true); selection = null; closeInspector(); }
+/* ---------- deleting homes and habitats in one go (always undoable) ---------- */
+function choiceModal(title, intro, choices) {
+  modal(title, (box) => {
+    for (const p of [].concat(intro)) if (p) box.append(typeof p === 'string' ? h('p', { class: 'sub' }, p) : p);
+    const c = h('div', { class: 'choice' });
+    for (const ch of choices) c.append(h('button', { class: 'btn' + (ch.danger ? ' danger' : ''), onclick: () => { closeModal(); ch.fn(); } }, h('span', null, ch.label), ch.note ? h('span', { class: 'note' }, ch.note) : ''));
+    box.append(c);
+  });
+  const b = $('#modalBox .acts .btn'); if (b) b.textContent = 'Cancel';
+}
+const listNames = (a) => a.length < 3 ? a.join(' and ') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+function moveOut(names) { if (!names.length) return; const set = new Set(names); setRes((plan.res || []).filter(r => !set.has(r.p))); }
+function deleteObjNow(ob) {
+  if (!plan.objs.has(ob.id)) return; const it = ITEMS[ob.i], who = it.cap ? residentsOf(kitHome(ob)).map(r => r.p) : [];
+  delObj(ob); moveOut(who); commitTx('Delete'); selection = null; closeInspector();
+  undoToast((it.cap ? it.n.replace(/ kit$/, '') : it.n) + ' deleted' + (who.length ? '. ' + listNames(who) + ' moved out' : ''));
+}
+function houseParts(hs) { // wall and door pieces round a house (corners too), split into its own and those a neighbouring house also needs; plus what stands inside
+  const Wd = plan.w, Hd = plan.h, idx = autoHouses.indexOf(hs), O = hs.area.outer, own = new Set(), shared = new Set(), inside = new Set();
+  const encloses = (o) => o.x <= O.x && o.y <= O.y && o.x + o.w >= O.x + O.w && o.y + o.h >= O.y + O.h; // a bigger walled space this house stands in
+  const neededNextDoor = (ob) => { for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) { if (!inB(plan, x, y)) continue; const j = cellHouse[y * Wd + x]; if (j >= 0 && j !== idx && !encloses(autoHouses[j])) return true; } return false; };
+  for (const k of hs.cells) {
+    if (cellHouse[k] !== idx) continue; const x = k % Wd, y = (k / Wd) | 0, oid = plan.occ[k]; if (oid) inside.add(plan.objs.get(oid));
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= Wd || yy >= Hd) continue; const n = yy * Wd + xx; if (cellHouse[n] === idx) continue; const o = plan.occ[n]; if (!o) continue; const ob = plan.objs.get(o); if (!ob || own.has(ob) || shared.has(ob)) continue; const it = ITEMS[ob.i]; if (!isWall(it) && !isDoor(it)) continue; (neededNextDoor(ob) ? shared : own).add(ob); }
+  }
+  return { walls: [...own], shared: [...shared], inside: [...inside] };
+}
+function houseResidents(hs, withInside) { const out = hs.enclosure ? [] : residentsOf(houseHome(hs)).map(r => r.p); if (withInside) for (const ob of hs.kitHomes) for (const r of residentsOf(kitHome(ob))) out.push(r.p); return out; }
+function confirmDeleteHouse(hs) {
+  const p = houseParts(hs), n = p.inside.length, kits = p.inside.filter(ob => ITEMS[ob.i].cap).length, who = houseResidents(hs, false), whoIn = houseResidents(hs, true).slice(who.length);
+  const what = hs.enclosure ? 'enclosure' : 'house';
+  if (!n) { deleteHouseNow(hs, false); return; }
+  const intro = [];
+  if (who.length) intro.push(listNames(who) + (who.length > 1 ? ' live' : ' lives') + ' here and will move out.');
+  if (p.shared.length) intro.push(p.shared.length + ' wall piece' + (p.shared.length > 1 ? 's are' : ' is') + ' shared with the house next door, so ' + (p.shared.length > 1 ? 'they stay' : 'it stays') + '.');
+  intro.push('You can undo this.');
+  const all = { label: 'Walls, doors and everything inside', note: n + ' item' + (n > 1 ? 's' : '') + ' inside' + (kits ? ', including ' + kits + ' kit home' + (kits > 1 ? 's' : '') + (whoIn.length ? ' (' + listNames(whoIn) + ' move out too)' : '') : ''), danger: true, fn: () => deleteHouseNow(hs, true) };
+  const walls = { label: 'Only the walls and doors', note: kits ? 'Furniture and kit homes stay where they are' : 'The furniture stays where it is', fn: () => deleteHouseNow(hs, false) };
+  choiceModal('Delete this ' + what + '?', intro, hs.enclosure ? [walls, all] : [all, walls]);
+}
+function deleteHouseNow(hs, all) {
+  const cur = houseById.get(hs.id); if (!cur) return; const p = houseParts(cur), who = houseResidents(cur, all);
+  for (const ob of p.walls) delObj(ob); if (all) for (const ob of p.inside) delObj(ob);
+  moveOut(who); commitTx(cur.enclosure ? 'Delete enclosure' : 'Delete house'); selection = null; closeInspector();
+  undoToast((cur.enclosure ? 'Enclosure' : 'House') + ' deleted' + (who.length ? '. ' + listNames(who) + ' moved out' : ''));
+}
+function zoneContents(z) { // items wholly inside a zone; homes (kit homes, and houses you built that are finished or lived in) are left alone
+  const prot = new Set();
+  for (const hs of autoHouses) { if (hs.enclosure || !(hs.ok || residentsOf(houseHome(hs)).length)) continue; const p = houseParts(hs); for (const ob of [...p.walls, ...p.shared]) for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) prot.add(y * plan.w + x); for (const k of hs.cells) prot.add(k); }
+  const out = [], kept = [];
+  for (const ob of plan.objs.values()) {
+    if (ob.x < z.x || ob.y < z.y || ob.x + ob.w > z.x + z.w || ob.y + ob.h > z.y + z.h) continue;
+    let keep = !!ITEMS[ob.i].cap; for (let y = ob.y; y < ob.y + ob.h && !keep; y++) for (let x = ob.x; x < ob.x + ob.w; x++) if (prot.has(y * plan.w + x)) { keep = true; break; }
+    (keep ? kept : out).push(ob);
+  }
+  return { out, kept };
+}
+function confirmDeleteZone(z) {
+  const c = z.kind === 'label' ? { out: [], kept: [] } : zoneContents(z), n = c.out.length, what = z.kind === 'habitat' ? 'habitat' : 'zone';
+  if (!n) { deleteZoneNow(z, false); return; }
+  choiceModal('Delete ' + (z.name ? '"' + z.name + '"' : 'this ' + what) + '?', [c.kept.length ? 'Homes inside it stay where they are.' : '', 'You can undo this.'], [
+    { label: 'The ' + what + ' and its items', note: n + ' item' + (n > 1 ? 's' : '') + ' inside. Painted ground and heights stay.', danger: true, fn: () => deleteZoneNow(z, true) },
+    { label: 'Only the ' + what + ' outline', note: 'The items stay on the map', fn: () => deleteZoneNow(z, false) }]);
+}
+function deleteZoneNow(z, withItems) {
+  const cur = plan.zones.find(q => q.id === z.id); if (!cur) return; let n = 0;
+  if (withItems) for (const ob of zoneContents(cur).out) { delObj(ob); n++; }
+  setZones(plan.zones.filter(q => q.id !== cur.id)); commitTx(cur.kind === 'habitat' ? 'Delete habitat' : 'Delete zone'); selection = null; closeInspector();
+  undoToast((cur.name || 'Zone') + ' deleted' + (n ? ' with ' + n + ' item' + (n > 1 ? 's' : '') : ''));
+}
 function clearRegion(r, itemsOnly) { const seen = new Set(); for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; const o = plan.occ[k]; if (o && !seen.has(o)) { seen.add(o); delObj(plan.objs.get(o)); } if (!itemsOnly) { setGround(k, 0); setElev(k, 0); } } commitTx('Clear area'); selection = null; closeInspector(); }
 function copyRegion(r) {
   const c = { w: r.w, h: r.h, g: [], e: [], o: [] }; const seen = new Set();
@@ -1879,10 +1970,13 @@ function selectHouse(hs) {
   selection = { house: hs.id };
   if (hs.enclosure) {
     const box = inspectorShell('Walled enclosure', null, 'Inside ' + hs.w + '×' + hs.h + ' · ' + hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : '') + ' inside');
+    box.acts.append(h('button', { class: 'btn sm danger', onclick: () => confirmDeleteHouse(hs) }, icon('trash'), 'Delete enclosure'));
     box.append(h('p', { class: 'note', style: 'margin:4px 0' }, 'Too big to be a house itself (a house is at most 9×10 inside), but kit homes can sit inside it. Each one stays a home of its own, with its own residents and interior.'));
     box.append(kitHomesList(hs)); requestDraw(); return;
   }
   const box = inspectorShell('House you built', null, 'Inside ' + hs.w + '×' + hs.h + ' · ' + hs.interior + ' floor tiles');
+  { const hm = houseHome(hs), n = residentsOf(hm).length; if (n < hm.cap) box.acts.append(h('button', { class: 'btn sm primary', onclick: () => residentPicker(hm) }, icon('plus'), 'Add resident')); if (n) box.acts.append(h('button', { class: 'btn sm', onclick: () => decorModal(hm) }, icon('leaf'), 'Decorate for them')); }
+  box.acts.append(h('button', { class: 'btn sm danger', onclick: () => confirmDeleteHouse(hs) }, icon('trash'), 'Delete house'));
   const ck = (ok, t) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss') }, ok ? '✓' : '✗', t);
   box.append(h('div', { class: 'reqs' }, ck(true, 'Enclosed by walls'), ck(hs.clearDoors > 0, !hs.doors.size ? 'Add a door or gate in the wall' : hs.clearDoors ? 'Door or gate, way in clear' : 'Clear the block outside the door'), ck(hs.sizeOk, 'Inside 2×2 to 9×10'), ck(hs.furn >= 3, hs.furn + '/3 kinds of furniture inside')));
   box.append(h('div', null, hs.ok ? h('span', { class: 'chip good' }, h('span', { class: 'dot' }), 'Habitable · up to 4 Pokémon') : h('span', { class: 'chip warn' }, h('span', { class: 'dot' }), 'Not a home yet: ' + houseIssues(hs).join(', '))));
@@ -1919,9 +2013,8 @@ function selectZone(z) {
     box.append(h('div', { class: 'note' }, 'A finished house holds up to 4 Pokémon. Draw the zone over the walls you built.'));
   }
   if (r.area) { const ct = areaContents(r.area); box.append(h('div', { class: 'arealine' }, icon('area'), h('div', null, areaSummary(r.area), h('div', { class: 'note', style: 'margin-top:4px' }, ct.n ? ct.n + ' other item' + (ct.n > 1 ? 's' : '') + ' inside: ' + [...ct.out].map(([c, n]) => n + ' ' + c).join(', ') + '. Place a Pokémon\'s favourite things here to raise its comfort.' : 'Nothing else inside yet. Favourite things placed here raise comfort; anything outside has no effect.')))); }
-  box.append(h('div', { class: 'card acts', style: 'border:0;padding:0;margin:8px 0 0' },
-    z.kind === 'habitat' && (z.target || (r.near && !r.ok)) ? h('button', { class: 'btn sm', onclick: () => fillZoneMissing(z) }, icon('stamp'), 'Add missing items') : '',
-    h('button', { class: 'btn sm danger', onclick: () => { setZones(plan.zones.filter(q => q.id !== z.id)); commitTx('Delete zone'); closeInspector(); } }, icon('trash'), 'Delete zone')));
+  box.acts.append(z.kind === 'habitat' && (z.target || (r.near && !r.ok)) ? h('button', { class: 'btn sm', onclick: () => fillZoneMissing(z) }, icon('stamp'), 'Add missing items') : '',
+    h('button', { class: 'btn sm danger', onclick: () => confirmDeleteZone(z) }, icon('trash'), z.kind === 'habitat' ? 'Delete habitat' : 'Delete zone'));
   requestDraw();
 }
 
@@ -2110,11 +2203,11 @@ function renderHabitats() {
   const showHs = (hs) => { const s2 = cellSize(); view.px = W / 2 - (hs.x + hs.w / 2) * s2; view.py = H * (innerWidth < 900 ? 0.3 : 0.5) - (hs.y + hs.h / 2) * s2; if (innerWidth < 900) setSheet('peek'); selectHouse(hs); };
   for (const hs of autoHouses) {
     const ct = areaContents(hs.area);
-    if (hs.enclosure) { root.append(h('div', { class: 'card zone-none' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Enclosure at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip', style: 'margin-left:auto' }, hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : ''))), h('div', { class: 'note' }, 'Too big to be a house itself; the kit homes inside are homes of their own.'), h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => showHs(hs) }, 'Show on map')))); continue; }
+    if (hs.enclosure) { root.append(h('div', { class: 'card zone-none' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Enclosure at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip', style: 'margin-left:auto' }, hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : ''))), h('div', { class: 'note' }, 'Too big to be a house itself; the kit homes inside are homes of their own.'), h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => showHs(hs) }, 'Show on map'), h('button', { class: 'btn sm danger', style: 'margin-left:auto', onclick: () => confirmDeleteHouse(hs) }, icon('trash'), 'Delete')))); continue; }
     root.append(h('div', { class: 'card ' + (hs.ok ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'House at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip ' + (hs.ok ? 'good' : 'warn'), style: 'margin-left:auto' }, h('span', { class: 'dot' }), hs.ok ? 'Habitable' : 'Unfinished')),
       h('div', { class: 'note' }, (hs.ok ? 'Up to 4 Pokémon' : houseIssues(hs).join(' · ')) + ' · active area ' + hs.area.rect.w + '×' + hs.area.rect.h + ' · ' + floorItems(hs) + ' item' + (floorItems(hs) === 1 ? '' : 's') + ' inside the walls, ' + ct.n + ' in the active area'),
       h('div', { class: 'mons', style: 'margin-top:4px' }, (() => { const l = residentsOf(houseHome(hs)); return l.length ? 'Lives here: ' + l.map(r => r.p).join(', ') : 'Nobody lives here yet'; })()),
-      h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => showHs(hs) }, 'Show on map'))));
+      h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => showHs(hs) }, 'Show on map'), h('button', { class: 'btn sm danger', style: 'margin-left:auto', onclick: () => confirmDeleteHouse(hs) }, icon('trash'), 'Delete'))));
   }
   const kitObs = [...plan.objs.values()].filter(ob => ITEMS[ob.i].cap);
   if (kitObs.length) {
@@ -2125,7 +2218,7 @@ function renderHabitats() {
       root.append(h('div', { class: 'card ' + (n >= 3 ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, swatchEl(it), h('span', { class: 'title' }, it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y), h('span', { class: 'note', style: 'margin-left:auto' }, l.length + '/' + it.cap)),
         h('div', { class: 'note' }, n + ' furniture inside' + (n < 3 ? ' (needs 3)' : '') + (cv.total ? ' · ' + cv.have + '/' + cv.total + ' favourites' : '') + (hm.floors > 1 ? ' · 2 floors' : '') + (host ? ' · inside ' + (host.enclosure ? 'an enclosure' : 'a house you built') : '')),
         h('div', { class: 'mons', style: 'margin-top:4px' }, l.length ? 'Lives here: ' + l.map(r => r.p + (hm.floors > 1 ? ' (' + (r.f ? '2F' : '1F') + ')' : '')).join(', ') : 'Nobody lives here yet'),
-        h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => interiorEditor(ob) }, icon('leaf'), 'Decorate inside'), h('button', { class: 'btn sm', onclick: () => { const s2 = cellSize(); view.px = W / 2 - (ob.x + ob.w / 2) * s2; view.py = H * (innerWidth < 900 ? 0.3 : 0.5) - (ob.y + ob.h / 2) * s2; if (innerWidth < 900) setSheet('peek'); selection = { obj: ob }; showObjInspector(ob); } }, 'Show on map'))));
+        h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => interiorEditor(ob) }, icon('leaf'), 'Decorate inside'), h('button', { class: 'btn sm', onclick: () => { const s2 = cellSize(); view.px = W / 2 - (ob.x + ob.w / 2) * s2; view.py = H * (innerWidth < 900 ? 0.3 : 0.5) - (ob.y + ob.h / 2) * s2; if (innerWidth < 900) setSheet('peek'); selection = { obj: ob }; showObjInspector(ob); } }, 'Show on map'), h('button', { class: 'btn sm danger', style: 'margin-left:auto', onclick: () => deleteObjNow(ob) }, icon('trash'), 'Delete'))));
     }
   }
   const zs = plan.zones.filter(z => z.kind !== 'label');
@@ -2147,7 +2240,7 @@ function renderHabitats() {
     if (rows) card.append(h('div', { class: 'reqs' }, rows.map(rw => h('span', { class: 'req ' + (rw.have >= rw.q ? 'ok' : 'miss') }, h('b', null, Math.min(rw.have, rw.q) + '/' + rw.q), rw.tok))));
     if (r.ok && r.kind === 'habitat') card.append(h('div', { class: 'mons' }, 'Attracts ' + r.best.hb.p.join(', ')));
     if (r.area) { const ct = areaContents(r.area); card.append(h('div', { class: 'note', style: 'margin-top:4px' }, (r.area.kind === 'house' ? 'Active area ' + r.area.cells.size + ' floor tiles' : 'Active area ' + r.area.rect.w + '×' + r.area.rect.h) + ' · ' + ct.n + ' other item' + (ct.n === 1 ? '' : 's') + ' inside')); }
-    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => { focusZone(z); } }, 'Show on map')));
+    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => { focusZone(z); } }, 'Show on map'), h('button', { class: 'btn sm danger', style: 'margin-left:auto', onclick: () => confirmDeleteZone(z) }, icon('trash'), 'Delete')));
     root.append(card);
   }
   // dex
