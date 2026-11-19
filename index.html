@@ -539,6 +539,7 @@ function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [
 function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.g.has(k)) tx.g.set(k, [plan.ground[k], v]); else tx.g.get(k)[1] = v; plan.ground[k] = v; }
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
 /* item sizes: the data has most furniture as 1×1, so a plan can set its own footprint per item type (plan.isz) */
+const sizeGuessed = (it) => !!it.sg && !(plan && plan.isz && plan.isz[it.n]);
 function footOf(it) { const s = plan && plan.isz && plan.isz[it.n]; return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 function addObj(i, x, y, w, h) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
@@ -950,7 +951,7 @@ function iedFoot() {
   const favTxt = (it) => (it.fv || []).map(f => FAVS[f]).join(' · ');
   if (IED.picked) { const it = ITEMS[IED.picked[0]]; el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, 'Moving ' + it.n), ' · click an empty tile' + (ki.fl > 1 ? ' on either floor' : '') + '. Esc puts it back.')); return; }
   if (IED.sel) { const k = iedAt(IED.sel[0], IED.sel[1]); if (k >= 0) { const a = iedFloorData().o[k], it = ITEMS[a[0]]; el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), h('span', { class: 'note' }, ' · ' + aw(a) + '×' + ah(a)), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), aw(a) !== ah(a) ? h('button', { class: 'btn sm', title: 'Turn it (R)', onclick: iedRotateSel }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Size'), h('button', { class: 'btn sm', onclick: () => iedPick(it) }, icon('brush'), 'Place more'), h('button', { class: 'btn sm danger', onclick: () => { iedTake(IED.sel[0], IED.sel[1]); IED.sel = null; iedEnd(); } }, icon('trash'), 'Remove')); return; } IED.sel = null; }
-  if (IED.tool === 'place' && IED.item) { const it = IED.item, [w, hh] = iedPlaceSize(it.i); el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), h('span', { class: 'pill', style: 'box-shadow:none' }, h('span', { class: 'lbl' }, 'Size'), w + '×' + hh, w !== hh ? h('button', { class: 'btn sm', title: 'Turn it (R)', onclick: () => { IED.rot = !IED.rot; iedFoot(); iedDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change')), h('span', { class: 'note tip' }, 'Click or drag to place · right-click removes')); return; }
+  if (IED.tool === 'place' && IED.item) { const it = IED.item, [w, hh] = iedPlaceSize(it.i); el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), h('span', { class: 'pill', style: 'box-shadow:none' }, h('span', { class: 'lbl' }, 'Size'), w + '×' + hh + (sizeGuessed(it) ? ' (guess)' : ''), w !== hh ? h('button', { class: 'btn sm', title: 'Turn it (R)', onclick: () => { IED.rot = !IED.rot; iedFoot(); iedDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change')), h('span', { class: 'note tip' }, 'Click or drag to place · right-click removes')); return; }
   el.append(h('span', { class: 'note' }, IED.tool === 'erase' ? 'Click or drag over items to remove them.' : 'Click an item to pick it up, then click where it goes' + (ki.fl > 1 ? ' (you can switch floors while holding it)' : '') + '.'));
 }
 /* ---- side: residents, favourites, suggestions ---- */
@@ -1721,7 +1722,7 @@ function renderOptbar() {
       const p = h('span', { class: 'pill' }, swatchEl(it), h('b', null, it.n));
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
-      if (it.L !== 'g') { const ft = footOf(it); ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Size'), (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]), ft[0] !== ft[1] ? h('button', { class: 'btn sm', title: 'Rotate (Q)', onclick: () => { rotated = !rotated; renderOptbar(); requestDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change'))); }
+      if (it.L !== 'g') { const ft = footOf(it); ob.append(h('span', { class: 'pill', title: sizeGuessed(it) ? 'Guessed size: tap Change if it differs in your game' : null }, h('span', { class: 'lbl' }, 'Size'), (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? ' (guess)' : ''), ft[0] !== ft[1] ? h('button', { class: 'btn sm', title: 'Rotate (Q)', onclick: () => { rotated = !rotated; renderOptbar(); requestDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change'))); }
       if (it.L !== 'g' && multi(it)) { }
       else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Fill'), segmented([['solid', 'Solid'], ['outline', 'Outline (walls)']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode')));
       else if (tool === 'place') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
@@ -1765,7 +1766,7 @@ function inspectorShell(title, sw, sub) {
 function recipeChips(it) { const w = h('div', { class: 'reqs' }); if (it.m && it.m.length) for (const [m, q] of it.m) w.append(h('span', { class: 'req' }, h('b', null, q + '×'), m)); else w.append(h('span', { class: 'note' }, it.c === 'Kits' ? 'Bought as a kit; materials not listed.' : 'Not crafted: gather, plant or find it.')); return w; }
 function showObjInspector(ob) {
   const it = ITEMS[ob.i];
-  const box = inspectorShell(it.n, swatchEl(it), it.c + (it.sub ? ' · ' + it.sub : '') + (ob.w > 1 || ob.h > 1 ? ' · ' + ob.w + '×' + ob.h : ''));
+  const box = inspectorShell(it.n, swatchEl(it), it.c + (it.sub ? ' · ' + it.sub : '') + ' · ' + ob.w + '×' + ob.h + (sizeGuessed(it) ? ' (guessed size)' : ''));
   box.append(recipeChips(it));
   if (it.cap) box.append(h('div', { class: 'note' }, 'Houses up to ' + it.cap + ' Pokémon' + (it.pf ? ', ' + it.pf + ' per floor' : '') + (it.sm ? ' (small or medium only)' : '') + '.' + (it.wk ? ' Builders: ' + it.wk + '.' : '')));
   else if (it.c === 'Kits' && it.wk) box.append(h('div', { class: 'note' }, 'Builders: ' + it.wk + '.'));
@@ -1804,7 +1805,7 @@ function showObjInspector(ob) {
 function resizeObjDialog(ob) {
   const it = ITEMS[ob.i], kit = it.c === 'Kits', same = [...plan.objs.values()].filter(o => o.i === ob.i).length;
   modal('Resize ' + it.n, (box) => {
-    box.append(h('p', { class: 'sub' }, kit ? 'Set the footprint in tiles. Kit footprints vary in the game, so match what you see.' : 'Set how many tiles it covers, as it looks in your game. The game data lists most furniture as one tile.'));
+    box.append(h('p', { class: 'sub' }, kit ? 'Set the footprint in tiles. Kit footprints vary in the game, so match what you see.' : (sizeGuessed(it) ? 'This size is a guess. ' : '') + 'Set how many tiles it covers, as it looks in your game.'));
     box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rsW' }, 'Width'), h('input', { id: 'rsW', type: 'number', min: 1, max: 30, value: ob.w })), h('div', { class: 'field' }, h('label', { for: 'rsH' }, 'Depth'), h('input', { id: 'rsH', type: 'number', min: 1, max: 30, value: ob.h }))));
     box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'rsAll', checked: kit ? null : '' }), 'Use this size for every ' + it.n + (same > 1 ? ' (' + same + ' on the map) and new ones' : ', including new ones')));
   }, 'Resize', () => {
@@ -1831,7 +1832,7 @@ function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every it
 function itemSizeDialog(it) {
   const ft = footOf(it), placed = [...plan.objs.values()].filter(o => o.i === it.i).length;
   modal('Size of ' + it.n, (box) => {
-    box.append(h('p', { class: 'sub' }, 'How many tiles it covers in your game. Applies to every ' + it.n + ' in this plan, on the map and inside kit houses.'));
+    box.append(h('p', { class: 'sub' }, (sizeGuessed(it) ? 'This size is a guess. ' : '') + 'How many tiles it covers in your game. Applies to every ' + it.n + ' in this plan, on the map and inside kit houses.'));
     box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'isW' }, 'Width'), h('input', { id: 'isW', type: 'number', min: 1, max: 30, value: ft[0] })), h('div', { class: 'field' }, h('label', { for: 'isH' }, 'Depth'), h('input', { id: 'isH', type: 'number', min: 1, max: 30, value: ft[1] }))));
     if (placed) box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'isAll', checked: '' }), 'Also resize the ' + placed + ' already on the map'));
   }, 'Save size', () => { setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), placed ? $('#isAll').checked : false); });
@@ -2418,17 +2419,22 @@ function makeExample() {
   for (let x = 42; x <= 48; x++) for (let y = 12; y <= 17; y++) if (x === 42 || x === 48 || y === 12 || y === 17) addObjRaw(p, x === 45 && y === 17 ? 'Rustic door' : 'Wooden wall', x, y);
   for (let x = 43; x <= 47; x++) for (let y = 13; y <= 16; y++) p.ground[y * p.w + x] = G('Wooden flooring');
   addObjRaw(p, 'Straw bed', 43, 13); addObjRaw(p, 'Log table', 46, 14); addObjRaw(p, 'Log chair', 47, 14); addObjRaw(p, 'Mushroom lamp', 43, 16);
-  addObjRaw(p, 'Workbench', 36, 15); addObjRaw(p, 'Storage Box', 37, 15); addObjRaw(p, 'Smelting furnace', 38, 15); addObjRaw(p, 'Town streetlight', 33, 18);
+  addObjRaw(p, 'Workbench', 35, 15); addObjRaw(p, 'Storage Box', 37, 15); addObjRaw(p, 'Smelting furnace', 38, 15); addObjRaw(p, 'Town streetlight', 33, 18);
   for (let x = 44; x < 52; x += 2) addObjRaw(p, 'Leppa tree', x, 33);
   undoStack.length = 0; redoStack.length = 0; tx = null; plan = prev; p.updated = Date.now();
   return p;
 }
-function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it || !fits(p, x, y, it.w, it.h)) return; const ob = { id: p.nextId++, i: it.i, x, y, w: it.w, h: it.h }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
+function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
 /* ============================== boot ============================== */
 async function boot() {
   readTheme(); resize(); requestAnimationFrame(loop); fsInit();
-  if ('serviceWorker' in navigator && document.querySelector('link[rel="manifest"]') && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { });
+  if ('serviceWorker' in navigator && document.querySelector('link[rel="manifest"]') && /^https?:$/.test(location.protocol)) {
+    const hadController = !!navigator.serviceWorker.controller; let pending = false;
+    navigator.serviceWorker.register('sw.js').then(r => { r.update().catch(() => { }); }).catch(() => { });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; toast('Planner updated. The new version opens next time you come back to it.', 5000); });
+    document.addEventListener('visibilitychange', () => { if (pending && document.visibilityState === 'visible') { try { persistNow(); } catch (e) { } location.reload(); } });
+  }
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
   new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   new ResizeObserver(() => { resize(); }).observe($('#mapwrap'));
