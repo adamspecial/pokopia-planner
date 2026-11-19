@@ -506,11 +506,11 @@ function serialize(p) {
   const o = [], ints = {}; for (const ob of p.objs.values()) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].map(v => v.toString(36)).join('.')); }
   return { v: 1, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: rle(g), e: rle(p.elev), o: o.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
-    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), pool: JSON.stringify(p.pool || []), updated: p.updated || Date.now() };
+    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), updated: p.updated || Date.now() };
 }
 function deserialize(s) {
   const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= 256 && h <= 256)) throw new Error('Bad plan size');
-  const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; }
+  const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; } try { p.isz = s.isz ? JSON.parse(s.isz) : {}; } catch (e) { p.isz = {}; }
   const map = (s.dict || []).map(n => BY_NAME.get(n));
   const g = unrle(s.g, w * h, Uint16Array);
   for (let k = 0; k < g.length; k++) { const it = g[k] ? map[g[k] - 1] : null; p.ground[k] = it ? it.i + 1 : 0; }
@@ -526,8 +526,8 @@ function deserialize(s) {
 }
 /* kit interiors: ob.int = { w, h, fl (overrides, optional), f: [ { o: [[itemIdx, x, y], ...], wp: wallpaper idx, fc: floor covering idx } per floor ] } */
 function intHasData(I) { return !!(I && (I.w || I.h || I.fl || (I.f || []).some(f => f && (f.o.length || f.wp != null || f.fc != null)))); }
-function intOut(I) { const nm = (i) => i != null && ITEMS[i] ? ITEMS[i].n : undefined; return { w: I.w || undefined, h: I.h || undefined, fl: I.fl || undefined, f: (I.f || []).map(f => f ? { o: f.o.map(([i, x, y]) => [ITEMS[i].n, x, y]), wp: nm(f.wp), fc: nm(f.fc) } : { o: [] }) }; }
-function intIn(J) { const ix = (n) => { const it = n && BY_NAME.get(n); return it ? it.i : null; }; return { w: J.w || 0, h: J.h || 0, fl: J.fl || 0, f: (J.f || []).map(f => ({ o: (f.o || []).map(([n, x, y]) => { const it = BY_NAME.get(n); return it ? [it.i, x | 0, y | 0] : null; }).filter(Boolean), wp: ix(f.wp), fc: ix(f.fc) })) }; }
+function intOut(I) { const nm = (i) => i != null && ITEMS[i] ? ITEMS[i].n : undefined; return { w: I.w || undefined, h: I.h || undefined, fl: I.fl || undefined, f: (I.f || []).map(f => f ? { o: f.o.map(([i, x, y, w, hh]) => w > 1 || hh > 1 ? [ITEMS[i].n, x, y, w || 1, hh || 1] : [ITEMS[i].n, x, y]), wp: nm(f.wp), fc: nm(f.fc) } : { o: [] }) }; }
+function intIn(J) { const ix = (n) => { const it = n && BY_NAME.get(n); return it ? it.i : null; }; return { w: J.w || 0, h: J.h || 0, fl: J.fl || 0, f: (J.f || []).map(f => ({ o: (f.o || []).map(([n, x, y, w, hh]) => { const it = BY_NAME.get(n); return it ? (w > 1 || hh > 1 ? [it.i, x | 0, y | 0, w | 0, hh | 0] : [it.i, x | 0, y | 0]) : null; }).filter(Boolean), wp: ix(f.wp), fc: ix(f.fc) })) }; }
 function cloneInt(I) { return I ? { w: I.w || 0, h: I.h || 0, fl: I.fl || 0, f: (I.f || []).map(f => f ? { o: f.o.map(a => a.slice()), wp: f.wp, fc: f.fc } : { o: [], wp: null, fc: null }) } : { w: 0, h: 0, fl: 0, f: [] }; }
 function inB(p, x, y) { return x >= 0 && y >= 0 && x < p.w && y < p.h; }
 function fits(p, x, y, w, h, ignoreId) { if (x < 0 || y < 0 || x + w > p.w || y + h > p.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = p.occ[yy * p.w + xx]; if (o && o !== ignoreId) return false; } return true; }
@@ -538,7 +538,10 @@ let tx = null; const undoStack = [], redoStack = [];
 function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [], z: null, in: null }; }
 function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.g.has(k)) tx.g.set(k, [plan.ground[k], v]); else tx.g.get(k)[1] = v; plan.ground[k] = v; }
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
-function addObj(i, x, y, w, h) { const it = ITEMS[i]; w = w || it.w; h = h || it.h; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
+/* item sizes: the data has most furniture as 1×1, so a plan can set its own footprint per item type (plan.isz) */
+function footOf(it) { const s = plan && plan.isz && plan.isz[it.n]; return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
+const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
+function addObj(i, x, y, w, h) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
@@ -806,7 +809,7 @@ function decorModal(home) {
   });
 }
 /* ============================== inside a kit house: decorating popup ============================== */
-const IED = { ob: null, floor: 0, tool: 'place', item: null, picked: null, hover: null, stroke: null, drag: null, sel: null, filt: null, q: '', cat: 'Furniture', cs: 32, ox: 0, oy: 0 };
+const IED = { rot: false, ob: null, floor: 0, tool: 'place', item: null, picked: null, hover: null, stroke: null, drag: null, sel: null, filt: null, q: '', cat: 'Furniture', cs: 32, ox: 0, oy: 0 };
 const indoorOK = (it) => !!it && it.L === 'o' && it.c !== 'Kits';
 const decorOK = (it) => indoorOK(it) && !isWall(it) && !isDoor(it) && it.c !== 'Buildings' && it.c !== 'Blocks' && it.c !== 'Nature';
 function iedHome() { return kitHome(IED.ob); }
@@ -845,9 +848,14 @@ function iedEnd() {
   beginTx(); tx.in = [IED.ob, st.before, IED.ob.int]; commitTx('Decorate inside'); iedRefresh();
 }
 function iedFloorData(f = IED.floor) { return IED.ob.int && IED.ob.int.f && IED.ob.int.f[f] ? IED.ob.int.f[f] : intFloor(IED.ob, f); }
-function iedAt(x, y) { return iedFloorData().o.findIndex(a => a[1] === x && a[2] === y); }
-function iedPut(x, y, i) { iedBegin(); const F = IED.ob.int.f[IED.floor]; if (F.o.some(a => a[1] === x && a[2] === y)) return false; F.o.push([i, x, y]); IED.stroke.changed = true; return true; }
-function iedTake(x, y) { iedBegin(); const F = IED.ob.int.f[IED.floor]; const k = F.o.findIndex(a => a[1] === x && a[2] === y); if (k < 0) return null; const [a] = F.o.splice(k, 1); IED.stroke.changed = true; return a; }
+const aw = (a) => a[3] || 1, ah = (a) => a[4] || 1;
+const covers = (a, x, y) => x >= a[1] && y >= a[2] && x < a[1] + aw(a) && y < a[2] + ah(a);
+function iedAt(x, y) { return iedFloorData().o.findIndex(a => covers(a, x, y)); }
+function iedPlaceSize(i) { const f = footOf(ITEMS[i]); return IED.rot && f[0] !== f[1] ? [f[1], f[0]] : f; }
+function iedFree(x, y, w, hh, skip) { const ki = kitInfo(IED.ob); if (x < 0 || y < 0 || x + w > ki.w || y + hh > ki.h) return false; return !iedFloorData().o.some(a => a !== skip && a[1] < x + w && x < a[1] + aw(a) && a[2] < y + hh && y < a[2] + ah(a)); }
+function iedPut(x, y, i, size) { const [w, hh] = size || iedPlaceSize(i); if (!iedFree(x, y, w, hh)) return false; iedBegin(); const F = IED.ob.int.f[IED.floor]; F.o.push(w > 1 || hh > 1 ? [i, x, y, w, hh] : [i, x, y]); IED.stroke.changed = true; return true; }
+function iedTake(x, y) { iedBegin(); const F = IED.ob.int.f[IED.floor]; const k = F.o.findIndex(a => covers(a, x, y)); if (k < 0) return null; const [a] = F.o.splice(k, 1); IED.stroke.changed = true; return a; }
+function iedRotateSel() { const k = iedAt(IED.sel[0], IED.sel[1]); if (k < 0) return; const a = iedFloorData().o[k]; if (aw(a) === ah(a)) return; if (!iedFree(a[1], a[2], ah(a), aw(a), a)) { toast('Not enough room to turn it'); return; } iedBegin(); const b = IED.ob.int.f[IED.floor].o.find(q => q[1] === a[1] && q[2] === a[2]); const w = aw(b), hh = ah(b); b[3] = hh; b[4] = w; IED.stroke.changed = true; IED.sel = [b[1], b[2]]; iedEnd(); }
 function iedCancelPick() { const st = IED.stroke; IED.stroke = null; IED.picked = null; if (st) { if (st.before) IED.ob.int = st.before; else delete IED.ob.int; } iedFoot(); iedDraw(); }
 function iedSetTool(t) { if (IED.picked && t !== 'move') iedCancelPick(); IED.tool = t; IED.sel = null; iedHeader(); iedFoot(); iedDraw(); }
 function iedSetFloor(f) { if (IED.drag) return; IED.floor = f; IED.sel = null; IED.filt = null; iedHeader(); iedSide(); iedFoot(); iedDraw(); iedFind(); }
@@ -859,17 +867,17 @@ function iedDown(e) {
   const occ = iedAt(x, y) >= 0;
   if (e.button === 2 || IED.tool === 'erase') { if (IED.picked) return; if (occ) iedTake(x, y); IED.drag = 'erase'; IED.sel = null; iedDraw(); return; }
   if (IED.tool === 'move') {
-    if (IED.picked) { if (!occ) { iedPut(x, y, IED.picked[0]); IED.picked = null; iedEnd(); } else toast('That spot is taken'); }
+    if (IED.picked) { if (iedPut(x, y, IED.picked[0], [aw(IED.picked), ah(IED.picked)])) { IED.picked = null; iedEnd(); } else toast('Not enough room there'); }
     else if (occ) { IED.picked = iedTake(x, y); IED.sel = null; }
     iedFoot(); iedDraw(); return;
   }
-  if (occ) { IED.sel = [x, y]; iedFoot(); iedDraw(); return; }
+  if (occ) { const a = iedFloorData().o[iedAt(x, y)]; IED.sel = [a[1], a[2]]; iedFoot(); iedDraw(); return; }
   if (!IED.item) { toast('Pick an item on the right first'); return; }
-  IED.sel = null; iedPut(x, y, IED.item.i); IED.drag = 'place'; iedFoot(); iedDraw();
+  IED.sel = null; if (!iedPut(x, y, IED.item.i)) { const [w, hh] = iedPlaceSize(IED.item.i); toast('No room for its ' + w + '×' + hh + ' size here'); return; } IED.drag = 'place'; iedFoot(); iedDraw();
 }
 function iedMove(e) {
   const cell = iedCell(e); const moved = String(IED.hover) !== String(cell); IED.hover = cell;
-  if (IED.drag && cell) { const [x, y] = cell; if (IED.drag === 'erase') { if (iedAt(x, y) >= 0) iedTake(x, y); } else if (IED.drag === 'place' && iedAt(x, y) < 0) iedPut(x, y, IED.item.i); }
+  if (IED.drag && cell) { const [x, y] = cell; if (IED.drag === 'erase') { if (iedAt(x, y) >= 0) iedTake(x, y); } else if (IED.drag === 'place') iedPut(x, y, IED.item.i); }
   if (moved || IED.drag) iedDraw();
 }
 function iedUp() { if (IED.drag) { IED.drag = null; iedEnd(); } }
@@ -884,6 +892,7 @@ function iedKey(e) {
   if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); iedRedo(); return; }
   if (e.key === 'Escape') { if (IED.picked) iedCancelPick(); else if (IED.sel) { IED.sel = null; iedFoot(); iedDraw(); } else iedClose(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (k === 'r') { if (IED.sel) iedRotateSel(); else { IED.rot = !IED.rot; iedFoot(); iedDraw(); } return; }
   if (k === 'b' || k === 'p') iedSetTool('place'); else if (k === 'm' || k === 'v') iedSetTool('move'); else if (k === 'e') iedSetTool('erase');
   else if ((k === '1' || k === '2') && kitInfo(IED.ob).fl > 1) iedSetFloor(+k - 1);
   else if ((e.key === 'Delete' || e.key === 'Backspace') && IED.sel) { iedTake(IED.sel[0], IED.sel[1]); IED.sel = null; iedEnd(); }
@@ -908,13 +917,15 @@ function iedDraw() {
   c.font = `700 ${Math.max(9, Math.min(12, cs * 0.3))}px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
   if (IED.floor === 0) { const dx = Math.floor((ki.w - 1) / 2); c.fillStyle = '#6b4a2b'; c.fillRect(ox + dx * cs + 2, oy + ki.h * cs + 1, cs - 4, oy - 2); c.fillStyle = '#fff'; if (cs >= 22) c.fillText('Door', ox + dx * cs + cs / 2, oy + ki.h * cs + oy / 2 + 1); }
   else { c.fillStyle = 'rgba(255,255,255,.9)'; c.fillText('Upstairs', Wc / 2, oy / 2 + 1); }
-  for (const [i, x, y] of F.o) if (x < ki.w && y < ki.h && ITEMS[i]) drawItem(c, ITEMS[i], ox + x * cs, oy + y * cs, cs, 1, 1, cs >= 30);
-  if (IED.sel) { c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(ox + IED.sel[0] * cs + 1.5, oy + IED.sel[1] * cs + 1.5, cs - 3, cs - 3); }
+  for (const a of F.o) { const [i, x, y] = a; if (x < ki.w && y < ki.h && ITEMS[i]) drawItem(c, ITEMS[i], ox + x * cs, oy + y * cs, cs, Math.min(aw(a), ki.w - x), Math.min(ah(a), ki.h - y), cs >= 30); }
+  if (IED.sel) { const k = iedAt(IED.sel[0], IED.sel[1]); if (k >= 0) { const a = F.o[k]; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(ox + a[1] * cs + 1.5, oy + a[2] * cs + 1.5, aw(a) * cs - 3, ah(a) * cs - 3); } }
   if (IED.hover) {
-    const [hx, hy] = IED.hover, px = ox + hx * cs, py = oy + hy * cs, occ = iedAt(hx, hy) >= 0;
+    const [hx, hy] = IED.hover, px = ox + hx * cs, py = oy + hy * cs, k = iedAt(hx, hy), occ = k >= 0;
     const ghost = IED.tool === 'move' && IED.picked ? ITEMS[IED.picked[0]] : IED.tool === 'place' && !occ ? IED.item : null;
-    if (ghost && !occ) { c.globalAlpha = 0.55; drawItem(c, ghost, px, py, cs, 1, 1, false); c.globalAlpha = 1; }
-    c.strokeStyle = IED.tool === 'erase' ? theme.bad : (ghost && occ) ? theme.bad : theme.accent; c.lineWidth = 2; c.strokeRect(px + 1, py + 1, cs - 2, cs - 2);
+    const [gw, gh] = IED.tool === 'move' && IED.picked ? [aw(IED.picked), ah(IED.picked)] : ghost ? iedPlaceSize(ghost.i) : occ ? [aw(F.o[k]), ah(F.o[k])] : [1, 1];
+    const gx = occ && !ghost ? F.o[k][1] : hx, gy = occ && !ghost ? F.o[k][2] : hy, fitsHere = ghost ? iedFree(hx, hy, gw, gh, IED.picked) : true;
+    if (ghost && fitsHere) { c.globalAlpha = 0.55; drawItem(c, ghost, px, py, cs, gw, gh, false); c.globalAlpha = 1; }
+    c.strokeStyle = IED.tool === 'erase' ? theme.bad : (ghost && !fitsHere) ? theme.bad : theme.accent; c.lineWidth = 2; c.strokeRect(ox + gx * cs + 1, oy + gy * cs + 1, gw * cs - 2, gh * cs - 2);
   }
 }
 /* ---- header: floors, tools, size ---- */
@@ -938,8 +949,8 @@ function iedFoot() {
   const el = $('#iedFoot'); if (!el || !IED.ob) return; el.textContent = ''; const ki = kitInfo(IED.ob);
   const favTxt = (it) => (it.fv || []).map(f => FAVS[f]).join(' · ');
   if (IED.picked) { const it = ITEMS[IED.picked[0]]; el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, 'Moving ' + it.n), ' · click an empty tile' + (ki.fl > 1 ? ' on either floor' : '') + '. Esc puts it back.')); return; }
-  if (IED.sel) { const k = iedAt(IED.sel[0], IED.sel[1]); if (k >= 0) { const it = ITEMS[iedFloorData().o[k][0]]; el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), h('button', { class: 'btn sm', onclick: () => iedPick(it) }, icon('brush'), 'Place more'), h('button', { class: 'btn sm danger', onclick: () => { iedTake(IED.sel[0], IED.sel[1]); IED.sel = null; iedEnd(); } }, icon('trash'), 'Remove')); return; } IED.sel = null; }
-  if (IED.tool === 'place' && IED.item) { const it = IED.item; el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), h('span', { class: 'note tip' }, 'Click or drag to place · right-click removes')); return; }
+  if (IED.sel) { const k = iedAt(IED.sel[0], IED.sel[1]); if (k >= 0) { const a = iedFloorData().o[k], it = ITEMS[a[0]]; el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), h('span', { class: 'note' }, ' · ' + aw(a) + '×' + ah(a)), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), aw(a) !== ah(a) ? h('button', { class: 'btn sm', title: 'Turn it (R)', onclick: iedRotateSel }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Size'), h('button', { class: 'btn sm', onclick: () => iedPick(it) }, icon('brush'), 'Place more'), h('button', { class: 'btn sm danger', onclick: () => { iedTake(IED.sel[0], IED.sel[1]); IED.sel = null; iedEnd(); } }, icon('trash'), 'Remove')); return; } IED.sel = null; }
+  if (IED.tool === 'place' && IED.item) { const it = IED.item, [w, hh] = iedPlaceSize(it.i); el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), h('span', { class: 'pill', style: 'box-shadow:none' }, h('span', { class: 'lbl' }, 'Size'), w + '×' + hh, w !== hh ? h('button', { class: 'btn sm', title: 'Turn it (R)', onclick: () => { IED.rot = !IED.rot; iedFoot(); iedDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change')), h('span', { class: 'note tip' }, 'Click or drag to place · right-click removes')); return; }
   el.append(h('span', { class: 'note' }, IED.tool === 'erase' ? 'Click or drag over items to remove them.' : 'Click an item to pick it up, then click where it goes' + (ki.fl > 1 ? ' (you can switch floors while holding it)' : '') + '.'));
 }
 /* ---- side: residents, favourites, suggestions ---- */
@@ -999,8 +1010,8 @@ function iedFind() {
   el.append(h('h4', null, 'Walls and floor' + (kitInfo(IED.ob).fl > 1 ? ' (' + floorName(IED.floor).toLowerCase() + ')' : '')), h('div', { class: 'grid2' }, sel('iedWp', 'Wallpaper', wps, F.wp, 'wp'), sel('iedFc', 'Floor', fcs, F.fc, 'fc')), h('p', { class: 'note', style: 'margin:0' }, '★ counts as a favourite for some Pokémon.'));
 }
 function iedRing(ki, f) { // free tiles along the walls (clockwise), then the middle; keeps the way in from the door clear
-  const taken = new Set(iedFloorData(f).o.map(a => a[1] + ',' + a[2])); const door = f === 0 ? Math.floor((ki.w - 1) / 2) : -9;
-  const ok = (x, y) => !taken.has(x + ',' + y) && !(f === 0 && x === door && y >= ki.h - 2);
+  const F = iedFloorData(f), door = f === 0 ? Math.floor((ki.w - 1) / 2) : -9;
+  const ok = (x, y) => !F.o.some(a => covers(a, x, y)) && !(f === 0 && x === door && y >= ki.h - 2);
   const ring = [], seen = new Set(), push = (x, y) => { const k = x + ',' + y; if (seen.has(k)) return; seen.add(k); if (ok(x, y)) ring.push([x, y]); };
   for (let x = 0; x < ki.w; x++) push(x, 0); for (let y = 1; y < ki.h; y++) push(ki.w - 1, y); for (let x = ki.w - 2; x >= 0; x--) push(x, ki.h - 1); for (let y = ki.h - 2; y > 0; y--) push(0, y);
   const inner = []; for (let y = 1; y < ki.h - 1; y++) for (let x = 1; x < ki.w - 1; x++) if (ok(x, y)) inner.push([x, y]);
@@ -1013,7 +1024,7 @@ function iedAutoPlace() {
   for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (sg.it.sub === 'Event item') continue; if (sg.it.fv.some(v => want.has(v))) { pick.push(sg.it); for (const v of sg.it.fv) want.delete(v); } }
   for (const sg of dp.sugg) { if (kitFurniture(ob) + pick.length >= 3) break; if (!pick.includes(sg.it) && sg.it.sub !== 'Event item') pick.push(sg.it); }
   const spots = iedRing(ki, IED.floor); let n = 0;
-  for (const it of pick) { const s = spots.shift(); if (!s) break; iedPut(s[0], s[1], it.i); n++; }
+  for (const it of pick) { const size = footOf(it); for (let k = 0; k < spots.length; k++) { const [x, y] = spots[k]; let sz = size; if (!iedFree(x, y, sz[0], sz[1])) { sz = [size[1], size[0]]; if (!iedFree(x, y, sz[0], sz[1])) continue; } iedPut(x, y, it.i, sz); spots.splice(k, 1); n++; break; } }
   iedEnd();
   toast(n ? 'Placed ' + n + ' item' + (n > 1 ? 's' : '') + (want.size ? '. Some favourites have no indoor item.' : '. Move them wherever you like.') : 'No free space left');
 }
@@ -1031,7 +1042,7 @@ function iedSizeDialog() {
   }, 'Apply', () => {
     const w = clamp(+$('#iwW').value | 0, 2, 24), hh = clamp(+$('#iwH').value | 0, 2, 24), fl = canFloors ? clamp(+$('#iwF').value | 0, 1, 2) : ki.fl;
     iedBegin(); const I = IED.ob.int; I.w = w === it.iw ? 0 : w; I.h = hh === it.ih ? 0 : hh; I.fl = fl === (it.fl || 1) ? 0 : fl; iedEnsure();
-    let dropped = 0; I.f.forEach((F, k) => { const keep = F.o.filter(a => a[1] < w && a[2] < hh && k < fl); dropped += F.o.length - keep.length; F.o = keep; });
+    let dropped = 0; I.f.forEach((F, k) => { const keep = F.o.filter(a => a[1] + aw(a) <= w && a[2] + ah(a) <= hh && k < fl); dropped += F.o.length - keep.length; F.o = keep; });
     if (fl < 2) { for (const r of residentsOf(iedHome())) if (r.f) setResidentFloor(r.p, 0); }
     IED.stroke.changed = true; iedEnd(); if (dropped) toast(dropped + ' item' + (dropped > 1 ? 's' : '') + ' removed'); iedFind();
   });
@@ -1468,9 +1479,9 @@ function draw(t, c = ctx) {
   if (hover && !drag && plan) {
     const [hx, hy] = hover; const it = currentItem();
     if (tool === 'place' && it && inB(plan, hx, hy)) {
-      const fw = it.L === 'g' ? brush : (it.w > 1 || it.h > 1 ? (rotated ? it.h : it.w) : brush), fh = it.L === 'g' ? brush : (it.w > 1 || it.h > 1 ? (rotated ? it.w : it.h) : brush);
+      const ft = footOf(it), mu = it.L !== 'g' && multi(it); const fw = it.L === 'g' ? brush : (mu ? (rotated ? ft[1] : ft[0]) : brush), fh = it.L === 'g' ? brush : (mu ? (rotated ? ft[0] : ft[1]) : brush);
       const ok = it.L === 'g' || fw * fh === brush * brush || fits(plan, hx, hy, fw, fh);
-      c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawItem(c, it, view.px + hx * s, view.py + hy * s, s, it.w > 1 || it.h > 1 ? fw : 1, it.w > 1 || it.h > 1 ? fh : 1, false); c.globalAlpha = 1;
+      c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if ((tool === 'stamp' || tool === 'paste' || tool === 'move') && inB(plan, hx, hy)) {
       const fw = tool === 'paste' ? clip.w : tool === 'move' ? moving.w : 5, fh = tool === 'paste' ? clip.h : tool === 'move' ? moving.h : 5;
@@ -1541,7 +1552,7 @@ function selectItem(name, switchTool = true) {
 function placeCell(x, y) {
   const it = currentItem(); if (!it) return;
   if (it.L === 'g') { for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) { const xx = x + dx, yy = y + dy; if (inB(plan, xx, yy)) setGround(yy * plan.w + xx, it.i + 1); } return; }
-  if (it.w > 1 || it.h > 1) { const w = rotated ? it.h : it.w, hh = rotated ? it.w : it.h; if (!addObj(it.i, x, y, w, hh)) toast('No room here: the ' + w + '×' + hh + ' footprint overlaps something'); return; }
+  if (multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (!addObj(it.i, x, y, w, hh)) toast('No room here: the ' + w + '×' + hh + ' footprint overlaps something'); return; }
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
     if (oid) { const ob = plan.objs.get(oid); if (ob.i === it.i) continue; if (ob.w > 1 || ob.h > 1) continue; delObj(ob); }
@@ -1564,7 +1575,7 @@ function heightCell(x, y, seen) {
 function lineCells(x0, y0, x1, y1, fn) { const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; for (; ;) { fn(x0, y0); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
 function fillRect(r) {
   const it = currentItem(); if (!it) return;
-  if (it.w > 1 || it.h > 1) { const w = rotated ? it.h : it.w, hh = rotated ? it.w : it.h; let n = 0; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (addObj(it.i, x, y, w, hh)) n++; if (!n) toast('Area too small for a ' + w + '×' + hh + ' kit'); return; }
+  if (it.L !== 'g' && multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; let n = 0; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (addObj(it.i, x, y, w, hh)) n++; if (!n) toast('Area too small for a ' + w + '×' + hh + ' kit'); return; }
   const b = brush; brush = 1; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (fillMode === 'outline' && x > r.x && x < r.x + r.w - 1 && y > r.y && y < r.y + r.h - 1) continue; if (inB(plan, x, y)) placeCell(x, y); } brush = b;
 }
 
@@ -1710,7 +1721,8 @@ function renderOptbar() {
       const p = h('span', { class: 'pill' }, swatchEl(it), h('b', null, it.n));
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
-      if (it.w > 1 || it.h > 1) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Footprint'), (rotated ? it.h : it.w) + '×' + (rotated ? it.w : it.h), h('button', { class: 'btn sm', onclick: () => { rotated = !rotated; renderOptbar(); requestDraw(); } }, icon('rotate'), 'Rotate')));
+      if (it.L !== 'g') { const ft = footOf(it); ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Size'), (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]), ft[0] !== ft[1] ? h('button', { class: 'btn sm', title: 'Rotate (Q)', onclick: () => { rotated = !rotated; renderOptbar(); requestDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change'))); }
+      if (it.L !== 'g' && multi(it)) { }
       else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Fill'), segmented([['solid', 'Solid'], ['outline', 'Outline (walls)']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode')));
       else if (tool === 'place') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item in the Build panel'));
@@ -1779,10 +1791,10 @@ function showObjInspector(ob) {
   const acts = h('div', { class: 'card acts', style: 'border:0;padding:0;margin:8px 0 0' });
   acts.append(h('button', { class: 'btn sm', onclick: () => { selectItem(it.n); toast('Placing ' + it.n); } }, icon('brush'), 'Place more'));
   acts.append(h('button', { class: 'btn sm', onclick: () => { moving = ob; setTool('move'); } }, icon('move'), 'Move'));
-  if (ob.w > 1 || ob.h > 1) {
+  if (ob.w !== ob.h) {
     acts.append(h('button', { class: 'btn sm', onclick: () => { const nw = ob.h, nh = ob.w; if (fits(plan, ob.x, ob.y, nw, nh, ob.id)) { delObj(ob); const n = addObj(ob.i, ob.x, ob.y, nw, nh); if (n && ob.int) n.int = ob.int; commitTx('Rotate'); selection = { obj: n }; showObjInspector(n); } else toast('Not enough room to rotate'); } }, icon('rotate'), 'Rotate'));
-    acts.append(h('button', { class: 'btn sm', onclick: () => resizeObjDialog(ob) }, 'Resize'));
   }
+  acts.append(h('button', { class: 'btn sm', onclick: () => resizeObjDialog(ob) }, 'Resize'));
   acts.append(h('button', { class: 'btn sm danger', onclick: () => { delObj(ob); commitTx('Delete'); closeInspector(); } }, icon('trash'), 'Delete'));
   box.append(acts);
   const used = USED_IN.get(it.i);
@@ -1790,11 +1802,39 @@ function showObjInspector(ob) {
   requestDraw();
 }
 function resizeObjDialog(ob) {
-  const it = ITEMS[ob.i];
+  const it = ITEMS[ob.i], kit = it.c === 'Kits', same = [...plan.objs.values()].filter(o => o.i === ob.i).length;
   modal('Resize ' + it.n, (box) => {
-    box.append(h('p', { class: 'sub' }, 'Set the footprint in tiles. Kit footprints vary in the game, so match what you see.'));
+    box.append(h('p', { class: 'sub' }, kit ? 'Set the footprint in tiles. Kit footprints vary in the game, so match what you see.' : 'Set how many tiles it covers, as it looks in your game. The game data lists most furniture as one tile.'));
     box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rsW' }, 'Width'), h('input', { id: 'rsW', type: 'number', min: 1, max: 30, value: ob.w })), h('div', { class: 'field' }, h('label', { for: 'rsH' }, 'Depth'), h('input', { id: 'rsH', type: 'number', min: 1, max: 30, value: ob.h }))));
-  }, 'Resize', () => { const w = clamp(+$('#rsW').value | 0, 1, 30), hh = clamp(+$('#rsH').value | 0, 1, 30); if (!fits(plan, ob.x, ob.y, w, hh, ob.id)) { toast('That size overlaps something'); return false; } delObj(ob); const n = addObj(ob.i, ob.x, ob.y, w, hh); if (n && ob.int) n.int = ob.int; commitTx('Resize'); selection = { obj: n }; showObjInspector(n); });
+    box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'rsAll', checked: kit ? null : '' }), 'Use this size for every ' + it.n + (same > 1 ? ' (' + same + ' on the map) and new ones' : ', including new ones')));
+  }, 'Resize', () => {
+    const w = clamp(+$('#rsW').value | 0, 1, 30), hh = clamp(+$('#rsH').value | 0, 1, 30);
+    if ($('#rsAll').checked) { setItemSize(it, w, hh, true, ob); return; }
+    if (!fits(plan, ob.x, ob.y, w, hh, ob.id)) { toast('That size overlaps something'); return false; }
+    delObj(ob); const n = addObj(ob.i, ob.x, ob.y, w, hh); if (n && ob.int) n.int = ob.int; commitTx('Resize'); selection = { obj: n }; showObjInspector(n);
+  });
+}
+function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every item of this kind in the plan
+  plan.isz = plan.isz || {}; if (w === (it.w || 1) && hh === (it.h || 1)) delete plan.isz[it.n]; else plan.isz[it.n] = [w, hh];
+  let done = 0, skipped = 0, selNew = null;
+  if (applyPlaced) for (const ob of [...plan.objs.values()].filter(o => o.i === it.i)) {
+    const [nw, nh] = ob.w === ob.h || w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w]; // keep each one's turn
+    if (ob.w === nw && ob.h === nh) { if (ob === keepSel) selNew = ob; continue; }
+    if (!fits(plan, ob.x, ob.y, nw, nh, ob.id)) { skipped++; continue; }
+    delObj(ob); const n = addObj(ob.i, ob.x, ob.y, nw, nh); if (n && ob.int) n.int = ob.int; if (ob === keepSel) selNew = n; done++;
+  }
+  commitTx('Resize'); markDirty(); renderOptbar(); requestDraw();
+  toast(it.n + ' is now ' + w + '×' + hh + (done ? ' · ' + done + ' resized' : '') + (skipped ? ' · ' + skipped + ' had no room, so they kept their size' : ''), skipped ? 5000 : 2600);
+  if (keepSel) { const ob = selNew || keepSel; if (plan.objs.has(ob.id)) { selection = { obj: ob }; showObjInspector(ob); } }
+  if (IED.ob) iedRefresh();
+}
+function itemSizeDialog(it) {
+  const ft = footOf(it), placed = [...plan.objs.values()].filter(o => o.i === it.i).length;
+  modal('Size of ' + it.n, (box) => {
+    box.append(h('p', { class: 'sub' }, 'How many tiles it covers in your game. Applies to every ' + it.n + ' in this plan, on the map and inside kit houses.'));
+    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'isW' }, 'Width'), h('input', { id: 'isW', type: 'number', min: 1, max: 30, value: ft[0] })), h('div', { class: 'field' }, h('label', { for: 'isH' }, 'Depth'), h('input', { id: 'isH', type: 'number', min: 1, max: 30, value: ft[1] }))));
+    if (placed) box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'isAll', checked: '' }), 'Also resize the ' + placed + ' already on the map'));
+  }, 'Save size', () => { setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), placed ? $('#isAll').checked : false); });
 }
 function moveObjTo(ob, x, y) { if (!plan.objs.has(ob.id)) { setTool('select'); return; } if (!fits(plan, x, y, ob.w, ob.h, ob.id)) { toast('No room there'); return; } for (const r of plan.res || []) if (r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h) { r.x += x - ob.x; r.y += y - ob.y; } delObj(ob); const n = addObj(ob.i, x, y, ob.w, ob.h); if (n && ob.int) n.int = ob.int; commitTx('Move'); moving = null; setTool('select'); selection = { obj: n }; showObjInspector(n); }
 function pickAt(x, y) { if (!inB(plan, x, y)) return; const k = y * plan.w + x; const oid = plan.occ[k]; if (oid) { selectItem(ITEMS[plan.objs.get(oid).i].n); return; } const g = plan.ground[k]; if (g) selectItem(ITEMS[g - 1].n); }
