@@ -109,6 +109,19 @@ button{cursor:pointer}
 .choice .btn{justify-content:flex-start;text-align:left;padding:10px 12px;flex-direction:column;align-items:flex-start;gap:2px}
 .choice .btn .note{font-weight:400}
 .toast.act{pointer-events:auto}
+.pic{display:block;width:64px;height:64px;border-radius:12px;object-fit:contain;background:#e9ebe6}
+.pic.big{width:132px;height:132px;margin:2px auto 10px;border-radius:16px}
+.szgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:10px}
+.szcard{border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px;align-items:center;text-align:center;background:var(--paper)}
+.szcard .pic{width:96px;height:96px}
+.szcard .nm{font-weight:700;font-size:13.5px;line-height:1.25}
+.szcard.mine{border-color:color-mix(in srgb,var(--good) 55%,var(--line))}
+.szcard.guess .cur{color:var(--warn)}
+.szbtns{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.szbtns button{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:5px 8px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;min-width:40px}
+.szbtns button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.szother{display:flex;gap:4px;align-items:center;justify-content:center}
+.szother input{width:52px;border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--panel);text-align:center}
 .toast button{border:0;background:none;color:inherit;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;margin-left:12px;padding:2px 4px}
 .inspector h3{margin:0 0 2px;font-family:var(--font-display);font-size:17px;text-wrap:balance}
 .insp-head{display:flex;gap:10px;align-items:flex-start}
@@ -557,9 +570,12 @@ function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [
 function setRes(next) { beginTx(); if (!tx.r) tx.r = [plan.res || []]; plan.res = next; tx.r[1] = next; }
 function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.g.has(k)) tx.g.set(k, [plan.ground[k], v]); else tx.g.get(k)[1] = v; plan.ground[k] = v; }
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
-/* item sizes: the data has most furniture as 1×1, so a plan can set its own footprint per item type (plan.isz) */
-const sizeGuessed = (it) => !!it.sg && !(plan && plan.isz && plan.isz[it.n]);
-function footOf(it) { const s = plan && plan.isz && plan.isz[it.n]; return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
+/* item sizes: the sizes you set apply to every plan on this device (userSizes); a plan also keeps a copy (plan.isz) so it looks right when shared */
+let userSizes = {}; try { userSizes = JSON.parse(LS.get('pokopia-planner:sizes') || '{}') || {}; } catch (e) { userSizes = {}; }
+const saveUserSizes = () => LS.set('pokopia-planner:sizes', JSON.stringify(userSizes));
+const sizeSet = (it) => userSizes[it.n] || (plan && plan.isz && plan.isz[it.n]) || null;
+const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
+function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 function addObj(i, x, y, w, h) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
@@ -1724,7 +1740,15 @@ function swatchURL(it) {
   else drawItem(x, it, 0, 0, S);
   const url = c.toDataURL(); swatchCache.set(it.i, url); return url;
 }
-function swatchEl(it, cls = 'swatch') { const s = h('span', { class: cls }); s.style.backgroundImage = `url(${swatchURL(it)})`; return s; }
+const PIC_BASE = 'https://www.serebii.net/pokemonpokopia/items/';
+const picSlug = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const picURL = (it) => it && it.im ? PIC_BASE + (it.im === 1 ? picSlug(it.n) : it.im) + '.png' : null;
+function swatchEl(it, cls = 'swatch') { const s = h('span', { class: cls }); const u = picURL(it); s.style.backgroundImage = (u ? `url("${u}"), ` : '') + `url(${swatchURL(it)})`; return s; }
+function picEl(it, cls = 'pic') { // a large picture of the item; falls back to the drawn tile
+  const u = picURL(it), im = h('img', { class: cls, alt: '', loading: 'lazy', decoding: 'async', src: u || swatchURL(it) });
+  if (u) im.onerror = () => { im.onerror = null; im.src = swatchURL(it); };
+  return im;
+}
 function segmented(opts, value, onPick, label) {
   const g = h('span', { class: 'seg', role: 'group', 'aria-label': label });
   for (const [v, t] of opts) g.append(h('button', { 'aria-pressed': v === value ? 'true' : 'false', onclick: () => onPick(v) }, t));
@@ -1827,6 +1851,7 @@ function showObjInspector(ob) {
 function resizeObjDialog(ob) {
   const it = ITEMS[ob.i], kit = it.c === 'Kits', same = [...plan.objs.values()].filter(o => o.i === ob.i).length;
   modal('Resize ' + it.n, (box) => {
+    box.append(picEl(it, 'pic big'));
     box.append(h('p', { class: 'sub' }, kit ? 'Set the footprint in tiles. Kit footprints vary in the game, so match what you see.' : (sizeGuessed(it) ? 'This size is a guess. ' : '') + 'Set how many tiles it covers, as it looks in your game.'));
     box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rsW' }, 'Width'), h('input', { id: 'rsW', type: 'number', min: 1, max: 30, value: ob.w })), h('div', { class: 'field' }, h('label', { for: 'rsH' }, 'Depth'), h('input', { id: 'rsH', type: 'number', min: 1, max: 30, value: ob.h }))));
     box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'rsAll', checked: kit ? null : '' }), 'Use this size for every ' + it.n + (same > 1 ? ' (' + same + ' on the map) and new ones' : ', including new ones')));
@@ -1838,7 +1863,7 @@ function resizeObjDialog(ob) {
   });
 }
 function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every item of this kind in the plan
-  plan.isz = plan.isz || {}; if (w === (it.w || 1) && hh === (it.h || 1)) delete plan.isz[it.n]; else plan.isz[it.n] = [w, hh];
+  plan.isz = plan.isz || {}; if (!it.sg && w === (it.w || 1) && hh === (it.h || 1)) { delete plan.isz[it.n]; delete userSizes[it.n]; } else { plan.isz[it.n] = [w, hh]; userSizes[it.n] = [w, hh]; } saveUserSizes();
   let done = 0, skipped = 0, selNew = null;
   if (applyPlaced) for (const ob of [...plan.objs.values()].filter(o => o.i === it.i)) {
     const [nw, nh] = ob.w === ob.h || w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w]; // keep each one's turn
@@ -1851,10 +1876,52 @@ function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every it
   if (keepSel) { const ob = selNew || keepSel; if (plan.objs.has(ob.id)) { selection = { obj: ob }; showObjInspector(ob); } }
   if (IED.ob) iedRefresh();
 }
+/* ---------- checking item sizes: a picture of each item and one tap per size ---------- */
+const SZ_SKIP = new Set(['Terrain', 'Blocks', 'Wallpaper']);
+const SZ_PRESETS = [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2], [3, 3]];
+let szFilter = null, szQuery = '';
+function sizesReview() {
+  const pool = ITEMS.filter(it => !SZ_SKIP.has(it.c) && it.L !== 'g');
+  const guessedN = () => pool.filter(sizeGuessed).length;
+  if (!szFilter) szFilter = guessedN() ? 'guess' : 'Furniture';
+  modal('Item sizes', (box) => {
+    box.classList.add('xl');
+    box.append(h('p', { class: 'sub' }, 'Tap how many tiles each item covers in your game (width × depth; you can still turn it when placing). Your sizes apply to all your plans on this device, and items already on the map are resized too. Pictures come from Serebii.net.'));
+    const chips = h('div', { class: 'cats' }), inp = h('input', { type: 'search', placeholder: 'Search an item', value: szQuery, autocomplete: 'off', 'aria-label': 'Search an item' }), grid = h('div', { class: 'szgrid' });
+    box.append(h('label', { class: 'search' }, icon('search'), inp), chips, grid);
+    const counts = {}; for (const it of pool) counts[it.c] = (counts[it.c] || 0) + 1;
+    const filters = [['guess', 'Guessed', guessedN], ['mine', 'Set by you', () => pool.filter(it => userSizes[it.n]).length], ...CAT_ORDER.filter(c => counts[c]).map(c => [c, CAT_META[c].label, () => counts[c]]), ['all', 'All', () => pool.length]];
+    const renderChips = () => { chips.textContent = ''; for (const [k, label, n] of filters) chips.append(h('button', { class: 'cat', 'aria-pressed': szFilter === k && !szQuery ? 'true' : 'false', onclick: () => { szFilter = k; szQuery = ''; inp.value = ''; render(); } }, label, h('span', { class: 'n' }, n()))); };
+    const card = (it) => {
+      const c = h('div', { class: 'szcard' });
+      const fill = () => {
+        c.textContent = ''; const [w, d] = footOf(it), g = sizeGuessed(it), mine = !!userSizes[it.n];
+        c.className = 'szcard' + (g ? ' guess' : '') + (mine ? ' mine' : '');
+        const btns = h('div', { class: 'szbtns' });
+        for (const [a, b] of SZ_PRESETS) { const on = !g && ((w === a && d === b) || (w === b && d === a)); btns.append(h('button', { 'aria-pressed': on ? 'true' : 'false', onclick: () => { setItemSize(it, a, b, true); fill(); renderChips(); } }, a + '×' + b)); }
+        const other = h('button', { onclick: () => { other.replaceWith(h('span', { class: 'szother' }, wi, '×', di, h('button', { class: 'btn sm primary', onclick: () => { setItemSize(it, clamp(+wi.value | 0, 1, 30), clamp(+di.value | 0, 1, 30), true); fill(); renderChips(); } }, 'OK'))); wi.focus(); } }, 'Other…');
+        const wi = h('input', { type: 'number', min: 1, max: 30, value: w, 'aria-label': 'Width' }), di = h('input', { type: 'number', min: 1, max: 30, value: d, 'aria-label': 'Depth' });
+        btns.append(other);
+        c.append(picEl(it), h('div', { class: 'nm' }, it.n), h('div', { class: 'note cur' }, w + '×' + d + (g ? ' · guess' : mine ? ' · set by you' : '')), btns);
+      };
+      fill(); return c;
+    };
+    const render = () => {
+      renderChips(); grid.textContent = '';
+      const q = szQuery.toLowerCase();
+      const arr = pool.filter(it => q ? it.key.includes(q) : szFilter === 'guess' ? sizeGuessed(it) : szFilter === 'mine' ? !!userSizes[it.n] : szFilter === 'all' ? true : it.c === szFilter);
+      if (!arr.length) grid.append(h('p', { class: 'empty' }, szFilter === 'guess' && !q ? 'No guessed sizes left. Every item now has a size you set or one from the game data.' : 'Nothing here.'));
+      for (const it of arr) grid.append(card(it));
+    };
+    inp.oninput = () => { szQuery = inp.value.trim(); render(); };
+    render();
+  });
+}
 function itemSizeDialog(it) {
   const ft = footOf(it), placed = [...plan.objs.values()].filter(o => o.i === it.i).length;
   modal('Size of ' + it.n, (box) => {
-    box.append(h('p', { class: 'sub' }, (sizeGuessed(it) ? 'This size is a guess. ' : '') + 'How many tiles it covers in your game. Applies to every ' + it.n + ' in this plan, on the map and inside kit houses.'));
+    box.append(picEl(it, 'pic big'));
+    box.append(h('p', { class: 'sub' }, (sizeGuessed(it) ? 'This size is a guess. ' : '') + 'How many tiles it covers in your game. Applies to every ' + it.n + ' in all your plans, on the map and inside kit houses.'));
     box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'isW' }, 'Width'), h('input', { id: 'isW', type: 'number', min: 1, max: 30, value: ft[0] })), h('div', { class: 'field' }, h('label', { for: 'isH' }, 'Depth'), h('input', { id: 'isH', type: 'number', min: 1, max: 30, value: ft[1] }))));
     if (placed) box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'isAll', checked: '' }), 'Also resize the ' + placed + ' already on the map'));
   }, 'Save size', () => { setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), placed ? $('#isAll').checked : false); });
@@ -2090,7 +2157,8 @@ function renderBuild(keepFocus) {
   const root = $('#tab-build');
   if (!root.dataset.ready) {
     root.dataset.ready = '1';
-    root.append(h('h2', null, 'Build'), h('p', { class: 'sub' }, '1,125 placeable things from the game: terrain, plants, furniture, blocks and kits. Pick one, then paint or tap on the map.'));
+    root.append(h('h2', null, 'Build'), h('p', { class: 'sub' }, ITEMS.length.toLocaleString() + ' placeable things from the game: terrain, plants, furniture, blocks and kits. Pick one, then paint or tap on the map.'));
+    root.append(h('div', { style: 'margin:-2px 0 10px' }, h('button', { class: 'btn sm', id: 'sizesBtn', onclick: () => sizesReview() }, icon('rect'), 'Check item sizes')));
     const inp = h('input', { id: 'itemSearch', type: 'search', placeholder: 'Search items or materials (e.g. "bed", "Lumber")', autocomplete: 'off' });
     inp.oninput = () => { buildQuery = inp.value.trim().toLowerCase(); renderBuildList(); };
     root.append(h('label', { class: 'search' }, icon('search'), inp));
@@ -2122,7 +2190,8 @@ function renderBuildList() {
 }
 function showItemInfo(it) {
   modal(it.n, (box) => {
-    box.append(h('div', { class: 'insp-head' }, swatchEl(it), h('div', { class: 'sub', style: 'margin:0' }, CAT_META[it.c].label + (it.sub ? ' · ' + it.sub : '') + (it.ep ? ' · Expansion Pass' : ''))));
+    box.append(picEl(it, 'pic big'));
+    box.append(h('div', { class: 'insp-head' }, h('div', { class: 'sub', style: 'margin:0' }, CAT_META[it.c].label + (it.sub ? ' · ' + it.sub : '') + (it.ep ? ' · Expansion Pass' : ''))));
     box.append(h('h4', null, it.m && it.m.length ? 'Recipe' : 'How to get it')); box.append(recipeChips(it));
     if (it.s) box.append(h('p', { class: 'note' }, 'Recipe from: ' + it.s));
     if (it.d) box.append(h('p', { class: 'note' }, it.d));

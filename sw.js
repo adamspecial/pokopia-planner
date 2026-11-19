@@ -1,5 +1,5 @@
-// Offline helper: keeps the planner on the device so it opens without internet. Version 6f1fbbc7aa
-const CACHE = 'pokopia-6f1fbbc7aa', FILES = ["./", "index.html", "data.json", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
+// Offline helper: keeps the planner on the device so it opens without internet. Version 6675599472
+const CACHE = 'pokopia-6675599472', FILES = ["./", "index.html", "data.json", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('pokopia-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
