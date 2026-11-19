@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>icon test</title></head><body><pre id="o">running…</pre>
+<script>
+const o = document.getElementById('o');
+const slug = n => n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const base = 'https://www.serebii.net/pokemonpokopia/items/';
+const test = (url, nr) => new Promise(res => { const i = new Image(); if (nr) i.referrerPolicy = 'no-referrer'; let done = false; const t = setTimeout(() => { if (!done) { done = true; res(-1); } }, 15000); i.onload = () => { if (!done) { done = true; clearTimeout(t); res(i.naturalWidth); } }; i.onerror = () => { if (!done) { done = true; clearTimeout(t); res(0); } }; i.src = url; });
+(async () => {
+  const d = await (await fetch('data.json')).json();
+  const r1 = await test(base + 'logbed.png', false), r2 = await test(base + 'logbed.png', true);
+  let cors = 'no'; try { const f = await fetch(base + 'logbed.png', { mode: 'cors' }); cors = 'yes ' + f.status + ' ' + f.headers.get('content-type'); } catch (e) { cors = 'no: ' + e.message; }
+  const names = d.items.map(it => it.n), miss = [], sizes = {}; let ok = 0, i = 0;
+  const work = async () => { while (i < names.length) { const n = names[i++]; const w = await test(base + slug(n) + '.png', false); if (w > 0) { ok++; sizes[w] = (sizes[w] || 0) + 1; } else miss.push(n + (w < 0 ? ' [timeout]' : '')); } };
+  await Promise.all(Array.from({ length: 12 }, work));
+  const cats = {}; for (const it of d.items) if (miss.some(m => m.startsWith(it.n))) cats[it.c] = (cats[it.c] || 0) + 1;
+  o.textContent = 'withReferrer=' + r1 + ' noReferrer=' + r2 + ' cors=' + cors + '\nOK ' + ok + ' / ' + names.length + ' widths ' + JSON.stringify(sizes) + '\nmissing by category ' + JSON.stringify(cats) + '\nMISSING:\n' + miss.join('\n');
+})();
+</script></body></html>
