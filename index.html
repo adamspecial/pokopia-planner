@@ -2566,6 +2566,7 @@ function renderPlans() {
   root.append(syncCard());
   root.append(h('p', { class: 'note', style: 'margin:4px 0' }, storageNote()));
   root.append(h('p', { class: 'note', id: 'picLine', style: 'margin:4px 0' })); picUI();
+  root.append(h('p', { class: 'note', style: 'margin:4px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, 'App version: ' + appVersion(), h('button', { class: 'btn sm', onclick: updateNow }, 'Check for updates')));
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
   for (const p of [...plansIndex].sort((a, b) => b.updated - a.updated)) {
     const cur = p.id === plan.id;
@@ -2932,14 +2933,29 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
+const APP_BUILD = '2026-11-20T06:52';
+let updateWanted = false;
+const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
+function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
+function appVersion() { const d = new Date(APP_BUILD); return isNaN(d) ? APP_BUILD : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+async function updateNow() {
+  const reg = await swReg(); if (!reg) { location.reload(); return; }
+  if (!navigator.onLine) { toast('You\'re offline. Connect to the internet to check for updates.'); return; }
+  toast('Checking for updates…', 8000); updateWanted = true;
+  try { await reg.update(); } catch (e) { updateWanted = false; toast('Couldn\'t reach the planner\'s website. Try again in a moment.'); return; }
+  if (reg.installing || reg.waiting) { toast('Updating…', 15000); setTimeout(() => { if (updateWanted) location.reload(); }, 15000); }
+  else { updateWanted = false; toast('You have the latest version (' + appVersion() + ').'); }
+}
 /* ============================== boot ============================== */
 async function boot() {
   readTheme(); resize(); requestAnimationFrame(loop); fsInit();
   if ('serviceWorker' in navigator && document.querySelector('link[rel="manifest"]') && /^https?:$/.test(location.protocol)) {
     const hadController = !!navigator.serviceWorker.controller; let pending = false;
+    const reloadNow = () => { try { persistNow(); } catch (e) { } location.reload(); };
     navigator.serviceWorker.register('sw.js').then(r => { r.update().catch(() => { }); }).catch(() => { });
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; toast('Planner updated. The new version opens next time you come back to it.', 5000); });
-    document.addEventListener('visibilitychange', () => { if (pending && document.visibilityState === 'visible') { try { persistNow(); } catch (e) { } location.reload(); } });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; if (updateWanted) { reloadNow(); return; } toast('A new version of the planner is ready.', 10000, { label: 'Open it', fn: reloadNow }); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (pending) reloadNow(); else checkForUpdate(); });
+    setInterval(checkForUpdate, 30 * 60 * 1000);
   }
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
   new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
