@@ -583,6 +583,8 @@ const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 function addObj(i, x, y, w, h) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
+function overSmall(x, y, w, h) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return null; const under = new Set(); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = plan.occ[yy * plan.w + xx]; if (!o) continue; const ob = plan.objs.get(o); if (!ob || ob.w > 1 || ob.h > 1) return null; under.add(ob); } return under; }
+function addOver(i, x, y, w, h) { const under = overSmall(x, y, w, h); if (!under) return null; for (const ob of under) delObj(ob); return addObj(i, x, y, w, h); }
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
@@ -1518,7 +1520,7 @@ function draw(t, c = ctx) {
     const [hx, hy] = hover; const it = currentItem();
     if (tool === 'place' && it && inB(plan, hx, hy)) {
       const ft = footOf(it), mu = it.L !== 'g' && multi(it); const fw = it.L === 'g' ? brush : (mu ? (rotated ? ft[1] : ft[0]) : brush), fh = it.L === 'g' ? brush : (mu ? (rotated ? ft[0] : ft[1]) : brush);
-      const ok = it.L === 'g' || fw * fh === brush * brush || fits(plan, hx, hy, fw, fh);
+      const ok = it.L === 'g' || !mu || !!overSmall(hx, hy, fw, fh);
       c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if ((tool === 'stamp' || tool === 'paste' || tool === 'move') && inB(plan, hx, hy)) {
@@ -1590,13 +1592,14 @@ function selectItem(name, switchTool = true) {
 function placeCell(x, y) {
   const it = currentItem(); if (!it) return;
   if (it.L === 'g') { for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) { const xx = x + dx, yy = y + dy; if (inB(plan, xx, yy)) setGround(yy * plan.w + xx, it.i + 1); } return; }
-  if (multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (!addObj(it.i, x, y, w, hh)) toast('No room here: the ' + w + '×' + hh + ' footprint overlaps something'); return; }
+  if (multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (!addOver(it.i, x, y, w, hh)) toast(noRoom(x, y, w, hh)); return; }
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
     if (oid) { const ob = plan.objs.get(oid); if (ob.i === it.i) continue; if (ob.w > 1 || ob.h > 1) continue; delObj(ob); }
     addObj(it.i, xx, yy, 1, 1);
   }
 }
+function noRoom(x, y, w, h) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'No room here: the ' + w + '×' + h + ' footprint goes off the edge of the plan'; return 'No room here: the ' + w + '×' + h + ' footprint overlaps a bigger item'; }
 function eraseCell(x, y) {
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
@@ -1613,7 +1616,7 @@ function heightCell(x, y, seen) {
 function lineCells(x0, y0, x1, y1, fn) { const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; for (; ;) { fn(x0, y0); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
 function fillRect(r) {
   const it = currentItem(); if (!it) return;
-  if (it.L !== 'g' && multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (r.w < w || r.h < hh) { if (!addObj(it.i, r.x, r.y, w, hh)) toast('No room here: the ' + w + '×' + hh + ' footprint overlaps something'); return; } let n = 0; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (addObj(it.i, x, y, w, hh)) n++; if (!n) toast('No room here: every ' + w + '×' + hh + ' spot in that area overlaps something'); return; }
+  if (it.L !== 'g' && multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (r.w < w || r.h < hh) { if (!addOver(it.i, r.x, r.y, w, hh)) toast(noRoom(r.x, r.y, w, hh)); return; } let n = 0; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (addOver(it.i, x, y, w, hh)) n++; if (!n) toast('No room here: every ' + w + '×' + hh + ' spot in that area has a bigger item in it'); return; }
   const b = brush; brush = 1; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (fillMode === 'outline' && x > r.x && x < r.x + r.w - 1 && y > r.y && y < r.y + r.h - 1) continue; if (inB(plan, x, y)) placeCell(x, y); } brush = b;
 }
 
