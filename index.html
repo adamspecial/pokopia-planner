@@ -572,7 +572,8 @@ function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
 /* item sizes: the sizes you set apply to every plan on this device (userSizes); a plan also keeps a copy (plan.isz) so it looks right when shared */
 let userSizes = {}; try { userSizes = JSON.parse(LS.get('pokopia-planner:sizes') || '{}') || {}; } catch (e) { userSizes = {}; }
-const saveUserSizes = () => LS.set('pokopia-planner:sizes', JSON.stringify(userSizes));
+const saveUserSizes = () => { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); LS.set(LSK + 'sizesUpdated', String(Date.now())); scheduleSync(); };
+if (Object.keys(userSizes).length && !LS.get(LSK + 'sizesUpdated')) LS.set(LSK + 'sizesUpdated', '1'); // sizes set before syncing existed still get synced
 const sizeSet = (it) => userSizes[it.n] || (plan && plan.isz && plan.isz[it.n]) || null;
 const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
@@ -2188,7 +2189,7 @@ function showTab(t, fromHash) {
   renderPanel();
 }
 $$('.tab').forEach(b => b.onclick = () => { if (innerWidth < 900) { if (activeTab === b.dataset.tab && sheetState !== 'peek') setSheet('peek'); else if (sheetState === 'peek') setSheet('half'); } showTab(b.dataset.tab); });
-addEventListener('hashchange', () => showTab(location.hash.slice(1), true));
+addEventListener('hashchange', () => { if (/^#sync=/.test(location.hash)) openLink(takeLink()); else showTab(location.hash.slice(1), true); });
 let sheetState = 'peek';
 function setSheet(s) { sheetState = s; const hgt = s === 'peek' ? '72px' : s === 'half' ? '46%' : '86%'; document.documentElement.style.setProperty('--sheet-h', hgt); setTimeout(() => { requestDraw(); }, 250); }
 (() => { const hd = $('#handle'); let sy = null, sh = 0; hd.onclick = () => setSheet(sheetState === 'peek' ? 'half' : sheetState === 'half' ? 'full' : 'peek');
@@ -2460,6 +2461,7 @@ function renderPlans() {
     downloads ? h('button', { class: 'btn', onclick: exportPNG }, icon('down'), 'Save image') : '',
     downloads ? h('button', { class: 'btn', onclick: exportJSON }, icon('down'), 'Export file') : h('button', { class: 'btn', onclick: () => copyText(JSON.stringify(serialize(plan))) }, icon('copy'), 'Copy plan data'),
     h('label', { class: 'btn', for: 'importFile' }, icon('up'), 'Import file'), h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON })));
+  root.append(syncCard());
   root.append(h('p', { class: 'note', style: 'margin:4px 0' }, storageNote()));
   root.append(h('p', { class: 'note', id: 'picLine', style: 'margin:4px 0' })); picUI();
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
@@ -2506,8 +2508,9 @@ function resizePlanDialog() {
 function duplicatePlan() { const s = serialize(plan); s.id = uid(); s.name = plan.name + ' (copy)'; s.updated = Date.now(); const p = deserialize(s); installPlan(p); persistNow(); toast('Duplicated'); }
 function deletePlanDialog(id) {
   const meta = plansIndex.find(p => p.id === id); if (!meta) return;
-  modal('Delete "' + meta.name + '"?', (box) => box.append(h('p', { class: 'sub' }, 'This removes the plan from this device and your account. It cannot be undone.')), 'Delete', async () => {
+  modal('Delete "' + meta.name + '"?', (box) => box.append(h('p', { class: 'sub' }, 'This removes the plan from this device' + (sync ? ' and your other synced devices' : cloud ? ' and your account' : '') + '. It cannot be undone.')), 'Delete', async () => {
     plansIndex = plansIndex.filter(p => p.id !== id); LS.del(LSK + 'plan:' + id); saveIndex(); if (cloud) { try { await cloud.col.doc(id).delete(); } catch (e) { } }
+    if (sync) { sync.gone = [...new Set([...(sync.gone || []), id])]; saveSync(); scheduleSync(300); }
     if (plan.id === id) { if (plansIndex.length) openPlan(plansIndex[0].id); else installPlan(makeExample()); persistNow(); }
     renderPlans();
   }, true);
@@ -2533,8 +2536,8 @@ function changed() { exampleUntouched = false; evaluateAll(); markDirty(); reque
 function markDirty() { dirty = true; plan.updated = Date.now(); setSave('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(persistNow, 1200); }
 function saveIndex() { LS.set(LSK + 'index', JSON.stringify(plansIndex)); }
 function indexEntry(p) { return { id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, updated: p.updated }; }
-async function persistNow() {
-  clearTimeout(saveTimer); if (!plan) return; const s = serialize(plan); const str = JSON.stringify(s);
+async function persistNow(noSync) {
+  clearTimeout(saveTimer); if (!plan) return; if (!noSync) scheduleSync(); const s = serialize(plan); const str = JSON.stringify(s);
   const okLocal = LS.set(LSK + 'plan:' + plan.id, str); LS.set(LSK + 'current', plan.id);
   plansIndex = plansIndex.filter(p => p.id !== plan.id); plansIndex.push(indexEntry(plan)); saveIndex(); dirty = false;
   if (cloud) {
@@ -2545,12 +2548,12 @@ async function persistNow() {
   updateHeader();
 }
 function setSave(st, msg) {
-  saveState = st; const chip = $('#saveChip'); chip.className = 'chip ' + (st === 'cloud' ? 'good' : st === 'bad' ? 'bad' : st === 'local' ? '' : 'warn');
-  chip.lastChild.textContent = { cloud: 'Saved to your account', local: 'Saved on this device', pending: 'Unsaved changes', saving: 'Saving…', bad: 'Not saved' }[st] || st;
+  saveState = st; const chip = $('#saveChip'); chip.className = 'chip ' + (st === 'cloud' || st === 'synced' ? 'good' : st === 'bad' ? 'bad' : st === 'local' || st === 'syncing' ? '' : 'warn');
+  chip.lastChild.textContent = { cloud: 'Saved to your account', local: 'Saved on this device', pending: 'Unsaved changes', saving: 'Saving…', bad: 'Not saved', synced: 'Synced', syncing: 'Syncing…' }[st] || st;
   chip.title = msg || '';
   if (msg && st === 'bad') toast(msg, 3500);
 }
-function storageNote() { return cloud ? 'Plans are saved to your Claude account, so they open on any device where you view this page.' : 'Plans are saved in this browser only. Export a file to keep a backup or move a plan to another device.'; }
+function storageNote() { return cloud ? 'Plans are saved to your Claude account, so they open on any device where you view this page.' : sync ? 'Plans are saved on this device and synced through your GitHub gist. Export a file for an extra backup.' : 'Plans are saved in this browser only. Turn on sync above, or export a file to keep a backup or move a plan to another device.'; }
 function loadLocalPlans() { try { plansIndex = JSON.parse(LS.get(LSK + 'index') || '[]'); } catch (e) { plansIndex = []; } }
 function readLocalPlan(id) { try { const s = LS.get(LSK + 'plan:' + id); return s ? deserialize(JSON.parse(s)) : null; } catch (e) { return null; } }
 function openPlan(id) { if (dirty) persistNow(); const p = readLocalPlan(id) || (cloudCache.has(id) ? deserialize(cloudCache.get(id)) : null); if (!p) { toast('That plan could not be opened'); return; } installPlan(p); LS.set(LSK + 'current', id); }
@@ -2608,6 +2611,276 @@ function importJSON(e) {
   rd.readAsText(f); e.target.value = '';
 }
 
+/* ============================== sync between devices: a private gist on GitHub ==============================
+   No server of our own: each device talks straight to the GitHub account the planner is published from.
+   The gist holds pokopia-planner.json (item sizes) and one plan-<id>.json per plan.
+   sync.base[id] is a plan's "updated" stamp at the last sync, so we can tell which side changed it. */
+const GH_API = 'https://api.github.com', SYNC_FILE = 'pokopia-planner.json';
+const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new?name=Pokopia+planner+sync&description=Keeps+Pokopia+Area+Planner+plans+in+a+private+gist&expires_in=none&gists=write';
+let sync = null; try { sync = JSON.parse(LS.get(LSK + 'sync') || 'null'); } catch (e) { sync = null; }
+if (sync && !(sync.token && sync.gist)) sync = null;
+let syncBusy = false, syncAgain = false, syncTimer = null, syncErr = '', syncLastTry = 0, syncHold = 0;
+function saveSync() { if (sync) LS.set(LSK + 'sync', JSON.stringify(sync)); else LS.del(LSK + 'sync'); }
+async function gh(path, o = {}) {
+  const headers = { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + (o.token || sync.token) };
+  const body = o.body ? JSON.stringify(o.body) : undefined; if (body) headers['Content-Type'] = 'application/json';
+  if (o.etag) headers['If-None-Match'] = o.etag;
+  const r = await fetch(GH_API + path, { method: o.method || 'GET', headers, body, cache: 'no-store', keepalive: !!o.keepalive && (!body || body.length < 60000) });
+  if (r.status === 304) return { status: 304, etag: o.etag };
+  if (!r.ok) { const e = new Error('GitHub ' + r.status); e.status = r.status; try { e.detail = (await r.json()).message; } catch (x) { } throw e; }
+  return { status: r.status, etag: r.headers.get('ETag'), data: await r.json() };
+}
+function syncProblem(e) {
+  if (!e || !e.status) return navigator.onLine ? 'Couldn\'t reach GitHub. Trying again shortly.' : 'You\'re offline. Changes are saved here and sync when you\'re back online.';
+  if (e.status === 401) return 'GitHub no longer accepts the key on this device (it may have expired or been removed). Set up sync again with a new key.';
+  if (e.status === 404) return 'The sync gist isn\'t on GitHub any more, or the key can\'t see it. Set up sync again.';
+  if (e.status === 403 || e.status === 429) return 'GitHub asked the planner to slow down. Trying again in a few minutes.';
+  return 'GitHub had a problem (' + e.status + '). Trying again in a few minutes.';
+}
+function scheduleSync(ms) { if (!sync || sync.broken) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms == null ? 4000 : ms); }
+const localPlanRaw = (id) => { try { return JSON.parse(LS.get(LSK + 'plan:' + id) || 'null'); } catch (e) { return null; } };
+function storeRaw(s) { LS.set(LSK + 'plan:' + s.id, JSON.stringify(s)); plansIndex = plansIndex.filter(p => p.id !== s.id); plansIndex.push({ id: s.id, name: s.name, area: s.area, w: s.w, h: s.h, updated: s.updated }); }
+// the example plan a new device starts with is never uploaded while it is untouched
+const isPristineExample = (id, upd) => { const [eid, eu] = (LS.get(LSK + 'example') || '').split(':'); return id === eid && String(upd) === eu; };
+const sizesStamp = () => +LS.get(LSK + 'sizesUpdated') || 0;
+function syncPending() {
+  if (!sync) return false;
+  if ((sync.gone || []).length || sizesStamp() !== (+sync.sizesBase || 0)) return true;
+  return plansIndex.some(p => sync.base[p.id] !== p.updated && !isPristineExample(p.id, p.updated));
+}
+async function syncNow(opt) {
+  opt = opt || {};
+  if (!sync || sync.broken) { syncUI(); return; }
+  if (syncBusy) { syncAgain = true; return; }
+  if (!opt.force && Date.now() < syncHold) return;
+  clearTimeout(syncTimer);
+  if (!navigator.onLine) { syncErr = syncProblem(null); syncUI(); return; }
+  syncBusy = true; syncLastTry = Date.now(); if (saveState === 'local' || saveState === 'synced') setSave('syncing'); syncUI();
+  try {
+    if (dirty) persistNow(true);
+    const got = await gh('/gists/' + sync.gist, { etag: syncPending() ? null : sync.etag });
+    if (got.status !== 304) await mergeGist(got, opt.keepalive);
+    sync.last = Date.now(); syncErr = ''; saveSync();
+    if (saveState === 'syncing') setSave('synced');
+  } catch (e) {
+    syncErr = syncProblem(e);
+    if (e.status === 401 || e.status === 404) { sync.broken = syncErr; saveSync(); }
+    if (saveState === 'syncing') setSave('local', syncErr);
+    if (e.status) syncHold = Date.now() + 180000;
+    if (!sync.broken) scheduleSync(e.status ? 181000 : 30000);
+  } finally {
+    syncBusy = false; syncUI();
+    if (syncAgain) { syncAgain = false; scheduleSync(300); }
+  }
+}
+async function mergeGist(got, keepalive) {
+  const files = got.data.files || {}, remote = new Map();
+  for (const [name, f] of Object.entries(files)) {
+    const m = /^plan-([\w-]+)\.json$/.exec(name); if (!m || !f) continue;
+    try { const txt = f.truncated ? await (await fetch(f.raw_url, { cache: 'no-store' })).text() : f.content; const s = JSON.parse(txt); if (s && s.w && s.h) { s.id = m[1]; remote.set(m[1], s); } } catch (e) { }
+  }
+  let meta = {}; try { meta = JSON.parse((files[SYNC_FILE] || {}).content || '{}') || {}; } catch (e) { meta = {}; }
+  const up = {}, newBase = {}, pulled = [], removed = [], gone = new Set(sync.gone || []);
+  const pull = (s) => { storeRaw(s); sync.base[s.id] = s.updated; pulled.push(s.id); };
+  const push = (id) => { const s = localPlanRaw(id); if (!s) return; s.id = id; up['plan-' + id + '.json'] = { content: JSON.stringify(s) }; newBase[id] = s.updated; };
+  const keepCopy = (s, label) => { if (!s) return; const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.name = s.name + ' (' + label + ')'; storeRaw(c); up['plan-' + c.id + '.json'] = { content: JSON.stringify(c) }; newBase[c.id] = c.updated; };
+  for (const id of new Set([...plansIndex.map(p => p.id), ...remote.keys(), ...gone])) {
+    const L = plansIndex.find(p => p.id === id), R = remote.get(id), B = sync.base[id];
+    if (gone.has(id)) { // deleted on this device
+      if (R && B != null && R.updated !== B) pull(R); // changed on another device since: keep that version
+      else { if (R) up['plan-' + id + '.json'] = null; delete sync.base[id]; }
+      continue;
+    }
+    if (L && plan && id === plan.id && dirty) continue; // being edited right now: next round
+    if (L && R) {
+      if (L.updated === R.updated) { sync.base[id] = R.updated; continue; }
+      const lCh = L.updated !== B, rCh = R.updated !== B;
+      if (lCh && rCh) { // changed on both devices: the newer version keeps the plan, the other is kept as a copy
+        if (L.updated > R.updated) { keepCopy(R, 'from another device'); push(id); } else { keepCopy(localPlanRaw(id), 'from this device'); pull(R); }
+      } else if (lCh) push(id); else pull(R);
+    } else if (L) {
+      if (isPristineExample(id, L.updated)) { if (remote.size) removed.push(id); continue; } // real plans arrived: the example goes
+      if (B != null && L.updated === B) removed.push(id); // deleted on another device
+      else push(id); // new here (or changed here after another device deleted it)
+    } else if (R) pull(R);
+  }
+  // item sizes: one set for every plan and device
+  const lTs = sizesStamp(), rTs = +meta.sizesUpdated || 0, bTs = +sync.sizesBase || 0;
+  let sizesOut = null, sizesIn = false;
+  if (lTs !== rTs) {
+    const lCh = lTs !== bTs, rCh = rTs !== bTs;
+    if (lCh && rCh) { userSizes = Object.assign({}, meta.sizes || {}, userSizes); sizesOut = Date.now(); sizesIn = true; }
+    else if (lCh) sizesOut = lTs;
+    else { userSizes = Object.assign({}, meta.sizes || {}); sizesIn = true; LS.set(LSK + 'sizesUpdated', String(rTs)); sync.sizesBase = rTs; }
+  } else sync.sizesBase = rTs;
+  if (sizesIn) LS.set('pokopia-planner:sizes', JSON.stringify(userSizes));
+  if (sizesOut != null || !files[SYNC_FILE]) up[SYNC_FILE] = { content: JSON.stringify({ app: 'pokopia-planner', v: 1, about: 'Plans synced by the Pokopia Area Planner. Each plan-….json file is one plan.', sizesUpdated: sizesOut != null ? sizesOut : lTs, sizes: userSizes }) };
+  for (const id of removed) { LS.del(LSK + 'plan:' + id); plansIndex = plansIndex.filter(p => p.id !== id); delete sync.base[id]; }
+  saveIndex(); saveSync();
+  // what the other devices changed shows up here straight away
+  if (plan && removed.includes(plan.id)) {
+    const nx = [...plansIndex].sort((a, b) => b.updated - a.updated)[0], p = nx && readLocalPlan(nx.id);
+    if (p) { installPlan(p); LS.set(LSK + 'current', p.id); if (pulled.length) toast('Opened “' + p.name + '” from your other device'); }
+    else { const ex = makeExample(); installPlan(ex); LS.set(LSK + 'example', ex.id + ':' + ex.updated); persistNow(true); }
+  } else if (plan && pulled.includes(plan.id) && !dirty) {
+    const p = readLocalPlan(plan.id); if (p) { const v = { ...view }; installPlan(p); Object.assign(view, v); requestDraw(); toast('Updated “' + p.name + '” from your other device'); }
+  }
+  if (sizesIn) { requestDraw(); if (activeTab !== 'plans') renderPanel(); }
+  if (pulled.length || removed.length) { updateHeader(); if (activeTab === 'plans') renderPlans(); }
+  // send what changed here
+  if (Object.keys(up).length) {
+    await gh('/gists/' + sync.gist, { method: 'PATCH', body: { files: up }, keepalive });
+    Object.assign(sync.base, newBase); for (const id of gone) delete sync.base[id];
+    if (sizesOut != null) { sync.sizesBase = sizesOut; LS.set(LSK + 'sizesUpdated', String(sizesOut)); }
+    sync.etag = null; // the next check reads the gist once more, then only asks "anything new?"
+  } else sync.etag = got.etag;
+  sync.gone = []; saveSync();
+}
+async function findSyncGist(token) {
+  for (let page = 1; page <= 5; page++) {
+    const r = await gh('/gists?per_page=100&page=' + page, { token });
+    const hit = (r.data || []).find(g => g.files && g.files[SYNC_FILE]); if (hit) return hit.id;
+    if (!r.data || r.data.length < 100) break;
+  }
+  const made = await gh('/gists', { token, method: 'POST', body: { description: 'Pokopia Area Planner: synced plans', public: false, files: { [SYNC_FILE]: { content: JSON.stringify({ app: 'pokopia-planner', v: 1, sizesUpdated: 0, sizes: {} }) } } } });
+  return made.data.id;
+}
+async function syncConnect(text) {
+  const msg = $('#syncMsg'), say = (t, bad) => { if (msg) { msg.textContent = t; msg.style.color = bad ? 'var(--bad)' : ''; } };
+  const v = (text || '').trim(); let token = v, gist = null;
+  const m = /#sync=([0-9a-f]{20,})\.([A-Za-z0-9_]{20,})/.exec(v); if (m) { gist = m[1]; token = m[2]; }
+  if (!/^(github_pat_|ghp_|gho_|ghu_)[A-Za-z0-9_]{20,}$/.test(token)) { say('Paste the key GitHub showed you (it starts with github_pat_ or ghp_), or the link from your other device.', true); return; }
+  say('Connecting to GitHub…');
+  try {
+    const me = await gh('/user', { token });
+    if (gist) await gh('/gists/' + gist, { token }); else gist = await findSyncGist(token);
+    const same = sync && sync.gist === gist;
+    sync = { token, gist, login: me.data.login, base: same ? sync.base : {}, sizesBase: same ? sync.sizesBase : 0, gone: same ? sync.gone || [] : [], etag: null, last: 0 };
+    saveSync(); syncErr = ''; closeModal(); toast('Sync is on'); await syncNow(); if (activeTab === 'plans') renderPlans();
+  } catch (e) {
+    say(e.status === 401 ? 'GitHub didn\'t accept that key. Check it was copied whole, or create a new one.'
+      : e.status === 404 && gist ? 'That link points to a sync gist that isn\'t on GitHub any more.'
+      : e.status === 403 || e.status === 404 ? 'That key isn\'t allowed to use gists. Create one with "Gists: Read and write".'
+      : 'Couldn\'t reach GitHub. Check your connection and try again.', true);
+  }
+}
+function syncSetup(prefill) {
+  modal('Set up sync', (box) => {
+    box.append(h('p', { class: 'sub' }, 'Do this once on each device. Plans stay saved on the device too, so everything still works offline.'));
+    box.append(h('div', { class: 'hint', style: 'margin:0 0 10px' }, h('b', null, 'Already syncing on another device? '), 'On that device open Plans → Sync between devices → Link another device, and paste the link here.'));
+    box.append(h('p', { class: 'note', style: 'margin:0 0 10px' }, h('b', null, 'First device? '), h('a', { href: TOKEN_URL, target: '_blank', rel: 'noopener' }, 'Create a GitHub key'), '. The form is already filled in, and the key can only read and write your gists. Tap Generate token, copy the key and paste it here.'));
+    box.append(h('div', { class: 'field' }, h('label', { for: 'syncKey' }, 'GitHub key or link'), h('input', { id: 'syncKey', value: prefill || '', placeholder: 'github_pat_…  or  …#sync=…', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' })));
+    box.append(h('p', { class: 'note', id: 'syncMsg', role: 'alert', style: 'margin:0' }));
+  }, 'Connect', () => { syncConnect($('#syncKey').value); return false; });
+}
+const syncLink = () => location.origin + location.pathname + '#sync=' + sync.gist + '.' + sync.token;
+// a link from another device: take it out of the address bar straight away, then offer to connect
+function takeLink() { if (!/^#sync=/.test(location.hash)) return null; const l = location.href; try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { } return l; }
+function openLink(link) {
+  if (!link) return; showTab('plans'); if (innerWidth < 900) setSheet('half');
+  if (sync && !sync.broken && link.endsWith('#sync=' + sync.gist + '.' + sync.token)) toast('This device is already syncing'); else syncSetup(link);
+}
+function linkDeviceDialog() {
+  const link = syncLink();
+  modal('Link another device', (box) => {
+    box.append(h('p', { class: 'sub' }, 'Scan this with the other device\'s camera, or send yourself the link and open it there.'));
+    const qr = qrCanvas(link); if (qr) box.append(h('div', { style: 'display:grid;place-items:center;margin:4px 0 12px' }, qr));
+    box.append(h('div', { class: 'acts', style: 'justify-content:center;margin:0 0 12px' }, navigator.share ? h('button', { class: 'btn', onclick: () => navigator.share({ title: 'Pokopia planner sync', url: link }).catch(() => { }) }, 'Share link') : '', h('button', { class: 'btn', onclick: () => copyText(link) }, icon('copy'), 'Copy link')));
+    box.append(h('p', { class: 'note' }, 'On iPhone or iPad, the planner on your Home Screen keeps its own copy, separate from Safari. Copy the link, open the planner from the Home Screen and paste it in Plans → Set up sync.'));
+    box.append(h('p', { class: 'note' }, 'The link contains your GitHub key, so anyone who has it can change your synced plans: only send it to yourself. You can delete the key on GitHub at any time.'));
+  });
+}
+function syncOffDialog() {
+  modal('Turn off sync on this device?', (b) => b.append(h('p', { class: 'sub' }, 'Your plans stay on this device and in the gist on GitHub. Your other devices keep syncing with each other.')), 'Turn off', () => {
+    sync = null; saveSync(); syncErr = ''; clearTimeout(syncTimer); if (saveState === 'synced') setSave('local'); renderPlans(); toast('Sync is off on this device');
+  });
+}
+function ago(t) { const s = (Date.now() - t) / 1000; return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : new Date(t).toLocaleDateString(); }
+function syncCard() {
+  const state = !sync ? null : sync.broken ? ['bad', 'Stopped'] : syncBusy ? ['', 'Syncing…'] : syncErr ? ['warn', 'Waiting'] : ['good', 'On'];
+  const card = h('div', { class: 'card', id: 'syncCard' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Sync between devices'), state ? h('span', { class: 'chip ' + state[0], style: 'margin-left:auto' }, h('span', { class: 'dot' }), state[1]) : ''));
+  if (!sync) {
+    card.append(h('p', { class: 'note', style: 'margin:6px 0 0' }, 'Keep plans and item sizes the same on your phone, tablet and computer. They go into a private gist on your GitHub account, the same account the planner is published from, so no other service is involved.'),
+      h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => syncSetup() }, 'Set up sync')));
+    return card;
+  }
+  card.append(h('p', { class: 'note', style: 'margin:6px 0 0' }, sync.broken || syncErr || ('Plans and item sizes sync by themselves with your gist' + (sync.login ? ' on GitHub (@' + sync.login + ')' : '') + '. Last synced ' + (sync.last ? ago(sync.last) : 'not yet') + '.')));
+  card.append(h('div', { class: 'acts' },
+    sync.broken ? h('button', { class: 'btn sm primary', onclick: () => syncSetup() }, 'Set up again') : h('button', { class: 'btn sm', disabled: syncBusy, onclick: () => syncNow({ force: true }) }, icon('rotate'), 'Sync now'),
+    sync.broken ? '' : h('button', { class: 'btn sm', onclick: linkDeviceDialog }, 'Link another device'),
+    h('a', { class: 'btn sm', href: 'https://gist.github.com/' + (sync.login ? sync.login + '/' : '') + sync.gist, target: '_blank', rel: 'noopener', style: 'text-decoration:none;color:inherit' }, 'Open on GitHub'),
+    h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Turn off')));
+  return card;
+}
+function syncUI() { const old = document.getElementById('syncCard'); if (old) old.replaceWith(syncCard()); }
+
+/* ---------- QR code (byte mode, error correction level M) for "Link another device" ---------- */
+function qrMatrix(text) {
+  const data = [...new TextEncoder().encode(text)];
+  const ECC = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26], BLK = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16];
+  const rawMods = (v) => { let r = (16 * v + 128) * v + 64; if (v >= 2) { const n = Math.floor(v / 7) + 2; r -= (25 * n - 10) * n - 55; if (v >= 7) r -= 36; } return r; };
+  let ver = 1, cap = 0;
+  for (; ver <= 20; ver++) { cap = Math.floor(rawMods(ver) / 8) - ECC[ver] * BLK[ver]; if (4 + (ver < 10 ? 8 : 16) + data.length * 8 <= cap * 8) break; }
+  if (ver > 20) return null;
+  const bits = [], put = (val, n) => { for (let i = n - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+  put(4, 4); put(data.length, ver < 10 ? 8 : 16); for (const b of data) put(b, 8);
+  put(0, Math.min(4, cap * 8 - bits.length)); put(0, (8 - bits.length % 8) % 8);
+  const cw = []; for (let i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (let pad = 0xEC; cw.length < cap; pad ^= 0xEC ^ 0x11) cw.push(pad);
+  // Reed-Solomon error correction, per block, then interleaved
+  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z; };
+  const deg = ECC[ver], div = new Array(deg).fill(0); div[deg - 1] = 1;
+  for (let i = 0, root = 1; i < deg; i++) { for (let j = 0; j < deg; j++) { div[j] = mul(div[j], root); if (j + 1 < deg) div[j] ^= div[j + 1]; } root = mul(root, 2); }
+  const rem = (d) => { const r = new Array(deg).fill(0); for (const b of d) { const f = b ^ r.shift(); r.push(0); for (let i = 0; i < deg; i++) r[i] ^= mul(div[i], f); } return r; };
+  const nb = BLK[ver], raw = Math.floor(rawMods(ver) / 8), nShort = nb - raw % nb, shortLen = Math.floor(raw / nb), blocks = [];
+  for (let i = 0, k = 0; i < nb; i++) { const d = cw.slice(k, k + shortLen - deg + (i < nShort ? 0 : 1)); k += d.length; const e = rem(d); if (i < nShort) d.push(0); blocks.push(d.concat(e)); }
+  const all = []; for (let i = 0; i < blocks[0].length; i++) blocks.forEach((b, j) => { if (i !== shortLen - deg || j >= nShort) all.push(b[i]); });
+  // fixed patterns
+  const size = ver * 4 + 17, M = [], F = []; for (let y = 0; y < size; y++) { M.push(new Array(size).fill(false)); F.push(new Array(size).fill(false)); }
+  const set = (x, y, d) => { M[y][x] = d; F[y][x] = true; };
+  for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  const finder = (cx, cy) => { for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy)); if (x >= 0 && y >= 0 && x < size && y < size) set(x, y, d !== 2 && d !== 4); } };
+  finder(3, 3); finder(size - 4, 3); finder(3, size - 4);
+  if (ver > 1) {
+    const n = Math.floor(ver / 7) + 2, step = Math.floor((ver * 8 + n * 3 + 5) / (n * 4 - 4)) * 2, pos = [6];
+    for (let p = size - 7; pos.length < n; p -= step) pos.splice(1, 0, p);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { if ((i === 0 && j === 0) || (i === 0 && j === n - 1) || (i === n - 1 && j === 0)) continue; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(pos[i] + dx, pos[j] + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); }
+  }
+  const format = (mask) => {
+    const d = mask; let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537);
+    const b = ((d << 10) | r) ^ 0x5412, bit = (i) => ((b >>> i) & 1) === 1; // level M = 00
+    for (let i = 0; i <= 5; i++) set(8, i, bit(i)); set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8)); for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+    for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i)); for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i)); set(8, size - 8, true);
+  };
+  format(0);
+  if (ver >= 7) { let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25); const b = (ver << 12) | r; for (let i = 0; i < 18; i++) { const d = ((b >>> i) & 1) === 1, a = size - 11 + i % 3, c = Math.floor(i / 3); set(a, c, d); set(c, a, d); } }
+  // the data, zigzagging up and down in two-column strips
+  let i = 0;
+  for (let right = size - 1; right >= 1; right -= 2) { if (right === 6) right = 5; for (let v = 0; v < size; v++) for (let j = 0; j < 2; j++) { const x = right - j, y = ((right + 1) & 2) === 0 ? size - 1 - v : v; if (!F[y][x] && i < all.length * 8) { M[y][x] = ((all[i >>> 3] >>> (7 - (i & 7))) & 1) === 1; i++; } } }
+  // the mask scanners read most easily
+  const masks = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x) => x % 3 === 0, (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+  const flip = (k) => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!F[y][x] && masks[k](x, y)) M[y][x] = !M[y][x]; };
+  const penalty = () => {
+    let p = 0, dark = 0;
+    const lines = (get) => { for (let a = 0; a < size; a++) { let run = 1; for (let b = 1; b < size; b++) { if (get(a, b) === get(a, b - 1)) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } for (let b = 0; b + 11 <= size; b++) { let s = ''; for (let k = 0; k < 11; k++) s += get(a, b + k) ? 1 : 0; if (s === '10111010000' || s === '00001011101') p += 40; } } };
+    lines((a, b) => M[a][b]); lines((a, b) => M[b][a]);
+    for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++) { const c = M[y][x]; if (c === M[y][x + 1] && c === M[y + 1][x] && c === M[y + 1][x + 1]) p += 3; }
+    for (const row of M) for (const c of row) if (c) dark++;
+    return p + Math.floor(Math.abs(dark * 20 - size * size * 10) / (size * size)) * 10;
+  };
+  let best = 0, bestP = Infinity;
+  for (let k = 0; k < 8; k++) { flip(k); format(k); const p = penalty(); if (p < bestP) { bestP = p; best = k; } flip(k); }
+  flip(best); format(best);
+  return M;
+}
+function qrCanvas(text, px = 6) {
+  const M = qrMatrix(text); if (!M) return null; const n = M.length, q = 4, S = (n + q * 2) * px, show = Math.min(S, 280);
+  const c = h('canvas', { width: S, height: S, role: 'img', 'aria-label': 'QR code for the sync link', style: 'width:' + show + 'px;height:' + show + 'px;image-rendering:pixelated;border-radius:10px' });
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, S, S); x.fillStyle = '#000';
+  for (let y = 0; y < n; y++) for (let xx = 0; xx < n; xx++) if (M[y][xx]) x.fillRect((xx + q) * px, (y + q) * px, px, px);
+  return c;
+}
+
 /* ============================== example plan ============================== */
 function makeExample() {
   const p = newPlan({ name: 'Example: Wasteland starter', area: 'Withered Wasteland', w: 56, h: 40, fill: 'Ordinary soil' });
@@ -2648,6 +2921,7 @@ async function boot() {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
   new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   new ResizeObserver(() => { resize(); }).observe($('#mapwrap'));
+  const link = takeLink();
   const picsReq = fetch('pics/index.json').then(r => r.ok ? r.json() : null).catch(() => null);
   let d;
   try { const emb = document.getElementById('pokopiaData'); if (emb) d = JSON.parse(emb.textContent); else { const r = await fetch('data.json'); if (!r.ok) throw new Error(r.status); d = await r.json(); } }
@@ -2657,16 +2931,21 @@ async function boot() {
   loadLocalPlans();
   const cur = LS.get(LSK + 'current'); let p = cur ? readLocalPlan(cur) : null;
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);
-  if (!p) { p = makeExample(); exampleUntouched = true; }
+  if (!p) { p = makeExample(); exampleUntouched = true; LS.set(LSK + 'example', p.id + ':' + p.updated); }
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
   selectItem('Field grass', false); setTool('place'); setShowAreas(showAreas);
   showTab(VALID_TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'build', true);
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
+  openLink(link);
+  if (sync && !sync.broken) setTimeout(() => syncNow(), 600);
   setTimeout(() => fillPictures(), 1500);
-  addEventListener('online', () => { if (picFill.done < picFill.total) fillPictures(); });
-  addEventListener('pagehide', () => { if (dirty) persistNow(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && dirty) persistNow(); });
+  addEventListener('online', () => { syncNow(); if (picFill.done < picFill.total) fillPictures(); });
+  addEventListener('offline', () => { syncErr = sync ? syncProblem(null) : ''; syncUI(); });
+  setInterval(() => { if (sync && !document.hidden) syncNow(); }, 60000);
+  const leaving = () => { if (dirty) persistNow(true); if (sync && syncPending()) syncNow({ keepalive: true }); };
+  addEventListener('pagehide', leaving);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); else if (sync && Date.now() - syncLastTry > 15000) syncNow(); });
 }
 boot();
 </script>
