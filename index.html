@@ -8,8 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-/* Plan: a surveyor's restoration sheet. Sage paper + ink green, Ditto-lilac accent for the active tool and selection.
-   Layout: map canvas fills the screen; tools on top; a side panel on desktop that becomes a bottom sheet on phones. */
 :root{
   --paper:#eef1ec; --panel:#f9faf7; --ink:#1c2a23; --muted:#5b6a62; --line:#d3dbd3;
   --accent:#9b55c9; --accent-ink:#ffffff; --accent-soft:#efe2f8;
@@ -44,7 +42,6 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .app{display:grid;grid-template-rows:auto auto 1fr;height:100%}
 
-/* header */
 .top{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid var(--line);min-width:0}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand svg{flex:none}
@@ -60,7 +57,6 @@ button{cursor:pointer}
 .chip.bad{border-color:color-mix(in srgb,var(--bad) 40%,var(--line));color:var(--bad)}
 .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
 
-/* toolbar */
 .toolbar{display:flex;gap:4px;padding:6px 12px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;align-items:center}
 .toolbar::-webkit-scrollbar{display:none}
 .tbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:54px;height:50px;padding:4px 6px;border:1px solid transparent;background:none;border-radius:var(--r);color:var(--ink);font-size:11.5px;flex:none}
@@ -71,7 +67,6 @@ button{cursor:pointer}
 .tbtn.icononly{min-width:44px}
 .sep{width:1px;height:32px;background:var(--line);margin:0 4px;flex:none}
 
-/* main */
 .main{position:relative;display:grid;grid-template-columns:1fr 400px;min-height:0}
 .mapwrap{position:relative;min-height:0;overflow:hidden;background:var(--map-bg)}
 #map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
@@ -94,7 +89,6 @@ button{cursor:pointer}
 .arealine{display:flex;gap:8px;align-items:flex-start;margin-top:8px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--ink) 5%,transparent);font-size:13px}
 .arealine svg{width:18px;height:18px;flex:none;margin-top:1px;color:var(--accent)}
 
-/* inspector card */
 .inspector{position:absolute;left:8px;bottom:44px;width:min(380px,calc(100% - 64px));background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.16);display:none;flex-direction:column;max-height:calc(100% - 104px);overflow:hidden}
 .inspector.open{display:flex}
 .insp-top{flex:none;padding:12px 14px 10px}
@@ -132,7 +126,6 @@ button{cursor:pointer}
 .close{margin-left:auto;border:0;background:none;padding:4px;border-radius:8px;color:var(--muted)}
 .close svg{width:18px;height:18px}
 
-/* panel */
 .panel{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--panel)}
 .handle{display:none}
 .tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
@@ -272,7 +265,6 @@ button.res{cursor:pointer}
 button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-height:1.5;cursor:pointer}
 .res.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
 
-/* decorating a kit house: a large popup with the room on the left and help on the right */
 .ied{position:fixed;inset:0;background:rgba(10,15,12,.5);z-index:35;display:flex;align-items:center;justify-content:center;padding:18px}
 .ied[hidden]{display:none}
 .ied .win{position:relative;background:var(--panel);border-radius:18px;width:min(1240px,100%);height:min(820px,100%);display:grid;grid-template-rows:auto 1fr;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden}
@@ -444,7 +436,6 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
 
 <script>
 'use strict';
-/* ============================== utilities ============================== */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 function h(tag, attrs, ...kids) {
@@ -461,7 +452,6 @@ function h(tag, attrs, ...kids) {
   for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(String(c)));
   return e;
 }
-/* full screen: hides the browser's bars; offered only where the browser allows it */
 const fsActive = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
 async function toggleFullscreen() {
   try {
@@ -479,8 +469,6 @@ function fsInit() {
 }
 const icon = (id) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); const u = document.createElementNS('http://www.w3.org/2000/svg', 'use'); u.setAttribute('href', '#i-' + id); s.append(u); return s; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-/* tooltips: anything with data-tip shows it on hover (mouse, after a moment), on a long press (touch: the press then doesn't count as a tap),
-   on keyboard focus, and on a tap when it isn't a control of its own (a chip, a heading, an ⓘ). Explanations live there, so the screen keeps to a few words. */
 const TIP = { el: null, at: null, t: 0, press: 0, px: null, eat: false };
 function tipShow(target) {
   const text = target.getAttribute('data-tip'); if (!text) return;
@@ -490,7 +478,7 @@ function tipShow(target) {
   const r = target.getBoundingClientRect(), b = TIP.el.getBoundingClientRect();
   const x = clamp(r.left + r.width / 2 - b.width / 2, 8, innerWidth - b.width - 8); let y = r.top - b.height - 8; if (y < 8) y = r.bottom + 8; y = clamp(y, 8, Math.max(8, innerHeight - b.height - 8));
   TIP.el.style.left = x + 'px'; TIP.el.style.top = y + 'px';
-  clearInterval(TIP.watch); TIP.watch = setInterval(() => { if (!TIP.at || !TIP.at.isConnected) tipHide(); }, 200); // its element was redrawn or closed
+  clearInterval(TIP.watch); TIP.watch = setInterval(() => { if (!TIP.at || !TIP.at.isConnected) tipHide(); }, 200);
 }
 function tipHide() { clearTimeout(TIP.t); clearInterval(TIP.watch); if (TIP.el) TIP.el.hidden = true; if (TIP.at) TIP.at.removeAttribute('aria-expanded'); TIP.at = null; }
 const tipOf = (e) => e.target && e.target.closest ? e.target.closest('[data-tip]') : null;
@@ -507,10 +495,10 @@ function tipsInit() {
   D.addEventListener('pointerup', stopPress, true); D.addEventListener('pointercancel', stopPress, true);
   D.addEventListener('contextmenu', e => { if (TIP.eat || TIP.press) e.preventDefault(); }, true);
   D.addEventListener('click', e => {
-    if (TIP.eat) { TIP.eat = false; e.preventDefault(); e.stopPropagation(); return; } // that was a long press: it showed the tip instead
+    if (TIP.eat) { TIP.eat = false; e.preventDefault(); e.stopPropagation(); return; }
     const t = tipOf(e); if (!t) return;
-    if (t.classList.contains('tipi')) e.preventDefault(), e.stopPropagation(); // an ⓘ only explains, even inside a label or a row
-    else if (tipIsControl(t) || (t.parentElement && t.parentElement.closest('button, a, label, summary'))) return; // the control it sits in acts instead
+    if (t.classList.contains('tipi')) e.preventDefault(), e.stopPropagation();
+    else if (tipIsControl(t) || (t.parentElement && t.parentElement.closest('button, a, label, summary'))) return;
     if (TIP.at === t) tipHide(); else tipShow(t);
   }, true);
   D.addEventListener('focusin', e => { const t = e.target.closest && e.target.closest('[data-tip]'); if (t && t.matches(':focus-visible')) tipShow(t); });
@@ -518,9 +506,7 @@ function tipsInit() {
   D.addEventListener('keydown', e => { if (e.key === 'Escape' && TIP.at) tipHide(); }, true);
   addEventListener('scroll', () => { if (TIP.at) tipHide(); }, true); addEventListener('resize', tipHide);
 }
-// an icon-only button: its name shows as a tip and is read out by screen readers
 const ibtn = (id, label, onclick, cls, attrs) => h('button', Object.assign({ class: 'ibtn' + (cls ? ' ' + cls : ''), type: 'button', 'aria-label': label, 'data-tip': label, onclick }, attrs || {}), icon(id));
-// an ⓘ that shows an explanation when tapped or hovered
 const tipBtn = (text) => text ? h('button', { class: 'tipi', type: 'button', 'aria-label': text, 'data-tip': text }, icon('info')) : '';
 const fmt = (n) => Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -531,7 +517,7 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { } },
 };
-function shade(hex, amt) { // amt -1..1
+function shade(hex, amt) {
   let c = hex.replace('#', ''); if (c.length === 3) c = c.split('').map(x => x + x).join('');
   let r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16);
   if (amt >= 0) { r += (255 - r) * amt; g += (255 - g) * amt; b += (255 - b) * amt; } else { r *= 1 + amt; g *= 1 + amt; b *= 1 + amt; }
@@ -539,9 +525,8 @@ function shade(hex, amt) { // amt -1..1
 }
 function lum(hex) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
 
-/* ============================== data ============================== */
 let DATA, ITEMS = [], BY_NAME = new Map(), GROUPS = new Map(), GROUP_OF = new Map(), HAB = [], HAB_BY_ID = new Map(), PK = [], PK_BY_NAME = new Map();
-let USED_IN = new Map(); // item idx -> [habitat ids]
+let USED_IN = new Map();
 let MAT_BY_NAME = new Map(), FAVS = [], FAV_COUNT = {};
 const CAT_META = {
   Terrain: { col: '#8fae6e', label: 'Terrain' }, Nature: { col: '#4f9a45', label: 'Nature' },
@@ -596,14 +581,12 @@ function buildIndex(d) {
   for (const m of d.materials) MAT_BY_NAME.set(m.n, m);
   FAVS = d.favs || [];
   for (const it of ITEMS) if (it.fv) for (const f of it.fv) FAV_COUNT[f] = (FAV_COUNT[f] || 0) + 1;
-  // habitats per pokémon
   for (const p of PK) p.hab = [];
   for (const hb of HAB) for (const n of hb.p) { const p = PK_BY_NAME.get(n); if (p) p.hab.push(hb.id); }
 }
 
-/* ============================== plan model ============================== */
-let plan = null;           // current plan (live structure)
-let plansIndex = [];       // [{id,name,area,w,h,updated}]
+let plan = null;
+let plansIndex = [];
 const LSK = 'pokopia-planner:';
 
 function newPlan({ name, area, w, h, fill }) {
@@ -640,11 +623,10 @@ function deserialize(s) {
     if (fits(p, ob.x, ob.y, ob.w, ob.h)) { p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
   });
   if (s.u) for (const tok of s.u.split(';')) { const [d, x, y, rw, rh] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (it && x >= 0 && y >= 0 && x + rw <= w && y + rh <= h) { const r = { id: p.nextId++, rug: 1, i: it.i, x, y, w: rw, h: rh }; p.rugs.set(r.id, r); } }
-  rugCellsToRugs(p); // plans saved before rugs had a layer of their own
+  rugCellsToRugs(p);
   try { p.zones = (typeof s.z === 'string' ? JSON.parse(s.z) : (s.z || [])).map(z => ({ ...z, id: z.id || uid() })); } catch (e) { p.zones = []; }
   return p;
 }
-/* kit interiors: ob.int = { w, h, fl (overrides, optional), f: [ { o: [[itemIdx, x, y], ...], wp: wallpaper idx, fc: floor covering idx } per floor ] } */
 function intHasData(I) { return !!(I && (I.w || I.h || I.fl || (I.f || []).some(f => f && (f.o.length || f.wp != null || f.fc != null)))); }
 function intOut(I) { const nm = (i) => i != null && ITEMS[i] ? ITEMS[i].n : undefined; return { w: I.w || undefined, h: I.h || undefined, fl: I.fl || undefined, f: (I.f || []).map(f => f ? { o: f.o.map(([i, x, y, w, hh]) => w > 1 || hh > 1 ? [ITEMS[i].n, x, y, w || 1, hh || 1] : [ITEMS[i].n, x, y]), wp: nm(f.wp), fc: nm(f.fc) } : { o: [] }) }; }
 function intIn(J) { const ix = (n) => { const it = n && BY_NAME.get(n); return it ? it.i : null; }; return { w: J.w || 0, h: J.h || 0, fl: J.fl || 0, f: (J.f || []).map(f => ({ o: (f.o || []).map(([n, x, y, w, hh]) => { const it = BY_NAME.get(n); return it ? (w > 1 || hh > 1 ? [it.i, x | 0, y | 0, w | 0, hh | 0] : [it.i, x | 0, y | 0]) : null; }).filter(Boolean), wp: ix(f.wp), fc: ix(f.fc) })) }; }
@@ -653,23 +635,19 @@ function inB(p, x, y) { return x >= 0 && y >= 0 && x < p.w && y < p.h; }
 function fits(p, x, y, w, h, ignoreId) { if (x < 0 || y < 0 || x + w > p.w || y + h > p.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = p.occ[yy * p.w + xx]; if (o && o !== ignoreId) return false; } return true; }
 function stampOcc(p, ob, val) { for (let yy = ob.y; yy < ob.y + ob.h; yy++) for (let xx = ob.x; xx < ob.x + ob.w; xx++) p.occ[yy * p.w + xx] = val; }
 
-/* ---------- transactions (undo/redo) ---------- */
 let tx = null; const undoStack = [], redoStack = [];
 function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [], z: null, in: null, r: null }; }
 function setRes(next) { beginTx(); if (!tx.r) tx.r = [plan.res || []]; plan.res = next; tx.r[1] = next; }
 function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.g.has(k)) tx.g.set(k, [plan.ground[k], v]); else tx.g.get(k)[1] = v; plan.ground[k] = v; }
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
-/* item sizes: the sizes you set apply to every plan on this device (userSizes); a plan also keeps a copy (plan.isz) so it looks right when shared */
 let userSizes = {}; try { userSizes = JSON.parse(LS.get('pokopia-planner:sizes') || '{}') || {}; } catch (e) { userSizes = {}; }
 const saveUserSizes = () => { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); LS.set(LSK + 'sizesUpdated', String(Date.now())); scheduleSync(); };
-if (Object.keys(userSizes).length && !LS.get(LSK + 'sizesUpdated')) LS.set(LSK + 'sizesUpdated', '1'); // sizes set before sync existed still get synced
+if (Object.keys(userSizes).length && !LS.get(LSK + 'sizesUpdated')) LS.set(LSK + 'sizesUpdated', '1');
 const sizeSet = (it) => userSizes[it.n] || (plan && plan.isz && plan.isz[it.n]) || null;
 const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 function addObj(i, x, y, w, h) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
-/* walls, doors and windows: doors, gates and windows sit in wall lines and take the place of the wall pieces they cover;
-   when one leaves (moved, turned, resized, deleted) the gap closes again with the wall on either side. Other items never cover walls. */
 const inWall = (it) => isDoor(it) || isWindow(it);
 const structural = (it) => isWall(it) || inWall(it);
 function replaces(it, q) { if (q.w > 1 || q.h > 1 || q.i === it.i) return false; const qi = ITEMS[q.i]; if (inWall(it)) return true; if (isWall(it)) return !inWall(qi); return !structural(qi); }
@@ -677,7 +655,7 @@ function blocker(it, x, y, w, h, self) { if (x < 0 || y < 0 || x + w > plan.w ||
 function clearFor(x, y, w, h, self) { const gone = new Set(); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = plan.occ[yy * plan.w + xx]; if (o && o !== self) gone.add(plan.objs.get(o)); } for (const q of gone) if (q) delObj(q); }
 function lineAt(x, y) { if (!inB(plan, x, y)) return null; const o = plan.occ[y * plan.w + x]; const q = o && plan.objs.get(o); return q && structural(ITEMS[q.i]) ? q : null; }
 function wallAlong(x, y, dx, dy) { for (let n = 0; n < 16; n++, x += dx, y += dy) { const q = lineAt(x, y); if (!q) return null; if (isWall(ITEMS[q.i]) && q.w === 1 && q.h === 1) return q.i; } return null; }
-function closeWall(r, keep) { // r: where a door or window stood; keep: area it covers now (left alone)
+function closeWall(r, keep) {
   const runs = []; const kept = (x, y) => keep && x >= keep.x && x < keep.x + keep.w && y >= keep.y && y < keep.y + keep.h;
   const fill = (cells, wi) => { for (const [x, y] of cells) if (!kept(x, y) && !plan.occ[y * plan.w + x]) addObj(wi, x, y, 1, 1); };
   let done = false;
@@ -687,7 +665,7 @@ function closeWall(r, keep) { // r: where a door or window stood; keep: area it 
 }
 function wallTurn(it, x, y, w, h) { if (w === h || !inWall(it) || !lineAt(x, y)) return [w, h]; const across = lineAt(x - 1, y) || lineAt(x + 1, y), down = lineAt(x, y - 1) || lineAt(x, y + 1); return (down && !across && w > h) || (across && !down && h > w) ? [h, w] : [w, h]; }
 function putObj(it, x, y, w, h) { const b = blocker(it, x, y, w, h); if (b) return { err: b }; clearFor(x, y, w, h); return { ob: addObj(it.i, x, y, w, h) }; }
-function reshapeObj(ob, x, y, w, h) { // move, turn or resize one item, keeping walls whole
+function reshapeObj(ob, x, y, w, h) {
   const it = ITEMS[ob.i], b = blocker(it, x, y, w, h, ob.id); if (b) return { err: b };
   delObj(ob); if (inWall(it)) closeWall(ob, { x, y, w, h }); clearFor(x, y, w, h); const n = addObj(ob.i, x, y, w, h); if (n && ob.int) n.int = ob.int; return { ob: n };
 }
@@ -700,7 +678,7 @@ function commitTx(label) {
   if (!t.g.size && !t.e.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r) return;
   t.label = label; undoStack.push(t); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; changed();
 }
-function applyTx(t, dir) { // dir -1 undo, +1 redo
+function applyTx(t, dir) {
   const bi = dir < 0 ? 0 : 1;
   for (const [k, pair] of t.g) plan.ground[k] = pair[bi];
   for (const [k, pair] of t.e) plan.elev[k] = pair[bi];
@@ -714,8 +692,7 @@ function applyTx(t, dir) { // dir -1 undo, +1 redo
 function undo() { if (tx) commitTx(); const t = undoStack.pop(); if (!t) return; applyTx(t, -1); redoStack.push(t); selection = null; closeInspector(); changed(); }
 function redo() { const t = redoStack.pop(); if (!t) return; applyTx(t, 1); undoStack.push(t); changed(); }
 
-/* ============================== evaluation ============================== */
-let zoneStatus = new Map(); // zone id -> result
+let zoneStatus = new Map();
 function zoneCounts(z) {
   const counts = new Map(), terr = new Map(); let minE = 99, maxE = 0; const seen = new Set();
   for (let y = Math.max(0, z.y); y < Math.min(plan.h, z.y + z.h); y++) for (let x = Math.max(0, z.x); x < Math.min(plan.w, z.x + z.w); x++) {
@@ -755,19 +732,16 @@ function evaluateZone(z) {
   matches.sort((a, b) => b.r.weight - a.r.weight);
   let tr = target ? evalHabitat(c, target) : null;
   const best = target ? (tr.ok ? { hb: target, r: tr } : null) : (matches[0] || null);
-  // closest partial for untargeted zones
   let near = null;
   if (!target && !best) { let bestScore = -1; for (const hb of HAB) { if (!habitatAllowed(hb)) continue; const r = evalHabitat(c, hb); if (r.met === 0) continue; const s = r.met / r.total + r.weight / 1000; if (s > bestScore) { bestScore = s; near = { hb, r }; } } }
   return { kind: 'habitat', ok: !!best, best, target, tr, matches, near, allowed: target ? habitatAllowed(target) : true };
 }
-const AREA_R = 4; // the game's habitat range reaches 4 tiles past the habitat on every side, and 4 levels up/down
+const AREA_R = 4;
 let showAreas = LS.get('pokopia-planner:areas') === '1';
 const isWall = (it) => it.c !== 'Kits' && it.c !== 'Wallpaper' && it.c !== 'Poster' && (it.sh === 'block' || it.sh === 'hedge' || /fenc|\bwall\b|pillar|siding|enclosure|railing|barrier|levee|\bposts\b/i.test(it.n)) && !/door|gate|curtain|wall-mounted|wall (light|torch|clock|mirror|switch|monitor|storage|photo|calendar|decoration)|partition|wallpaper/i.test(it.n);
 const isDoor = (it) => /\b(doors?|gate)\b/i.test(it.n) && !/hatch|crossing/i.test(it.n);
 const isWindow = (it) => it.c === 'Buildings' && /\bwindow\b|window pane/i.test(it.n);
 const FURN_CATS = new Set(['Furniture', 'Misc', 'Utilities', 'Outdoor', 'Other', 'Special', 'Poster', 'Wallpaper']);
-/* ---------- houses built block by block: found automatically ----------
-   A house is any space fully enclosed (side to side, not diagonally) by walls, fences, pillars or cube hedges, with a door or gate in the wall. */
 let autoHouses = [], houseById = new Map(), cellHouse = null;
 function detectHouses() {
   const Wd = plan.w, Hd = plan.h, N = Wd * Hd, bar = new Uint8Array(N);
@@ -785,11 +759,10 @@ function detectHouses() {
     if (cells.length < 2 && !doors.size) continue;
     const w = x1 - x0 + 1, hh = y1 - y0 + 1;
     const furnIds = new Set(), furnTypes = new Set(); for (const k of cells) { const oid = plan.occ[k]; if (oid) { const ob = plan.objs.get(oid); const it = ITEMS[ob.i]; if (FURN_CATS.has(it.c) && !isWall(it) && !isDoor(it) && it.sub !== 'Fossil') { furnIds.add(oid); furnTypes.add(it.i); } } }
-    // a block right outside a door stops the house counting (Pokopia Academy)
     const cellSet = new Set(cells); let clearDoors = 0, doorBase = null;
     const blockAt = (k) => { const oid = plan.occ[k]; if (!oid) return false; const it = ITEMS[plan.objs.get(oid).i]; return isWall(it) || it.c === 'Blocks' || it.sh === 'block'; };
     for (const d of doors) { const dx = d % Wd, dy = (d / Wd) | 0; for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ix = dx + ax, iy = dy + ay; if (ix < 0 || iy < 0 || ix >= Wd || iy >= Hd || !cellSet.has(iy * Wd + ix)) continue; const fx = dx - ax, fy = dy - ay; const out = fx < 0 || fy < 0 || fx >= Wd || fy >= Hd; if (out || !blockAt(fy * Wd + fx)) { clearDoors++; if (doorBase == null) doorBase = plan.elev[d]; } break; } }
-    let ox0 = Math.max(0, x0 - 1), oy0 = Math.max(0, y0 - 1), ox1 = Math.min(Wd - 1, x1 + 1), oy1 = Math.min(Hd - 1, y1 + 1); // the wall ring
+    let ox0 = Math.max(0, x0 - 1), oy0 = Math.max(0, y0 - 1), ox1 = Math.min(Wd - 1, x1 + 1), oy1 = Math.min(Hd - 1, y1 + 1);
     for (const d of doors) { const dx = d % Wd, dy = (d / Wd) | 0; ox0 = Math.min(ox0, dx); oy0 = Math.min(oy0, dy); ox1 = Math.max(ox1, dx); oy1 = Math.max(oy1, dy); }
     if (doorBase == null) { doorBase = doors.size ? plan.elev[[...doors][0]] : 99; if (doorBase === 99) { for (const k of cells) doorBase = Math.min(doorBase, plan.elev[k]); } }
     const sizeOk = w >= 2 && hh >= 2 && ((w <= 9 && hh <= 10) || (w <= 10 && hh <= 9));
@@ -797,27 +770,22 @@ function detectHouses() {
     const kits = [...kitIds].map(i => plan.objs.get(i)); const kitHomes = kits.filter(ob => ITEMS[ob.i].cap);
     const id = 'H' + k0;
     const hs = { id, anchor: k0, cells: new Set([...cells, ...doors]), interior: cells.length, doors, clearDoors, x: x0, y: y0, w, h: hh, furn: furnTypes.size, pieces: furnIds.size, sizeOk, kits, kitHomes, ok: sizeOk && clearDoors > 0 && furnTypes.size >= 3 };
-    hs.enclosure = !sizeOk && kitHomes.length > 0; // too big to be a house, but it shelters kit homes
+    hs.enclosure = !sizeOk && kitHomes.length > 0;
     const outer = { x: ox0, y: oy0, w: ox1 - ox0 + 1, h: oy1 - oy0 + 1 };
     const rx0 = Math.max(0, ox0 - AREA_R), ry0 = Math.max(0, oy0 - AREA_R), rx1 = Math.min(Wd - 1, ox1 + AREA_R), ry1 = Math.min(Hd - 1, oy1 + AREA_R);
-    // active area = the in-game dotted line: 4 tiles past the house on every side, 4 levels below to 3 above the door; cells = the floor (where brightness counts)
     hs.area = { kind: 'house', cells: hs.cells, outer, rect: { x: rx0, y: ry0, w: rx1 - rx0 + 1, h: ry1 - ry0 + 1 }, base: doorBase };
     list.push(hs); for (const k of cells) cellHouse[k] = list.length - 1;
     const p = prev.get(id); if (!firstEval && hs.ok && (!p || !p.ok)) celebrate(hs.area.outer, { kind: 'house' });
   }
   autoHouses = list; houseById = new Map(list.map(x => [x.id, x]));
 }
-/* ---------- residents: a resident is stored as a tile inside its home, so homes can change shape ---------- */
 function houseHome(hs) { return { kind: 'house', key: 'house:' + hs.id, hs, cap: 4, floors: 1, pf: 0, label: 'House at ' + hs.x + ', ' + hs.y, ax: hs.anchor % plan.w, ay: (hs.anchor / plan.w) | 0 }; }
-function kitInfo(ob) { // interior size per floor, floors, Pokémon per floor
+function kitInfo(ob) {
   const it = ITEMS[ob.i], I = ob.int || {}; const fl = clamp(I.fl || it.fl || 1, 1, 2);
   return { kind: it.kind || 'in', w: I.w || it.iw || Math.max(3, ob.w * 2 - 2), h: I.h || it.ih || Math.max(3, ob.h * 2 - 2), fl, pf: fl > 1 ? (it.pf || 0) : 0, est: !!it.ie && !I.w, small: !!it.sm, custom: !!(I.w || I.h || I.fl) };
 }
 function kitHome(ob) { const it = ITEMS[ob.i], ki = kitInfo(ob); return { kind: 'kit', key: 'kit:' + ob.id, ob, cap: it.cap, floors: ki.fl, pf: ki.pf, label: it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y, ax: ob.x, ay: ob.y }; }
 const floorName = (f) => f ? 'Upstairs' : 'Ground floor';
-/* den size: dens and the Poké Ball house take medium-sized Pokémon or smaller (community-tested list) */
-/* Pokémon size: small / medium / large. Large ones were tested by players (too big for dens); small vs medium is a guess
-   from height and weight (pg) until you set it; your choice is kept with item sizes as 'pk:<name>' and syncs */
 const SIZE_NAME = { s: 'Small', m: 'Medium', l: 'Large' }, SIZE_RANK = { s: 0, m: 1, l: 2 };
 const pkSize = (p) => (p && (userSizes['pk:' + p.n] || p.ps)) || 'm';
 const pkSizeMine = (p) => !!p && !!userSizes['pk:' + p.n];
@@ -840,7 +808,7 @@ function pkSizeDialog(p, onChange) {
     if (pkSizeMine(p)) box.append(h('button', { class: 'btn sm', style: 'margin-top:6px', onclick: () => { delete userSizes['pk:' + p.n]; saveUserSizes(); closeModal(); toast(p.n + ' is back to ' + SIZE_NAME[pkSize(p)].toLowerCase() + (pkSizeGuess(p) ? ' (guess)' : '')); onChange && onChange(); } }, 'Back to the guess'));
   }, 'Save', () => { if (pick === (p.ps || 'm') && !p.pg) delete userSizes['pk:' + p.n]; else userSizes['pk:' + p.n] = pick; saveUserSizes(); toast(p.n + ' is ' + SIZE_NAME[pick].toLowerCase()); onChange && setTimeout(onChange, 0); }, false, 'Size decides the rest item it needs (1×1 small, 2×1 medium, 2×2 large) and whether it fits a den (medium or smaller). Yours syncs.');
 }
-function homeAt(x, y, kind) { // kind: 'k' kit, 'h' house you built, undefined: a kit first, then a house
+function homeAt(x, y, kind) {
   if (!inB(plan, x, y)) return null; const k = y * plan.w + x;
   const oid = plan.occ[k], ob = oid && plan.objs.get(oid); const kit = ob && ITEMS[ob.i].cap ? kitHome(ob) : null;
   if (kind === 'k') return kit;
@@ -861,7 +829,7 @@ function removeResident(name) { plan.res = (plan.res || []).filter(r => r.p !== 
 function intFloor(ob, f) { const I = ob.int; return I && I.f && I.f[f] ? I.f[f] : { o: [], wp: null, fc: null }; }
 function kitPieces(ob, floor) { const ki = kitInfo(ob), out = []; for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; for (const a of intFloor(ob, f).o) { const [i, x, y] = a; if (x < ki.w && y < ki.h && ITEMS[i]) out.push({ it: ITEMS[i], x, y, f, w: a[3] || 1, h: a[4] || 1 }); } } return out; }
 function kitFurniture(ob) { return kitPieces(ob).filter(p => !isWall(p.it) && !isDoor(p.it)).length; }
-function presentFavs(home, floor) { // favourite kinds already in the home -> item names
+function presentFavs(home, floor) {
   const out = new Map();
   const add = (it) => { if (it && it.fv) for (const f of it.fv) { if (!out.has(f)) out.set(f, []); const l = out.get(f); if (!l.includes(it.n)) l.push(it.n); } };
   if (home.kind === 'kit') { const ki = kitInfo(home.ob); for (const pc of kitPieces(home.ob, floor)) add(pc.it); for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; const F = intFloor(home.ob, f); if (F.wp != null) add(ITEMS[F.wp]); if (F.fc != null) add(ITEMS[F.fc]); } return out; }
@@ -870,50 +838,29 @@ function presentFavs(home, floor) { // favourite kinds already in the home -> it
   for (const k of a.cells) { const g = plan.ground[k]; if (g) add(ITEMS[g - 1]); }
   return out;
 }
-function favCoverage(home) { // per resident, counting what's on their own floor
+function favCoverage(home) {
   let have = 0, total = 0; const cache = new Map();
   for (const r of residentsOf(home)) { const p = PK_BY_NAME.get(r.p); if (!p) continue; const f = home.floors > 1 ? (r.f || 0) : null; if (!cache.has(f)) cache.set(f, presentFavs(home, f)); const pr = cache.get(f); for (const fv of p.fv || []) { total++; if (pr.has(fv)) have++; } }
   return { have, total };
 }
-/* ---------- environment: brightness, warmth and humidity ----------
-   A Pokémon's ideal habitat is one of six: Bright or Dark, Warm or Cool, Humid or Dry. They sit on three separate scales, so one home
-   can be warm and humid at once; only opposites on the same scale clash.
-   Each item, and each tile of water, lava, ice or grass, carries light, warmth and humidity points; a home adds up what counts for it.
-   Points and rules are from one player's in-game tests, each checked against the residents' reactions (note.com/ccopedia, Oct 2026:
-   「あかるい」「くらい」, 「あたたかい」「すずしい」 and 「うるおっている」「乾そうしている」), agreeing with ぽこポケ学会 (kyu49.github.io/Pokopia).
-   - A house built from blocks (one you built, or a kit made of blocks such as the cottages): only what's on the floor inside the walls
-     and on the door tiles counts, from 1 level below to 3 above the floor. Walls, what's above or below them, and outside never count.
-     Daylight is 90 x the floor tiles open to the sky / every tile of the house walls included (so it's at most about 62 in the biggest
-     house); a roof is any block 2 or more above the floor. Bright at 100+, dark at 60 or less; humid at 100+, dry at 30 or less.
-   - A kit house with its own interior: everything inside counts, both floors and any height; no daylight, and windows, wallpaper and floors
-     don't count. Bright at 40+, dark at 40 or less (exactly 40 suits both); humid at 40+, dry at 60 or less (40 to 60 suits both).
-   - Warmth works the same everywhere: warm at +60 or more, cool at -60 or less.
-   Fires count only when lit (the cooking stove and the Magby statue need no lighting), appliances only when powered and switched on, and
-   bathtubs, basins, fountains and sprinklers only when filled or working; sinks, showers and toilets count anyway. The planner counts
-   everything as working. The air conditioner is set to hot or cold to suit the residents. Values marked untested are the planner's guess. */
 const ENV_AX = { Bright: ['b', 1], Dark: ['b', -1], Warm: ['t', 1], Cool: ['t', -1], Humid: ['u', 1], Dry: ['u', -1] };
 const ENV_ROWS = [['b', 'Light', 'Dark', 'Bright', 'In between'], ['t', 'Warmth', 'Cool', 'Warm', 'Mild'], ['u', 'Humidity', 'Dry', 'Humid', 'In between']];
 const ENV_LIM = { block: { Bright: 100, Dark: 60, Warm: 60, Cool: -60, Humid: 100, Dry: 30 }, kit: { Bright: 40, Dark: 40, Warm: 60, Cool: -60, Humid: 40, Dry: 60 } };
 const ENV_NEED = { p: 'when powered and on', f: 'when lit by a Burn Pokémon', w: 'when filled with water', o: 'when switched on', n: 'when working by water', r: 'when running on fuel', d: 'not in rain, outside a kit house' };
-const ENV_FX = { // [light, warmth, humidity, when it works, 1 = untested (the planner's guess)]
-  // fire
+const ENV_FX = {
   'Slender candle': [20, 10, 0, 'f'], 'Eerie candle': [20, 10, 0, 'f'], 'Campfire': [40, 60, 0, 'f'], 'Firepit': [40, 60, 0, 'f'], 'Wall torch': [40, 60, 0, 'f'],
   'Stone fireplace': [40, 60, 0, 'f'], 'Bonfire': [80, 60, 0, 'f'], 'Torch': [40, 60, 0, 'f', 1], 'Cooking stove': [0, 60], 'Fiery Magby statue': [0, 60], 'Furnace kit': [0, 60, 0, 'r'],
-  // light without flame
   'Mushroom lamp': [80], 'Mushroom streetlight': [80], 'Pearl streetlight': [80], 'Floating lantern': [80], 'Mirror ball': [80, 0, 0, 'p'], 'Lampion': [40],
   'Cube light': [40], 'Poké Ball Wall': [40], 'Neon flooring': [80], 'Cyber flooring': [20], 'Model planet': [40, 0, 0, 'p'], 'Small stage': [40, 0, 0, 'p'], 'Vending machine': [40, 0, 0, 'p'],
   'Gaming bed': [20, 0, 0, 'p'], 'Gaming chair': [20, 0, 0, 'p'], 'Servers': [20, 0, 0, 'p'], 'Wireless power-transmitter post': [20], 'Trevenant streetlight': [20], 'Pumpkin lantern': [20], 'Pumpkin lantern tower': [20],
   'Beach parasol': [-40],
-  // heat and cold
   'Heat Rock': [0, 60], 'Molten rock': [0, 30], 'Lava rock': [0, 10], 'Lava': [0, 60], 'Hot-spring water': [0, 30, 20], 'Air conditioner': [0, 0, 0, 'p'],
   'Icy Rock': [0, -60], 'Refrigerator': [0, -60, 0, 'p'], 'Gaming fridge': [20, -60, 0, 'p'], 'Shop fridge': [0, -60, 0, 'o'], 'Cooler': [0, -60], 'Fan': [0, -60, 0, 'p'], 'Ceiling fan': [0, -60, 0, 'o'],
   'Ice': [0, -10], 'Icicle': [0, -10], 'Shaved ice': [0, -10], 'Soda float': [0, -10],
-  // water (per tile for ground)
   'Water': [0, 0, 20], 'Muddy water': [0, 0, 20], 'Waterfall': [0, 0, 20], 'Ocean water': [0, 0, 20, '', 1], 'Sink': [0, 0, 20], 'Modern sink': [0, 0, 20], 'Shower': [0, 0, 20], 'Toilet': [0, 0, 20],
   'Bathtub': [0, 0, 100, 'w'], 'Water basin': [0, 0, 100, 'w'], 'Humidifier': [0, 0, 100, 'o'], 'Funky diffuser': [0, 0, 100, 'o'], 'Damp Rock': [0, 0, 100], 'Hot-spring spout': [0, 0, 100, 'n'],
   'Horsea fountain': [0, 0, 100, 'n'], 'Sprinkler': [0, 0, 100, 'n'], 'Bubble machine': [0, 0, 100, 'p'], 'Pikachu fountain kit': [40, 0, 100], 'Gyarados fountain': [0, 0, 100, 'n', 1], 'Bouncy blue bathtub': [0, 0, 100, 'w', 1],
   'Castform weather charm (rain)': [0, 0, 50], 'Castform weather charm (sun)': [0, 0, -50], 'Smooth rock': [0, 0, -100, 'd'],
-  // plants and grass
   'Chansey plant': [0, 0, 5], 'Leafy plant': [0, 0, 2.5], 'Tall potted plant': [0, 0, 2.5], 'Flat-leaf plant': [0, 0, 2.5], 'Twisted potted plant': [0, 0, 2.5], 'Pitcher-plant pot': [0, 0, 2.5],
   'Small vase': [0, 0, 2.5, '', 1], 'Extravagant flowers': [0, 0, 2.5, '', 1],
   'Field grass': [0, 0, 1], 'Seashore grass': [0, 0, 1], 'Alpine grass': [0, 0, 1], 'Sky-high grass': [0, 0, 1],
@@ -922,7 +869,7 @@ const ENV_FX = { // [light, warmth, humidity, when it works, 1 = untested (the p
 const ENV_TESTED_LIGHTS = new Set(['Fluorescent light', 'Poké Ball lamp', 'Shell lamp', 'Resort light', 'Pop art lamp', 'Gaming light', 'Spotlight', 'Seedot lamp', 'Garden light', 'Town streetlight']);
 const ENV_POWERED_LIGHTS = ['Town streetlight', 'Harbor streetlight', 'Chic streetlight', 'Double streetlight', 'Dangling streetlight', 'Plain lamp', 'Desk light', 'Poké Ball light', 'Berry table lamp', 'Cute lamp', 'Poké Ball lamp', 'Red meteor lamp', 'Orange meteor lamp', 'Yellow meteor lamp', 'Green meteor lamp', 'Blue meteor lamp', 'Indigo meteor lamp', 'Violet meteor lamp', 'Luxury lamp', 'Garden light', 'Lantern', 'Seedot lamp', 'Wall light', 'Shell lamp', 'Fluorescent light', 'Gaming light', 'Resort light', 'String lights', 'Pop art lamp', 'Berry hanging lamp', 'Surface light', 'Spotlight', 'Antique chandelier', 'Jirachi lamp', 'Cursola light', 'Chain lamp', 'Pathway light (line)', 'Pathway light (single)', 'Pathway light (corner)'];
 let envFxMap = null;
-function envFx(it) { // what one item (or one tile of ground) does to light (b), warmth (t) and humidity (u); null if nothing
+function envFx(it) {
   if (!it) return null;
   if (!envFxMap) {
     envFxMap = new Map(); const lights = new Set(ENV_POWERED_LIGHTS);
@@ -934,34 +881,32 @@ function envFx(it) { // what one item (or one tile of ground) does to light (b),
   }
   return envFxMap.get(it.i) || null;
 }
-const envT = (fx, ac) => fx.ac ? ac * 60 : fx.t; // the air conditioner: +60 on hot, -60 on cold, off when nobody minds
+const envT = (fx, ac) => fx.ac ? ac * 60 : fx.t;
 const envKind = (home) => home.kind === 'kit' && kitInfo(home.ob).kind !== 'ow' ? 'kit' : 'block';
-function envGap(ideal, v, kind) { // how far the home is from what this ideal wants (0: it's met)
+function envGap(ideal, v, kind) {
   const lim = ENV_LIM[kind][ideal]; if (lim == null) return 0;
   return ENV_AX[ideal][1] > 0 ? Math.max(0, lim - v) : Math.max(0, v - lim);
 }
 function envState(k, v, kind) { const [, , lo, hi] = ENV_ROWS.find(r => r[0] === k), H = !envGap(hi, v, kind), L = !envGap(lo, v, kind); return H && L ? hi + ' & ' + lo.toLowerCase() : H ? hi : L ? lo : null; }
 const envAxisOf = (ideal) => ENV_AX[ideal] ? ENV_AX[ideal][0] : null;
 const envClash = (a, b) => !!a && !!b && a !== b && envAxisOf(a) === envAxisOf(b);
-/* roofs on houses built from blocks: plan.roofs = [{ x, y, q }], a tile inside the house and how much of its floor is roofed in quarters
-   (0 none ... 4 all). Like residents it's kept by a tile inside, so the house can change shape. Not set: counted as no roof. */
 const ROOF_WORD = ['no roof', 'a quarter roofed', 'half roofed', 'three quarters roofed', 'roofed over'];
 function roofOf(hs) { const r = (plan.roofs || []).find(r => hs.cells.has(r.y * plan.w + r.x)); return r ? r.q : null; }
 function setRoof(hs, q) { plan.roofs = (plan.roofs || []).filter(r => !hs.cells.has(r.y * plan.w + r.x)); if (q != null) plan.roofs.push({ x: hs.anchor % plan.w, y: (hs.anchor / plan.w) | 0, q }); markDirty(); }
-function houseDaylight(hs) { // 90 x floor tiles open to the sky / every tile of the house, walls included (the door tile is floor)
+function houseDaylight(hs) {
   const inner = new Set([...hs.cells].filter(k => !hs.doors.has(k))), all = new Set(inner);
   for (const k of inner) { const x = k % plan.w, y = (k / plan.w) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inB(plan, x + dx, y + dy)) all.add((y + dy) * plan.w + x + dx); }
   const q = roofOf(hs), floor = hs.cells.size, roofed = Math.round(floor * (q || 0) / 4), open = floor - roofed;
-  return { q, floor, total: all.size, roofed, open, v: 90 * Math.fround(open / all.size) }; // the game works in 32-bit floats: 88/132 lands a hair over 2/3
+  return { q, floor, total: all.size, roofed, open, v: 90 * Math.fround(open / all.size) };
 }
-function envOf(home) { // { kind, roof, day, ac, pks, ax: { b|t|u: { v, state, parts: Map(label -> { v, n, need, guess }) } } }
+function envOf(home) {
   const pks = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
   let warm = 0, cool = 0; for (const p of pks) { if (p.ideal === 'Warm') warm++; else if (p.ideal === 'Cool') cool++; }
   const ac = warm > cool ? 1 : cool ? -1 : 0, kind = envKind(home);
   const E = { kind, built: home.kind === 'house', roof: null, day: null, ac, pks, ax: { b: { v: 0, parts: new Map() }, t: { v: 0, parts: new Map() }, u: { v: 0, parts: new Map() } } };
   const add = (k, label, v, fx, n) => { if (!v) return; const A = E.ax[k]; A.v += v; const e = A.parts.get(label); if (e) { e.v += v; e.n += n || 1; } else A.parts.set(label, { v, n: n || 1, need: fx ? fx.need : '', guess: fx ? fx.guess : false }); };
   const addIt = (it) => { const fx = envFx(it); if (!fx) return; const nm = fx.ac ? it.n + (ac > 0 ? ' (on hot)' : ac < 0 ? ' (on cold)' : ' (off)') : it.n; add('b', nm, fx.b, fx); add('t', nm, envT(fx, ac), fx); add('u', nm, fx.u, fx); };
-  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : null)) addIt(pc.it); } // a kit built from blocks is roofed, and its upstairs is more than 3 above the floor
+  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : null)) addIt(pc.it); }
   else {
     const hs = home.hs, base = hs.area.base, D = houseDaylight(hs); E.roof = D.q; E.day = D;
     add('b', 'Daylight (' + D.open + ' of ' + D.total + ' tiles open to the sky' + (D.q == null ? ', roof not set' : '') + ')', D.v);
@@ -977,11 +922,11 @@ function envOf(home) { // { kind, roof, day, ac, pks, ax: { b|t|u: { v, state, p
   return E;
 }
 function envMet(p, E) { const k = envAxisOf(p.ideal); return !k || !envGap(p.ideal, E.ax[k].v, E.kind); }
-function envNeeds(E) { // the ideals not met yet, most wanted first: [{ ideal, who: [names], gap }]
+function envNeeds(E) {
   const m = new Map(); for (const p of E.pks) { if (!p.ideal || envMet(p, E)) continue; if (!m.has(p.ideal)) m.set(p.ideal, []); m.get(p.ideal).push(p.n); }
   return [...m].map(([ideal, who]) => ({ ideal, who, gap: envGap(ideal, E.ax[envAxisOf(ideal)].v, E.kind) })).sort((a, b) => b.who.length - a.who.length);
 }
-function envGain(it, E) { // how much placing one more of this item helps the residents' ideals (negative: it works against them)
+function envGain(it, E) {
   const fx = envFx(it); if (!fx || !E.pks.length) return { g: 0, good: [], bad: [] };
   let g = 0; const good = [], bad = [];
   for (const p of E.pks) {
@@ -995,7 +940,7 @@ function envGain(it, E) { // how much placing one more of this item helps the re
 const envNum = (v) => String(Math.round(v * 10) / 10);
 const envPts = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + envNum(Math.abs(v));
 function envFxText(it, E) { const fx = envFx(it); if (!fx) return ''; const b = []; const t = envT(fx, E ? E.ac : 0); if (fx.b) b.push(envPts(fx.b) + ' light'); if (t) b.push(envPts(t) + ' warmth'); if (fx.u) b.push(envPts(fx.u) + ' humidity'); if (fx.ac && !t) b.push('cools or warms'); return b.join(', ') + (b.length && fx.need ? ' (' + ENV_NEED[fx.need] + ')' : '') + (fx.guess ? ' (untested)' : ''); }
-function envAdvice(ideal, E) { // what to do about one ideal that isn't met
+function envAdvice(ideal, E) {
   const k = envAxisOf(ideal), A = E.ax[k], g = envGap(ideal, A.v, E.kind), lim = ENV_LIM[E.kind][ideal]; if (!g) return '';
   const top = (sign) => [...A.parts].filter(([lb, e]) => e.v * sign > 0 && !lb.startsWith('Daylight')).sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)).slice(0, 3).map(([lb, e]) => lb + (e.n > 1 && !/tile/.test(lb) ? ' ×' + e.n : '') + ' (' + envPts(e.v) + ')').join(', ');
   const where = E.kind === 'block' ? ' Only the floor inside the walls counts.' : '';
@@ -1010,13 +955,13 @@ function envAdvice(ideal, E) { // what to do about one ideal that isn't met
   }
   return '';
 }
-function envBar(k, v, kind) { // a scale: low state | in between (or both) | high state, with a mark at the home's value
+function envBar(k, v, kind) {
   const L = ENV_LIM[kind], [lo, hi] = k === 'b' ? [0, kind === 'kit' ? 160 : 200] : k === 't' ? [-180, 180] : [-20, kind === 'kit' ? 160 : 200];
   const [loLim, hiLim] = k === 'b' ? [L.Dark, L.Bright] : k === 't' ? [L.Cool, L.Warm] : [L.Dry, L.Humid], pc = (x) => clamp((x - lo) / (hi - lo) * 100, 0, 100);
   const a = pc(Math.min(loLim, hiLim)), b = pc(Math.max(loLim, hiLim)), mid = loLim >= hiLim ? 'color-mix(in srgb,var(--lo),var(--hi))' : 'var(--mid)';
   return h('span', { class: 'envbar ' + k, 'aria-hidden': 'true', style: 'background:linear-gradient(90deg,var(--lo) 0 ' + a + '%,' + mid + ' ' + a + '% ' + b + '%,var(--hi) ' + b + '% 100%)' }, h('i', { style: 'left:' + pc(v) + '%' }));
 }
-function envBlock(home) { // the home's light, warmth and humidity, who it suits; tap a ✗ for what to change
+function envBlock(home) {
   const E = envOf(home), L = ENV_LIM[E.kind], box = h('div', { class: 'envbox' });
   for (const [k, lb, lo, hi, mid] of ENV_ROWS) { const A = E.ax[k]; box.append(h('div', { class: 'envrow', 'data-tip': lo + ' at ' + L[lo] + ' or ' + (L[lo] < 0 ? 'lower' : 'less') + ' · ' + hi + ' at ' + (L[hi] > 0 ? '+' : '') + L[hi] + ' or more' }, h('span', { class: 'envlb' }, lb), envBar(k, A.v, E.kind), h('b', { class: 'envst' + (A.state ? '' : ' mid') }, A.state || mid), h('span', { class: 'envv' }, envPts(A.v)))); }
   const chips = h('div', { class: 'reqs' });
@@ -1027,7 +972,7 @@ function envBlock(home) { // the home's light, warmth and humidity, who it suits
   box.append(det);
   return box;
 }
-function envHelp(home) { // the rules for this kind of home, for the ⓘ by "Environment"
+function envHelp(home) {
   const E = { kind: envKind(home), built: home.kind === 'house' };
   return (E.kind === 'kit' ? 'Everything inside counts, both floors, any height. No daylight; windows, wallpaper and floors don\'t count. Bright at 40+, dark at 40 or less; humid at 40+, dry at 60 or less (exactly 40 light, or 40–60 humidity, suits both).'
     : (E.built ? 'Only what\'s on the floor inside the walls or on a door tile counts, from 1 below to 3 above the floor; never walls or outside. Daylight = 90 × floor tiles open to the sky ÷ all tiles, walls included.' : 'Built from blocks, so it works like a house you built: only the ground floor counts, and it\'s roofed (no daylight).') + ' Bright at 100+, dark at 60 or less; humid at 100+, dry at 30 or less.')
@@ -1049,14 +994,14 @@ function decorPlan(home, floor) {
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
   const lack = new Set(comfortTrio(home).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
   const rf = restFit(home, floor), big = rf ? rf.short : [], needR = rf && rf.short.length ? rf.need : 0, needBig = needR > 0;
-  const env = envOf(home), envN = envNeeds(env); // the whole home shares one environment
+  const env = envOf(home), envN = envNeeds(env);
   for (const it of ITEMS) {
     const fx = envFx(it); if ((!it.fv && !it.tg && !fx) || it.c === 'Terrain' || it.c === 'Kits') continue;
-    const nature = it.c === 'Nature'; if (nature && (it.n === 'Molten rock' || !(fx && (fx.b || fx.t || Math.abs(fx.u) >= 10)))) continue; // trees and rocks only for what they do to the air
+    const nature = it.c === 'Nature'; if (nature && (it.n === 'Molten rock' || !(fx && (fx.b || fx.t || Math.abs(fx.u) >= 10)))) continue;
     let fav = 0; const hits = []; if (!nature) for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); }
     const fill = !nature && !!(it.tg && lack.has(it.tg)), fits = needBig && isRest(it) ? (SIZE_RANK[restClass(...footOf(it))[0]] >= needR ? 1 : -1) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig && fits > 0 ? fillW : 0;
     const eg = envGain(it, env);
-    all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, env: eg.g, envGood: eg.good, envBad: eg.bad, sc: fav + (fill ? fillW : 0) + base + size + 2 * eg.g }); // an ideal habitat met counts like a few favourites
+    all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, env: eg.g, envGood: eg.good, envBad: eg.bad, sc: fav + (fill ? fillW : 0) + base + size + 2 * eg.g });
   }
   const sugg = all.filter(x => x.fav > 0 || x.fill || x.env > 0).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
   const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => a.rank - b.rank || (b.fav + b.base + b.env) - (a.fav + a.base + a.env) || a.it.n.localeCompare(b.it.n));
@@ -1084,7 +1029,7 @@ function residentsSection(home) {
   if (cv.total) reqs.append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')'));
   wrap.append(reqs);
   wrap.append(envSection(home));
-  return wrap; // its buttons (Add resident, Decorate) sit in the inspector's pinned bar
+  return wrap;
 }
 function afterResChange(home) { refreshHomeInspector(home); if (IED.ob) iedRender(); }
 function refreshHomeInspector(home) { if (home.kind === 'house') { const hs = houseById.get(home.hs.id); if (hs) selectHouse(hs); } else if (home.ob && plan.objs.has(home.ob.id)) { selection = { obj: home.ob }; showObjInspector(home.ob); } requestDraw(); if (activeTab !== 'build') renderPanel(); }
@@ -1159,7 +1104,6 @@ function decorModal(home) {
     }
   }, null, null, false, home.kind === 'house' ? 'Ticks are favourite kinds already in the active area. Tap an item to place it.' : 'Kit interiors aren\'t on this map, so nothing is ticked here: use Decorate inside, or put these in the house in game.');
 }
-/* ============================== inside a kit house: decorating popup ============================== */
 const IED = { rot: false, ob: null, floor: 0, tool: 'place', item: null, picked: null, hover: null, stroke: null, drag: null, sel: null, filt: null, q: '', cat: 'Furniture', cs: 32, ox: 0, oy: 0 };
 const indoorOK = (it) => !!it && it.L === 'o' && it.c !== 'Kits';
 const decorOK = (it) => indoorOK(it) && !isWall(it) && !isDoor(it) && it.c !== 'Buildings' && it.c !== 'Blocks' && (it.c !== 'Nature' || it.n === 'Smooth rock');
@@ -1190,7 +1134,6 @@ function iedClose() {
 }
 function iedRefresh() { if (!IED.ob) return; if (!plan.objs.has(IED.ob.id)) { iedClose(); return; } const ki = kitInfo(IED.ob); if (IED.floor >= ki.fl) IED.floor = 0; iedHeader(); iedSide(); iedFoot(); iedDraw(); }
 const iedRender = iedRefresh;
-/* ---- editing: every click or drag is one undo step ---- */
 function iedEnsure() { const I = IED.ob.int, ki = kitInfo(IED.ob); while (I.f.length < ki.fl) I.f.push({ o: [], wp: null, fc: null }); for (let k = 0; k < I.f.length; k++) if (!I.f[k]) I.f[k] = { o: [], wp: null, fc: null }; }
 function iedBegin() { if (IED.stroke) return; IED.stroke = { before: IED.ob.int || null, changed: false }; IED.ob.int = cloneInt(IED.ob.int); iedEnsure(); }
 function iedEnd() {
@@ -1248,7 +1191,6 @@ function iedKey(e) {
   else if ((k === '1' || k === '2') && kitInfo(IED.ob).fl > 1) iedSetFloor(+k - 1);
   else if ((e.key === 'Delete' || e.key === 'Backspace') && IED.sel) { iedTake(IED.sel[0], IED.sel[1]); IED.sel = null; iedEnd(); }
 }
-/* ---- drawing the room ---- */
 function iedDraw() {
   const cvs = $('#iedCv'); if (!cvs || !IED.ob) return; const ki = kitInfo(IED.ob), F = iedFloorData();
   const box = cvs.parentElement.getBoundingClientRect(); if (!box.width) return; const wall = 0.55;
@@ -1279,7 +1221,6 @@ function iedDraw() {
     c.strokeStyle = IED.tool === 'erase' ? theme.bad : (ghost && !fitsHere) ? theme.bad : theme.accent; c.lineWidth = 2; c.strokeRect(ox + gx * cs + 1, oy + gy * cs + 1, gw * cs - 2, gh * cs - 2);
   }
 }
-/* ---- header: floors, tools, size ---- */
 function iedHeader() {
   const hd = $('#iedHead'); if (!hd) return; hd.textContent = ''; const ob = IED.ob, it = ITEMS[ob.i], ki = kitInfo(ob), home = iedHome();
   hd.append(swatchEl(it, 'swatch big'), h('div', { class: 'ttl' }, h('h2', { style: 'margin:0' }, 'Inside: ' + it.n.replace(/ kit$/, '')),
@@ -1302,7 +1243,6 @@ function iedFoot() {
   if (IED.tool === 'place' && IED.item) { const it = IED.item, [w, hh] = iedPlaceSize(it.i); el.append(swatchEl(it), h('span', { class: 'grow' }, h('b', null, it.n), it.fv ? h('span', { class: 'note' }, ' · ' + favTxt(it)) : ''), h('span', { class: 'pill', style: 'box-shadow:none', 'data-tip': sizeGuessed(it) ? 'Guessed size' : 'Size' }, w + '×' + hh + (sizeGuessed(it) ? '?' : '')), w !== hh ? ibtn('rotate', 'Rotate (R)', () => { IED.rot = !IED.rot; iedFoot(); iedDraw(); }, 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'), tipBtn('Tap or drag to place; right-click removes.')); return; }
   el.append(h('span', { class: 'note' }, IED.tool === 'erase' ? 'Tap or drag over items to remove them' : 'Tap an item, then where it goes' + (ki.fl > 1 ? ' (either floor)' : '')));
 }
-/* ---- side: residents, favourites, suggestions ---- */
 function iedSuggest(home, f) { const dp = decorPlan(home, f), bt = dp.byTag, ef = dp.envFor; dp.sugg = dp.sugg.filter(x => decorOK(x.it)); dp.byTag = (t) => bt(t, decorOK); dp.envFor = (e) => ef(e, decorOK); return dp; }
 function iedSide() {
   const el = $('#iedRes'); if (!el) return; const sc = el.parentElement.scrollTop; el.textContent = '';
@@ -1357,12 +1297,11 @@ function iedFind() {
   };
   inp.oninput = () => { IED.q = inp.value.trim(); render(); };
   el.append(h('label', { class: 'search' }, icon('search'), inp), cats, res); render();
-  // walls and floor of this floor
   const wps = ITEMS.filter(it => it.c === 'Wallpaper').sort((a, b) => a.n.localeCompare(b.n)), fcs = ITEMS.filter(it => it.c === 'Rug' || (it.c === 'Blocks' && it.L === 'g')).sort((a, b) => a.n.localeCompare(b.n));
   const sel = (id, label, opts, val, key) => { const s = h('select', { id }, h('option', { value: '' }, 'As built'), opts.map(it => h('option', { value: it.i, selected: val === it.i ? '' : null }, it.n + (it.fv ? ' ★' : '')))); s.onchange = () => { iedBegin(); IED.ob.int.f[IED.floor][key] = s.value === '' ? null : +s.value; IED.stroke.changed = true; iedEnd(); }; return h('div', { class: 'field' }, h('label', { for: id }, label), s); };
   el.append(h('h4', { class: 'hrow' }, 'Walls and floor' + (kitInfo(IED.ob).fl > 1 ? ' · ' + (IED.floor + 1) + 'F' : ''), tipBtn('★ counts as a favourite for some Pokémon. Walls and floors don\'t change light, warmth or humidity.')), h('div', { class: 'grid2' }, sel('iedWp', 'Wallpaper', wps, F.wp, 'wp'), sel('iedFc', 'Floor', fcs, F.fc, 'fc')));
 }
-function iedRing(ki, f) { // free tiles along the walls (clockwise), then the middle; keeps the way in from the door clear
+function iedRing(ki, f) {
   const F = iedFloorData(f), door = f === 0 ? Math.floor((ki.w - 1) / 2) : -9;
   const ok = (x, y) => !F.o.some(a => covers(a, x, y)) && !(f === 0 && x === door && y >= ki.h - 2);
   const ring = [], seen = new Set(), push = (x, y) => { const k = x + ',' + y; if (seen.has(k)) return; seen.add(k); if (ok(x, y)) ring.push([x, y]); };
@@ -1373,7 +1312,6 @@ function iedRing(ki, f) { // free tiles along the walls (clockwise), then the mi
 function iedAutoPlace() {
   const ob = IED.ob, ki = kitInfo(ob), home = iedHome(), f = ki.fl > 1 ? IED.floor : null; const dp = iedSuggest(home, f); if (!dp.res.length) return;
   const want = new Set(); for (const p of dp.res) for (const v of p.fv || []) if (!dp.present.has(v)) want.add(v);
-  // keeps a running total of light, warmth and humidity as items are picked, so nothing picked spoils a resident's ideal habitat
   const pick = [], E = dp.env, sim = { b: E.ax.b.v, t: E.ax.t.v, u: E.ax.u.v };
   const delta = (it, k) => { const fx = envFx(it); return !fx ? 0 : k === 't' ? envT(fx, E.ac) : fx[k]; };
   const spoils = (it) => dp.res.some(p => { const k = envAxisOf(p.ideal), d = k ? delta(it, k) : 0; return d && envGap(p.ideal, sim[k] + d, E.kind) > envGap(p.ideal, sim[k], E.kind); });
@@ -1411,7 +1349,6 @@ function iedSizeDialog() {
   });
 }
 addEventListener('resize', () => { if (IED.ob) iedDraw(); });
-/* ============================== housemate groups: who should share a home ============================== */
 const GRP = { pool: 'waiting', size: 4, env: true, q: '' };
 function grpPoolList() {
   const att = planPokemon(); const fromHab = [...att.keys()].map(n => PK_BY_NAME.get(n)).filter(Boolean);
@@ -1433,7 +1370,6 @@ function makeGroups(pool, size) {
     while (g.length < size) { let k = -1, ks = -1; const base = grpScore(g); for (let i = 0; i < left.length; i++) { if (!grpFits(g, left[i])) continue; const s = grpScore([...g, left[i]]) - base; if (s > ks) { ks = s; k = i; } } if (k < 0) break; g.push(left.splice(k, 1)[0]); }
     groups.push(g);
   }
-  // improve: swap members between groups while it raises the total
   for (let pass = 0; pass < 8; pass++) {
     let better = false;
     for (let a = 0; a < groups.length; a++) for (let b = a + 1; b < groups.length; b++) {
@@ -1449,7 +1385,7 @@ function makeGroups(pool, size) {
   return groups.filter(g => g.length).sort((x, y) => y.length - x.length || grpScore(y) - grpScore(x));
 }
 function grpFavs(g) { const cnt = new Map(); for (const p of g) for (const f of p.fv || []) cnt.set(f, (cnt.get(f) || 0) + 1); return [...cnt].sort((a, b) => b[1] - a[1] || FAVS[a[0]].localeCompare(FAVS[b[0]])); }
-function grpPairs(g) { // for two-floor homes: the two pairs that share the most sleep together
+function grpPairs(g) {
   if (g.length < 3) return [g];
   if (g.length === 3) { const opts = [[0, 1, 2], [0, 2, 1], [1, 2, 0]].map(([a, b, c]) => ({ s: grpShared(g[a], g[b]), p: [[g[a], g[b]], [g[c]]] })); return opts.sort((x, y) => y.s - x.s)[0].p; }
   const opts = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]].map(pr => ({ s: grpShared(g[pr[0][0]], g[pr[0][1]]) + grpShared(g[pr[1][0]], g[pr[1][1]]), p: pr.map(q => q.map(i => g[i])) }));
@@ -1507,7 +1443,6 @@ function fillEmptyHomes(groups, free, rerender) {
   const homes = free.slice().sort((a, b) => a.cap - b.cap); const plan2 = [];
   const rest = [];
   for (const g of groups) { const k = homes.findIndex(hm => hm.cap >= g.length && g.every(p => fitsHome(p, hm))); if (k < 0) { rest.push(g.slice()); continue; } plan2.push([g, homes[k]]); homes.splice(k, 1); }
-  // smaller homes left over: give them the closest-matching part of a bigger group
   for (const hm of homes.sort((a, b) => b.cap - a.cap)) {
     rest.sort((a, b) => b.length - a.length); const gi = rest.findIndex(g => g.some(p => fitsHome(p, hm))); if (gi < 0) continue; const g = rest[gi].filter(p => fitsHome(p, hm));
     const part = hm.cap >= 2 && g.length >= 2 ? grpPairs(g)[0].slice(0, hm.cap) : g.slice(0, 1); plan2.push([part, hm]); rest[gi] = rest[gi].filter(p => !part.includes(p));
@@ -1519,17 +1454,15 @@ function fillEmptyHomes(groups, free, rerender) {
 function objInArea(ob, a) { for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) if (inB(plan, x, y) && inArea(a, x, y)) return true; return false; }
 function floorItems(hs) { const ids = new Set(); for (const k of hs.cells) { const oid = plan.occ[k]; if (oid) { const it = ITEMS[plan.objs.get(oid).i]; if (!isWall(it) && !isDoor(it)) ids.add(oid); } } return ids.size; }
 const TRIO = [['Relaxation', 'Rest'], ['Toy', 'Toy'], ['Decoration', 'Decoration']];
-function comfortTrio(home) { // players find comfort is best with a rest, a toy and a decoration item in range
+function comfortTrio(home) {
   const tags = new Set();
   if (home.kind === 'kit') { for (const pc of kitPieces(home.ob)) if (pc.it.tg) tags.add(pc.it.tg); }
   else for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; if (it.tg && !tags.has(it.tg) && objInArea(ob, home.hs.area)) tags.add(it.tg); }
   return TRIO.map(([t, lb]) => [lb, tags.has(t), t]);
 }
-/* rest item size follows its footprint: 1×1 small, 2×1 medium, 2×2 large, matching Pokémon size (owner, from the game).
-   A large Pokémon (too big for dens) needs a large rest item; the app can't tell small from medium Pokémon. */
 const isRest = (it) => !!it && it.tg === 'Relaxation';
 const restClass = (w, h) => Math.min(w, h) >= 2 ? 'large' : Math.max(w, h) >= 2 ? 'medium' : 'small';
-function restFit(home, floor) { // which residents still need a bigger rest item in range
+function restFit(home, floor) {
   const pks = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(p => p && pkSize(p) !== 's'); if (!pks.length) return null;
   const rest = home.kind === 'kit' ? kitPieces(home.ob).filter(pc => isRest(pc.it)) : [...plan.objs.values()].filter(ob => isRest(ITEMS[ob.i]) && objInArea(ob, home.hs.area));
   const top = rest.reduce((m, o) => Math.max(m, SIZE_RANK[restClass(o.w, o.h)[0]]), -1);
@@ -1540,7 +1473,6 @@ const RANK_FOOT = ['1×1', '2×1', '2×2'], RANK_WORD = ['small', 'medium', 'lar
 function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) return ''; const ok = !b.short.length; return h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': (ok ? 'The rest items are big enough for everyone.' : listNames(b.short) + (b.short.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[b.need] + ' rest item (' + RANK_FOOT[b.need] + ' or bigger).') + ' Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large.' + (b.guess ? ' Some sizes are guesses: tap a size to change it.' : '') }, (ok ? '✓Rest size' : '·Rest ' + RANK_FOOT[b.need] + (b.guess ? '?' : ''))); }
 const TRIO_TIP = { Rest: 'A rest item (bed, seat…)', Toy: 'A toy', Decoration: 'A decoration' };
 function trioChips(home) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓' : '·') + lb)), largeRestChip(home)); }
-/* ---------- community box: Gather Pokémon fill it when the whole box is within 4 tiles of their home's dotted line (player-tested) ---------- */
 const CBOX = 'Community box', BOX_R = 4;
 const isBox = (it) => it && it.n === CBOX;
 function growRect(R, n) { const x0 = Math.max(0, R.x - n), y0 = Math.max(0, R.y - n), x1 = Math.min(plan.w - 1, R.x + R.w - 1 + n), y1 = Math.min(plan.h - 1, R.y + R.h - 1 + n); return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; }
@@ -1551,7 +1483,7 @@ function homeRanges() {
   for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; if (!it.cap) continue; out.push({ key: 'kit:' + ob.id, kind: 'kit', label: it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y, rect: growRect(ob, AREA_R), base: plan.elev[ob.y * plan.w + ob.x], pks: pk(residentsOf(kitHome(ob)).map(r => r.p)), ob, guess: true }); }
   return out;
 }
-function boxFit(ob, hm) { // how many of the box's tiles are in reach, and how far it is
+function boxFit(ob, hm) {
   const Z = growRect(hm.rect, BOX_R); let n = 0;
   for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) { if (x < Z.x || y < Z.y || x >= Z.x + Z.w || y >= Z.y + Z.h) continue; const d = plan.elev[y * plan.w + x] - hm.base; if (d >= -12 && d <= 14) n++; }
   const gx = Math.max(0, Z.x - (ob.x + ob.w - 1), ob.x - (Z.x + Z.w - 1)), gy = Math.max(0, Z.y - (ob.y + ob.h - 1), ob.y - (Z.y + Z.h - 1));
@@ -1560,7 +1492,7 @@ function boxFit(ob, hm) { // how many of the box's tiles are in reach, and how f
 function boxReport(ob) { return homeRanges().map(hm => Object.assign({ hm }, boxFit(ob, hm))).filter(x => x.n > 0 || x.far <= 3); }
 function boxesFor(hm) { const l = []; for (const ob of plan.objs.values()) if (isBox(ITEMS[ob.i])) { const f = boxFit(ob, hm); if (f.n === f.all) l.push(ob); } return l; }
 const gatherers = (pks) => pks.filter(p => p.s.includes('Gather'));
-function boxLine(key) { // for a home's inspector
+function boxLine(key) {
   const hm = homeRanges().find(x => x.key === key); if (!hm) return '';
   const boxes = boxesFor(hm), g = gatherers(hm.pks);
   const txt = boxes.length ? (boxes.length > 1 ? '⚠ ' + boxes.length + ' boxes in reach' : 'Box at ' + boxes[0].x + ', ' + boxes[0].y) + (g.length ? ' · filled by ' + listNames(g.map(p => p.n)) : ' · nobody fills it') : 'No community box in reach';
@@ -1617,7 +1549,7 @@ function inArea(a, x, y) {
   if (a.kind === 'house') { if (!a.outer) return a.cells.has(k); if (x < a.rect.x || y < a.rect.y || x >= a.rect.x + a.rect.w || y >= a.rect.y + a.rect.h) return false; const d = plan.elev[k] - a.base; return d >= -4 && d <= 3; }
   return x >= a.rect.x && y >= a.rect.y && x < a.rect.x + a.rect.w && y < a.rect.y + a.rect.h && Math.abs(plan.elev[k] - a.base) <= AREA_R;
 }
-function areaContents(a) { // items inside the active area that are not the habitat's own pieces
+function areaContents(a) {
   const out = new Map(); let n = 0; if (!a) return { n, out };
   for (const ob of plan.objs.values()) {
     if (a.own && a.own.has(ob.id)) continue; const it = ITEMS[ob.i];
@@ -1653,7 +1585,7 @@ function materialTotals(raw) {
   };
   for (const ob of plan.objs.values()) addItem(ITEMS[ob.i], 1);
   const gc = new Map(); for (let k = 0; k < plan.ground.length; k++) { const g = plan.ground[k]; if (g) gc.set(g - 1, (gc.get(g - 1) || 0) + 1); }
-  for (const r of rugsOf(plan)) gc.set(r.i, (gc.get(r.i) || 0) + 1); // a rug counts once, however many squares it covers
+  for (const r of rugsOf(plan)) gc.set(r.i, (gc.get(r.i) || 0) + 1);
   for (const [i, n] of gc) addItem(ITEMS[i], n);
   let out = need;
   if (raw) {
@@ -1665,7 +1597,6 @@ function materialTotals(raw) {
   return { need: out, processed: need, gather, crafted, natural };
 }
 
-/* ============================== rendering ============================== */
 const cv = $('#map'); const ctx = cv.getContext('2d');
 const view = { zoom: 1, px: 40, py: 60, cs: 26 };
 let dpr = 1, W = 0, H = 0, needDraw = true;
@@ -1678,7 +1609,7 @@ function requestDraw() { needDraw = true; }
 function loop(t) { if (needDraw || sparkles.length) { needDraw = false; draw(t); } requestAnimationFrame(loop); }
 
 function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = null) { // pic(x, y, w, h): draws the item's picture (kits only)
+function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = null) {
   const w = s * wcells, hh = s * hcells, cx = x + w / 2, cy = y + hh / 2, col = it.col;
   c.save();
   switch (it.sh) {
@@ -1731,7 +1662,7 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = nu
       c.strokeStyle = shade(base, -0.3); c.lineWidth = 1.5; roundRect(c, x + 1, y + 1, w - 3, hh - 3, Math.min(10, s * 0.4)); c.stroke();
       const named = label && s * Math.min(wcells, hcells) > 40, fs = clamp(s * 0.42, 9, 15), text = fs * (it.cap ? 2.4 : 1.3);
       let ty = y + hh * 0.66;
-      if (pic) { // the kit's picture above its name
+      if (pic) {
         const pad = Math.max(3, Math.min(w, hh) * 0.06), ph = named ? hh - text - pad * 2 : hh - pad * 2;
         if (ph > 8) pic(x + pad, y + pad, w - pad * 2 - 2, ph); else if (!named) pic(x + 2, y + 2, w - 5, hh - 5);
         ty = named && ph > 8 ? y + hh - pad - text + fs * 0.6 : ty;
@@ -1743,10 +1674,10 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = nu
       }
       break;
     }
-    case 'floor': { // ground crafted item (drawn by ground pass)
+    case 'floor': {
       break;
     }
-    default: { // chip
+    default: {
       const pad = s * 0.12; c.fillStyle = shade(col, -0.3); roundRect(c, x + pad, y + pad + s * 0.05, w - 2 * pad, hh - 2 * pad, s * 0.18); c.fill();
       c.fillStyle = col; roundRect(c, x + pad, y + pad, w - 2 * pad, hh - 2 * pad - s * 0.05, s * 0.18); c.fill();
       if (label && s >= 18) { c.fillStyle = lum(col) > 0.6 ? 'rgba(20,30,25,.85)' : 'rgba(255,255,255,.95)'; c.font = `700 ${Math.round(s * 0.34)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(it.gl, cx, cy - s * 0.02); }
@@ -1754,23 +1685,21 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = nu
   }
   c.restore();
 }
-/* rugs: one item with a footprint (Change sets it), in a layer of their own between the floor and the items, so furniture can stand
-   on a rug and the floor stays under it. Each rug is drawn once across its footprint, never repeated square by square. */
 const isRug = (it) => it.c === 'Rug';
-const painted = (it) => it.L === 'g' && !isRug(it); // floors and terrain: painted square by square
+const painted = (it) => it.L === 'g' && !isRug(it);
 const rugsOf = (p) => [...p.rugs.values()];
 const overlaps = (r, x, y, w, h) => r.x < x + w && r.x + r.w > x && r.y < y + h && r.y + r.h > y;
 function rugAt(x, y) { for (const r of plan.rugs.values()) if (overlaps(r, x, y, 1, 1)) return r; return null; }
 function addRug(i, x, y, w, h) { beginTx(); const r = { id: plan.nextId++, rug: 1, i, x, y, w, h }; plan.rugs.set(r.id, r); tx.add.push(r); return r; }
 function delRug(r) { if (!plan.rugs.has(r.id)) return; beginTx(); plan.rugs.delete(r.id); const ai = tx.add.indexOf(r); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(r); }
 const clearRug = delRug;
-function placeRug(it, x, y) { // one rug at x, y; any other rug under it goes, the same rug already here stays (so dragging lays them side by side)
+function placeRug(it, x, y) {
   const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1];
   if (x + w > plan.w || y + hh > plan.h) { toast(it.n + ' is ' + w + '×' + hh + ' and doesn\'t fit here.'); return; }
   const under = rugsOf(plan).filter(r => overlaps(r, x, y, w, hh)); if (under.some(r => r.i === it.i)) return;
   for (const r of under) delRug(r); addRug(it.i, x, y, w, hh);
 }
-function rugCellsToRugs(p) { // plans from before rugs had their own layer painted them square by square: read them back as whole rugs at their size, top-left first
+function rugCellsToRugs(p) {
   const W = p.w, g = p.ground, taken = new Uint8Array(g.length), found = [], foot = (it) => userSizes[it.n] || (p.isz && p.isz[it.n]) || [it.w || 1, it.h || 1];
   for (let k = 0; k < g.length; k++) {
     const v = g[k]; if (!v || taken[k] || !ITEMS[v - 1] || !isRug(ITEMS[v - 1])) continue;
@@ -1781,23 +1710,23 @@ function rugCellsToRugs(p) { // plans from before rugs had their own layer paint
     for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) taken[yy * W + xx] = 1;
     found.push({ i: v - 1, x, y, w, h });
   }
-  for (const r of found) { // the floor under it: the most common floor right around it
+  for (const r of found) {
     const n = new Map(), add = (xx, yy) => { if (xx < 0 || yy < 0 || xx >= W || yy >= p.h) return; const v = g[yy * W + xx]; if (v && !taken[yy * W + xx]) n.set(v, (n.get(v) || 0) + 1); };
     for (let xx = r.x - 1; xx <= r.x + r.w; xx++) { add(xx, r.y - 1); add(xx, r.y + r.h); } for (let yy = r.y; yy < r.y + r.h; yy++) { add(r.x - 1, yy); add(r.x + r.w, yy); }
     let best = 0, bv = 0; for (const [v, c] of n) if (c > best) { best = c; bv = v; } r.under = bv;
   }
   for (const r of found) { for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) g[yy * W + xx] = r.under; const q = { id: p.nextId++, rug: 1, i: r.i, x: r.x, y: r.y, w: r.w, h: r.h }; p.rugs.set(q.id, q); }
 }
-function drawRug(c, it, x, y, s, w, h, under) { // its picture stretched across the footprint (under: a floor to draw first); false until the picture is in
+function drawRug(c, it, x, y, s, w, h, under) {
   const u = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = u && mapPic(u); if (!p) return false;
   const a = c.globalAlpha;
   if (under) for (let j = 0; j < h; j++) drawGroundRun(c, under, x, y + j * s, s, w);
   else if (under === null) { c.fillStyle = theme['map-empty'] || '#f4efe4'; c.fillRect(x, y, w * s + 0.6, h * s + 0.6); }
   c.globalAlpha = a; const pad = Math.max(1, s * 0.06); drawPicIn(c, p, x + pad, y + pad, w * s - pad * 2, h * s - pad * 2, true); return true;
 }
-function drawGroundRun(c, it, x, y, s, n) { // n squares of the same floor side by side: its tile repeated as one fill, lined up with the grid
+function drawGroundRun(c, it, x, y, s, n) {
   const pp = picsFor(it), p = pp[1] && s * dpr >= TILE_PIC_MIN ? mapPic(pp[1]) : null;
-  if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, n * s + 0.6, s + 0.6); return; } // its colour; the rug itself is drawn whole later
+  if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, n * s + 0.6, s + 0.6); return; }
   if (p) {
     const [src] = sizedPic(p, Math.ceil(s * dpr)), at = s + ',' + view.px + ',' + view.py;
     if (!p.pat || p.pat[0] !== src || p.pat[2] !== c) p.pat = [src, c.createPattern(src, 'repeat'), c, ''];
@@ -1809,13 +1738,13 @@ function drawGroundRun(c, it, x, y, s, n) { // n squares of the same floor side 
 }
 function drawGroundCell(c, it, x, y, s) {
   const pp = picsFor(it);
-  if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6); return; } // a rug isn't a pattern: one square of it is just its colour
+  if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6); return; }
   if (pp[1] && s * dpr >= TILE_PIC_MIN) { const p = mapPic(pp[1]); if (p) { drawPicIn(c, p, x, y, s + 0.6, s + 0.6, true); return; } }
   c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6);
   if (s < 9) return;
   const n = it.n;
   if (LIQUID.has(n)) { c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x + s * 0.2, y + s * 0.4); c.quadraticCurveTo(x + s * 0.35, y + s * 0.3, x + s * 0.5, y + s * 0.4); c.moveTo(x + s * 0.45, y + s * 0.7); c.quadraticCurveTo(x + s * 0.6, y + s * 0.6, x + s * 0.75, y + s * 0.7); c.stroke(); if (n === 'Waterfall') { c.strokeStyle = 'rgba(255,255,255,.6)'; c.beginPath(); for (let i = 1; i < 4; i++) { c.moveTo(x + s * i / 4, y); c.lineTo(x + s * i / 4, y + s); } c.stroke(); } }
-  else if (it.c !== 'Terrain') { // crafted floor pattern
+  else if (it.c !== 'Terrain') {
     c.strokeStyle = 'rgba(0,0,0,.12)'; c.lineWidth = 1;
     if (/tiling|flooring|marble/i.test(n)) { c.strokeRect(x + 0.5, y + 0.5, s / 2, s / 2); c.strokeRect(x + s / 2 + 0.5, y + s / 2 + 0.5, s / 2 - 1, s / 2 - 1); }
     else if (/road/i.test(n)) { c.fillStyle = 'rgba(255,255,255,.5)'; if (/vertical/i.test(n)) c.fillRect(x + s * 0.46, y + s * 0.2, s * 0.08, s * 0.6); else c.fillRect(x + s * 0.2, y + s * 0.46, s * 0.6, s * 0.08); }
@@ -1838,10 +1767,8 @@ function draw(t, c = ctx) {
   const s = cellSize();
   const x0 = clamp(Math.floor(-view.px / s), 0, plan.w), y0 = clamp(Math.floor(-view.py / s), 0, plan.h);
   const x1 = clamp(Math.ceil((W - view.px) / s), 0, plan.w), y1 = clamp(Math.ceil((H - view.py) / s), 0, plan.h);
-  // plan backdrop
   c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(view.px + 4, view.py + 6, plan.w * s, plan.h * s);
   c.fillStyle = theme['map-empty']; c.fillRect(view.px, view.py, plan.w * s, plan.h * s);
-  // ground (a row's run of the same floor in one go) + elevation
   for (let y = y0; y < y1; y++) for (let x = x0, k = y * plan.w + x; x < x1;) {
     const g = plan.ground[k]; let e = x + 1; while (e < x1 && plan.ground[k + e - x] === g) e++;
     if (g) drawGroundRun(c, ITEMS[g - 1], view.px + x * s, view.py + y * s, s, e - x);
@@ -1856,7 +1783,6 @@ function draw(t, c = ctx) {
       const right = x + 1 < plan.w ? plan.elev[k + 1] : 0; if (right < e) { c.fillStyle = `rgba(0,0,0,${Math.min(0.3, (e - right) * 0.08)})`; c.fillRect(px + s * 0.88, py, s * 0.12 + 0.6, s); }
     }
   }
-  // grid
   if (s >= 10) {
     c.lineWidth = 1; c.strokeStyle = theme['map-grid']; c.beginPath();
     for (let x = x0; x <= x1; x++) { const px = Math.round(view.px + x * s) + 0.5; c.moveTo(px, view.py + y0 * s); c.lineTo(px, view.py + y1 * s); }
@@ -1867,21 +1793,17 @@ function draw(t, c = ctx) {
   for (let x = Math.ceil(x0 / 8) * 8; x <= x1; x += 8) { const px = Math.round(view.px + x * s) + 0.5; c.moveTo(px, view.py + y0 * s); c.lineTo(px, view.py + y1 * s); }
   for (let y = Math.ceil(y0 / 8) * 8; y <= y1; y += 8) { const py = Math.round(view.py + y * s) + 0.5; c.moveTo(view.px + x0 * s, py); c.lineTo(view.px + x1 * s, py); }
   c.stroke();
-  // zone tints
   for (const z of plan.zones) {
     const r = zoneStatus.get(z.id); const col = z.kind === 'label' ? theme.muted : r && r.ok ? theme.good : (r && (r.kind === 'habitat' && (r.target || r.near))) ? theme.warn : theme.muted;
     c.fillStyle = col; c.globalAlpha = 0.08; c.fillRect(view.px + z.x * s, view.py + z.y * s, z.w * s, z.h * s); c.globalAlpha = 1;
   }
-  // active areas (the game's white dotted line)
   for (const z of plan.zones) {
     const r = zoneStatus.get(z.id); if (!r || !r.area) continue;
     const sel = selection && selection.zone && selection.zone.id === z.id;
     if (!showAreas && !sel) continue;
     drawArea(c, r.area, s, sel);
   }
-  // rugs, each once across its footprint, under the items standing on them
   for (const r of plan.rugs.values()) { if (r.x + r.w < x0 || r.x > x1 || r.y + r.h < y0 || r.y > y1) continue; const it = ITEMS[r.i], rx = view.px + r.x * s, ry = view.py + r.y * s; if (!drawRug(c, it, rx, ry, s, r.w, r.h)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(rx, ry, r.w * s, r.h * s); } }
-  // objects
   const drawn = new Set();
   const big = [];
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
@@ -1892,9 +1814,7 @@ function draw(t, c = ctx) {
     if (s < 6) { c.fillStyle = itemColour(it); c.fillRect(px, py, s + 0.5, s + 0.5); } else drawPicItem(c, it, px, py, s, 1, 1, true, [ob.x, ob.y, 1, 1]);
   }
   for (const ob of big) { drawPicItem(c, ITEMS[ob.i], view.px + ob.x * s, view.py + ob.y * s, s, ob.w, ob.h, true, [ob.x, ob.y, ob.w, ob.h]); const it = ITEMS[ob.i]; if (it.cap && s >= 8) { const e = residentsIndex().homes.get('kit:' + ob.id); if (e) { const t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = view.px + (ob.x + ob.w) * s - tw - 3, by = view.py + ob.y * s + 3; c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8); } } }
-  // elevation numbers
   if (s >= 30) { c.font = '700 10px sans-serif'; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillStyle = 'rgba(0,0,0,.55)'; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const e = plan.elev[y * plan.w + x]; if (e) c.fillText('▲' + e, view.px + (x + 1) * s - 2, view.py + y * s + 2); } }
-  // houses built from blocks
   const resIx = residentsIndex();
   for (const hs of autoHouses) {
     const sel = selection && selection.house === hs.id;
@@ -1903,7 +1823,6 @@ function draw(t, c = ctx) {
     if (!showAreas && !sel) { c.strokeStyle = col; c.globalAlpha = 0.9; c.lineWidth = 2; c.setLineDash([6, 4]); c.strokeRect(px + 1, py + 1, R.w * s - 2, R.h * s - 2); c.setLineDash([]); c.globalAlpha = 1; }
     if (s >= 7) { const small = s < 14, fh = small ? 14 : 18; const nres = (resIx.homes.get('house:' + hs.id) || { list: [] }).list.length; const label = hs.enclosure ? 'Enclosure · ' + hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : '') : (hs.ok ? 'House ✓' : 'House · ' + houseIssues(hs)[0]) + (nres ? ' · ' + nres + '/4' : '') + (hs.kitHomes.length ? ' · +' + hs.kitHomes.length + ' kit' : ''); c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14); c.fillStyle = col; roundRect(c, px, py - fh - 2, tw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); }
   }
-  // zone outlines + labels
   c.textAlign = 'left'; c.textBaseline = 'middle';
   for (const z of plan.zones) {
     const r = zoneStatus.get(z.id); const px = view.px + z.x * s, py = view.py + z.y * s;
@@ -1916,11 +1835,9 @@ function draw(t, c = ctx) {
       c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore();
     }
   }
-  // selection
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
   if (selection && selection.obj && plan.objs.has(selection.obj.id)) { const ob = selection.obj; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
   if (selection && selection.rect) { const r = selection.rect; c.strokeStyle = theme.accent; c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.08; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; }
-  // ghost / drag rect
   if (drag && drag.rect) { const r = normRect(drag.rect); c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.12; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; c.fillStyle = theme.ink; c.font = '700 12px sans-serif'; c.fillText(r.w + ' × ' + r.h, view.px + (r.x + r.w) * s + 6, view.py + r.y * s + 8); }
   if (hover && !drag && plan) {
     const [hx, hy] = hover; const it = currentItem();
@@ -1934,7 +1851,6 @@ function draw(t, c = ctx) {
       c.strokeStyle = tool === 'move' && moving && blocker(ITEMS[moving.i], hx, hy, moving.w, moving.h, moving.id) ? theme.bad : theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = tool === 'stamp' ? hx - 2 : hx, oy = tool === 'stamp' ? hy - 2 : hy; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
     } else if (inB(plan, hx, hy) && s >= 8) { c.strokeStyle = theme.accent; c.lineWidth = 1.5; c.strokeRect(view.px + hx * s + 0.5, view.py + hy * s + 0.5, s * brushFor() - 1, s * brushFor() - 1); }
   }
-  // sparkles
   if (sparkles.length) {
     const now = performance.now();
     for (let i = sparkles.length - 1; i >= 0; i--) {
@@ -1955,7 +1871,6 @@ function drawArea(c, a, s, strong) {
   } else {
     const R = a.rect, px = view.px + R.x * s, py = view.py + R.y * s;
     c.fillStyle = 'rgba(255,255,255,' + (strong ? 0.22 : 0.12) + ')'; c.fillRect(px, py, R.w * s, R.h * s);
-    // cells too far above/below the habitat are outside the range: hatch them
     if (s >= 6) { c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 1; c.beginPath();
       for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) if (Math.abs(plan.elev[y * plan.w + x] - a.base) > AREA_R) { const cx = view.px + x * s, cy = view.py + y * s; c.moveTo(cx, cy + s); c.lineTo(cx + s, cy); c.moveTo(cx, cy + s / 2); c.lineTo(cx + s / 2, cy); c.moveTo(cx + s / 2, cy + s); c.lineTo(cx + s, cy + s / 2); }
       c.stroke(); }
@@ -1975,7 +1890,6 @@ function zoneLabel(z, r) {
   return z.name || 'Habitat zone';
 }
 
-/* ============================== tools & input ============================== */
 let fillMode = 'solid', tool = 'place', curItem = 'Field grass', brush = 1, rotated = false, eraseMode = 'both', heightMode = 'raise', zoneKind = 'habitat';
 let selection = null, hover = null, drag = null, clip = null, stampHab = null, moving = null;
 const pointers = new Map(); let pinch = null;
@@ -2013,7 +1927,7 @@ function eraseCell(x, y) {
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
     if (oid && eraseMode !== 'ground') { const ob = plan.objs.get(oid); delObj(ob); if (inWall(ITEMS[ob.i])) shut.push(ob); if (eraseMode === 'both') continue; }
-    const rg = !oid && eraseMode !== 'ground' ? rugAt(xx, yy) : null; if (rg) { delRug(rg); continue; } // a rug goes as a whole; the floor under it stays
+    const rg = !oid && eraseMode !== 'ground' ? rugAt(xx, yy) : null; if (rg) { delRug(rg); continue; }
     if ((!oid && eraseMode !== 'objects') || eraseMode === 'ground') setGround(k, 0);
   }
   for (const ob of shut) closeWall(ob);
@@ -2027,7 +1941,7 @@ function heightCell(x, y, seen) {
 function lineCells(x0, y0, x1, y1, fn) { const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; for (; ;) { fn(x0, y0); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
 function fillRect(r) {
   const it = currentItem(); if (!it) return;
-  if (isRug(it)) { // whole rugs side by side, as many as fit inside the area
+  if (isRug(it)) {
     const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; let n = 0;
     for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (x >= 0 && y >= 0 && x + w <= plan.w && y + hh <= plan.h) { placeRug(it, x, y); n++; }
     if (!n) toast(it.n + ' is ' + w + '×' + hh + ': drag an area at least that big.'); return;
@@ -2039,7 +1953,7 @@ function fillRect(r) {
 function onDown(e) {
   if (!plan) return; cv.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
-  if (pointers.size === 2) { // start pinch; finish any stroke
+  if (pointers.size === 2) {
     if (drag) { if (drag.kind === 'stroke') commitTx(drag.label); drag = null; requestDraw(); }
     const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, zoom: view.zoom, px: view.px, py: view.py }; return;
   }
@@ -2153,7 +2067,6 @@ function updateStatus() {
   st.append(h('span', { class: 'chip hide-sm' }, Math.round(view.zoom * 100) + '%'));
 }
 
-/* ---------- options bar ---------- */
 let swatchCache = new Map();
 function swatchURL(it) {
   if (swatchCache.has(it.i)) return swatchCache.get(it.i);
@@ -2164,30 +2077,23 @@ function swatchURL(it) {
   else drawItem(x, it, 0, 0, S);
   const url = c.toDataURL(); swatchCache.set(it.i, url); return url;
 }
-/* item pictures live inside the app (pics/, filled by tools/pictures.py) so they show offline; Serebii is only a fallback for any not copied yet */
 const PIC_WEB = 'https://www.serebii.net/pokemonpokopia/items/';
 const picSlug = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-let PICS = { pics: {}, missing: {}, top: {} }; // pics/index.json: key -> short content hash; top: key -> [floor tile hash ('' for rugs), its colour]
-const picRemote = (it) => it && it.im ? (it.im === 1 ? picSlug(it.n) : String(it.im)) : null; // Serebii's file name
-const picKey = (it) => { const r = picRemote(it); return r && r.replace(/[^a-z0-9-]/g, ''); }; // the app's copy (same as pic_key() in tools/pictures.py)
+let PICS = { pics: {}, missing: {}, top: {} };
+const picRemote = (it) => it && it.im ? (it.im === 1 ? picSlug(it.n) : String(it.im)) : null;
+const picKey = (it) => { const r = picRemote(it); return r && r.replace(/[^a-z0-9-]/g, ''); };
 const localPic = (k) => PICS.pics[k] ? 'pics/' + k + '.webp?v=' + PICS.pics[k] : null;
 const picURL = (it) => { const k = picKey(it); if (!k) return null; return localPic(k) || (/^HTTP 404/.test(PICS.missing[k] || '') ? null : PIC_WEB + encodeURIComponent(picRemote(it)) + '.png'); };
-/* ---------- item pictures on the map ----------
-   Items show on the map, and in kit rooms, as their own pictures; floors, terrain and rugs as flat tiles that tools/pictures.py
-   makes from their pictures (pics/top/). Only pictures in view are loaded, six at a time, and the map redraws once a frame
-   however many arrive. Each is kept ready-shrunk to the size it is drawn at (in steps, so zooming doesn't redo them every
-   frame), which keeps panning fast on phones. Only the app's own copies are drawn, never Serebii's, so the map can still be
-   saved as an image. Until a picture is in, or if it can't load, the drawn shape shows instead. */
-const MAP_PIC_MIN = 9, TILE_PIC_MIN = 16; // device pixels: smaller items keep their drawn shape, smaller floor squares just the tile's colour
-const mapPics = new Map(); // url -> { img, box: [x, y, w, h] of the visible part, sized: Map(step -> canvas), failed }
+const MAP_PIC_MIN = 9, TILE_PIC_MIN = 16;
+const mapPics = new Map();
 const picQueue = []; let picBusy = 0, picRedraw = false, sizedCount = 0;
-const picOf = []; // item index -> [picture url, floor tile url, floor tile colour]
+const picOf = [];
 function picsFor(it) {
   let p = picOf[it.i];
   if (!p) { const k = picKey(it), t = k && PICS.top && PICS.top[k]; p = picOf[it.i] = [k ? localPic(k) : null, t && t[0] ? 'pics/top/' + k + '.webp?v=' + t[0] : null, t ? t[1] : null]; }
   return p;
 }
-function mapPic(url) { // the picture, ready to draw, or null while it loads
+function mapPic(url) {
   let p = mapPics.get(url);
   if (!p) { p = { img: null, box: null, sized: new Map(), failed: false, memo: 0, memoR: null }; mapPics.set(url, p); picQueue.push(url); pumpPics(); }
   return p.img ? p : null;
@@ -2201,26 +2107,26 @@ function pumpPics() {
   }
 }
 function picsArrived() { if (picRedraw) return; picRedraw = true; requestAnimationFrame(() => { picRedraw = false; requestDraw(); if (IED.ob) iedDraw(); }); }
-function readPic(im) { // [the part that isn't see-through, so every item fills its squares the same way; its colour: a block's top, or the whole picture]
+function readPic(im) {
   const w = im.naturalWidth, h = im.naturalHeight;
   try {
     const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
     const a = x.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
     for (let y = 0; y < h; y++) for (let i = y * w * 4 + 3, xx = 0; xx < w; xx++, i += 4) if (a[i] > 24) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; y1 = y; }
     if (x1 < x0) return [[0, 0, w, h], null];
-    const cube = w === 200 && Math.abs(x0 - 24) <= 4 && Math.abs(y0 - 24) <= 4 && Math.abs(x1 - 177) <= 4 && Math.abs(y1 - 182) <= 4; // the game's block picture (see tools/pictures.py)
+    const cube = w === 200 && Math.abs(x0 - 24) <= 4 && Math.abs(y0 - 24) <= 4 && Math.abs(x1 - 177) <= 4 && Math.abs(y1 - 182) <= 4;
     const [rx0, ry0, rx1, ry1] = cube ? [66, 40, 142, 58] : [x0, y0, x1, y1], all = [0, 0, 0, 0], leaf = [0, 0, 0, 0], bloom = [0, 0, 0, 0];
     for (let y = ry0; y <= ry1; y++) for (let xx = rx0, i = (y * w + xx) * 4; xx <= rx1; xx++, i += 4) {
-      if (a[i + 3] <= 200) continue; const R = a[i], G = a[i + 1], B = a[i + 2], mx = Math.max(R, G, B), mn = Math.min(R, G, B); if (mx < 60) continue; // not the dark outline
+      if (a[i + 3] <= 200) continue; const R = a[i], G = a[i + 1], B = a[i + 2], mx = Math.max(R, G, B), mn = Math.min(R, G, B); if (mx < 60) continue;
       const add = (t) => { t[0] += R; t[1] += G; t[2] += B; t[3]++; }; add(all);
-      if (mx - mn > 40) add(G >= R && G >= B ? leaf : bloom); // green leaves, or a flower's colour
+      if (mx - mn > 40) add(G >= R && G >= B ? leaf : bloom);
     }
     const hex = (t) => t[3] ? '#' + t.slice(0, 3).map(v => Math.round(v / t[3]).toString(16).padStart(2, '0')).join('') : null;
     return [[x0, y0, x1 - x0 + 1, y1 - y0 + 1], hex(all), hex(leaf), bloom[3] > all[3] * 0.06 ? hex(bloom) : null];
   } catch (e) { }
   return [[0, 0, w, h], null];
 }
-function sizedPic(p, px) { // [source, sx, sy, sw, sh] for drawing the picture about px device pixels across
+function sizedPic(p, px) {
   if (p.memo === px) return p.memoR;
   const [bx, by, bw, bh] = p.box, big = Math.max(bw, bh); let r;
   if (px >= big * 0.75) r = [p.img, bx, by, bw, bh];
@@ -2231,7 +2137,7 @@ function sizedPic(p, px) { // [source, sx, sy, sw, sh] for drawing the picture a
       if (++sizedCount > 1500) { for (const q of mapPics.values()) { q.sized.clear(); q.memo = 0; } sizedCount = 1; }
       const tw = Math.max(1, Math.round(bw * step / big)), th = Math.max(1, Math.round(bh * step / big));
       let src = p.img, sx = bx, sy = by, w = bw, h = bh;
-      do { // halve in steps so small sizes stay crisp instead of grainy
+      do {
         const nw = Math.max(tw, Math.ceil(w / 2)), nh = Math.max(th, Math.ceil(h / 2)), t = document.createElement('canvas'); t.width = nw; t.height = nh;
         const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high'; tx.drawImage(src, sx, sy, w, h, 0, 0, nw, nh);
         src = t; sx = sy = 0; w = nw; h = nh;
@@ -2242,36 +2148,34 @@ function sizedPic(p, px) { // [source, sx, sy, sw, sh] for drawing the picture a
   }
   p.memo = px; p.memoR = r; return r;
 }
-function drawPicIn(c, p, x, y, w, h, fill) { // the picture fitted inside the box, centred (fill: stretched to it, for floor tiles)
+function drawPicIn(c, p, x, y, w, h, fill) {
   let dw = w, dh = h; if (!fill) { const k = Math.min(w / p.box[2], h / p.box[3]); dw = p.box[2] * k; dh = p.box[3] * k; }
   const [src, sx, sy, sw, sh] = sizedPic(p, Math.ceil(Math.max(dw, dh) * dpr));
   c.drawImage(src, sx, sy, sw, sh, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
-/* building pieces (walls, blocks, fences, pillars, hedges, doors, windows) are drawn from above and joined to the pieces next to
-   them, so homes read as floor plans; the game's pictures of them are 3D blocks or side views. Colours come from their pictures. */
 const picInfo = (it) => { const u = picsFor(it)[0]; return (u && mapPics.get(u)) || null; };
 const itemColour = (it) => { const p = picInfo(it); return (p && p.col) || it.col; };
 const fenceLike = (it) => /fenc|railing|enclosure|barrier|handrail|\bposts\b/i.test(it.n);
-function structAround(at) { // at = [x, y, w, h] on the map: the building piece next to each side (n, s, w, e), or null
+function structAround(at) {
   if (!at) return { n: null, s: null, w: null, e: null };
   const [gx, gy, w, h] = at, one = (x, y) => { if (!inB(plan, x, y)) return null; const o = plan.occ[y * plan.w + x], ob = o && plan.objs.get(o); return ob && structural(ITEMS[ob.i]) ? ITEMS[ob.i] : null; };
   const row = (y) => { for (let x = gx; x < gx + w; x++) { const q = one(x, y); if (q) return q; } return null; }, col = (x) => { for (let y = gy; y < gy + h; y++) { const q = one(x, y); if (q) return q; } return null; };
   return { n: row(gy - 1), s: row(gy + h), w: col(gx - 1), e: col(gx + w) };
 }
-function wallAlongAt(at, horiz) { // the wall a door or window sits in: the nearest piece along its line that isn't a door or window
+function wallAlongAt(at, horiz) {
   if (!at) return null; const [gx, gy, w, h] = at;
   for (let d = 1; d <= 6; d++) for (const [x, y] of horiz ? [[gx - d, gy], [gx + w - 1 + d, gy]] : [[gx, gy - d], [gx, gy + h - 1 + d]]) {
     if (!inB(plan, x, y)) continue; const o = plan.occ[y * plan.w + x], ob = o && plan.objs.get(o); if (!ob) continue; const q = ITEMS[ob.i]; if (!structural(q)) return null; if (!inWall(q)) return q;
   }
   return null;
 }
-function wallTop(c, col, x, y, w, h, s, open, round, dots) { // a block seen from above: its top, outlined where it meets open ground, a shadow below to show height
+function wallTop(c, col, x, y, w, h, s, open, round, dots) {
   const dk = shade(col, -0.45), t = Math.max(1.5, s * 0.06), r = round ? Math.min(w, h) * 0.3 : 0;
   c.fillStyle = col;
   if (r) { c.beginPath(); const R = (o1, o2) => o1 && o2 ? r : 0, a = R(open.n, open.w), b = R(open.n, open.e), cc = R(open.s, open.e), d = R(open.s, open.w);
     c.moveTo(x + a, y); c.lineTo(x + w - b, y); c.arcTo(x + w, y, x + w, y + b, b); c.lineTo(x + w, y + h - cc); c.arcTo(x + w, y + h, x + w - cc, y + h, cc); c.lineTo(x + d, y + h); c.arcTo(x, y + h, x, y + h - d, d); c.lineTo(x, y + a); c.arcTo(x, y, x + a, y, a); c.closePath(); c.fill();
-    c.strokeStyle = dk; c.lineWidth = t; c.stroke(); // a hedge: soft corners, outlined all round
-    c.fillStyle = dots || shade(col, 0.22); for (const [fx, fy] of [[0.3, 0.32], [0.68, 0.28], [0.5, 0.62], [0.24, 0.72], [0.76, 0.7]]) { c.beginPath(); c.arc(x + w * fx, y + h * fy, Math.max(1, s * (dots ? 0.1 : 0.09)), 0, 7); c.fill(); } // leaves, with its flowers' colour if it has any
+    c.strokeStyle = dk; c.lineWidth = t; c.stroke();
+    c.fillStyle = dots || shade(col, 0.22); for (const [fx, fy] of [[0.3, 0.32], [0.68, 0.28], [0.5, 0.62], [0.24, 0.72], [0.76, 0.7]]) { c.beginPath(); c.arc(x + w * fx, y + h * fy, Math.max(1, s * (dots ? 0.1 : 0.09)), 0, 7); c.fill(); }
     return;
   }
   c.fillRect(x, y, w + 0.5, h + 0.5);
@@ -2281,14 +2185,13 @@ function wallTop(c, col, x, y, w, h, s, open, round, dots) { // a block seen fro
 }
 function drawStructure(c, it, x, y, s, wc, hc, at) {
   const W = wc * s, H = hc * s, col = itemColour(it), dk = shade(col, -0.45), nb = structAround(at), open = { n: !nb.n, s: !nb.s, w: !nb.w, e: !nb.e };
-  if (inWall(it)) { // doors and windows sit in a wall line: which way it runs, and what it is made of
+  if (inWall(it)) {
     const horiz = wc !== hc ? wc > hc : !!(nb.w || nb.e) || !(nb.n || nb.s), wall = wallAlongAt(at, horiz), wcol = wall ? itemColour(wall) : shade(col, 0.15), lw = Math.max(1.5, s * 0.06);
-    if (isWindow(it)) { // the wall with a pane of glass in it
+    if (isWindow(it)) {
       wallTop(c, wcol, x, y, W, H, s, open); c.fillStyle = '#cdeefa'; c.strokeStyle = shade(wcol, -0.5); c.lineWidth = lw;
       if (horiz) { c.fillRect(x, y + H * 0.34, W, H * 0.32); c.strokeRect(x + lw / 2, y + H * 0.34, W - lw, H * 0.32); } else { c.fillRect(x + W * 0.34, y, W * 0.32, H); c.strokeRect(x + W * 0.34, y + lw / 2, W * 0.32, H - lw); }
       return;
     }
-    // a door or gate: the wall's ends either side and a thick door between them, with its handle
     const j = s * 0.16, fence = wall && fenceLike(wall);
     c.fillStyle = wcol; c.strokeStyle = shade(wcol, -0.45); c.lineWidth = lw;
     const jamb = (jx, jy, jw, jh) => { c.fillRect(jx, jy, jw, jh); c.strokeRect(jx + lw / 2, jy + lw / 2, jw - lw, jh - lw); };
@@ -2297,12 +2200,12 @@ function drawStructure(c, it, x, y, s, wc, hc, at) {
     const e = fence ? s * 0.3 : j, th = 0.52; c.fillStyle = col; c.strokeStyle = shade(col, -0.6); c.lineWidth = Math.max(2, s * 0.08);
     let dx, dy, dw, dh; if (horiz) { dx = x + e; dw = W - 2 * e; dh = H * th; dy = y + (H - dh) / 2; } else { dy = y + e; dh = H - 2 * e; dw = W * th; dx = x + (W - dw) / 2; }
     c.fillRect(dx, dy, dw, dh); c.strokeRect(dx + c.lineWidth / 2, dy + c.lineWidth / 2, dw - c.lineWidth, dh - c.lineWidth);
-    c.fillStyle = shade(col, 0.3); if (horiz) c.fillRect(dx + dw * 0.12, dy + dh * 0.3, dw * 0.76, Math.max(1, dh * 0.14)); else c.fillRect(dx + dw * 0.3, dy + dh * 0.12, Math.max(1, dw * 0.14), dh * 0.76); // panel
-    c.fillStyle = '#f2c94c'; c.strokeStyle = '#6b4c0c'; c.lineWidth = Math.max(1, s * 0.03); const kr = Math.max(1.8, s * 0.085); // the handle
+    c.fillStyle = shade(col, 0.3); if (horiz) c.fillRect(dx + dw * 0.12, dy + dh * 0.3, dw * 0.76, Math.max(1, dh * 0.14)); else c.fillRect(dx + dw * 0.3, dy + dh * 0.12, Math.max(1, dw * 0.14), dh * 0.76);
+    c.fillStyle = '#f2c94c'; c.strokeStyle = '#6b4c0c'; c.lineWidth = Math.max(1, s * 0.03); const kr = Math.max(1.8, s * 0.085);
     c.beginPath(); if (horiz) c.arc(dx + dw - Math.max(kr * 2.2, dw * 0.14), dy + dh / 2, kr, 0, 7); else c.arc(dx + dw / 2, dy + dh - Math.max(kr * 2.2, dh * 0.14), kr, 0, 7); c.fill(); c.stroke();
     return;
   }
-  if (fenceLike(it)) { // rails to the pieces next to it, a post in the middle
+  if (fenceLike(it)) {
     const cx = x + W / 2, cy = y + H / 2, rw = Math.max(2, s * 0.14);
     for (const [q, ex, ey] of [[nb.n, 0, -1], [nb.s, 0, 1], [nb.w, -1, 0], [nb.e, 1, 0]]) if (q) {
       c.fillStyle = dk; if (ex) c.fillRect(Math.min(cx, cx + ex * W / 2), cy - rw / 2 - 1, W / 2 + 0.5, rw + 2); else c.fillRect(cx - rw / 2 - 1, Math.min(cy, cy + ey * H / 2), rw + 2, H / 2 + 0.5);
@@ -2312,10 +2215,8 @@ function drawStructure(c, it, x, y, s, wc, hc, at) {
     return;
   }
   const pi = it.sh === 'hedge' && picInfo(it); wallTop(c, (pi && pi.leaf) || col, x, y, W, H, s, open, it.sh === 'hedge', pi && pi.bloom);
-  if (/pillar/i.test(it.n)) { const ps = Math.min(W, H) * 0.56, px = x + (W - ps) / 2, py = y + (H - ps) / 2; c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(px + s * 0.05, py + s * 0.07, ps, ps); c.fillStyle = shade(col, 0.18); c.fillRect(px, py, ps, ps); c.strokeStyle = dk; c.lineWidth = Math.max(1.5, s * 0.06); c.strokeRect(px, py, ps, ps); } // a pillar: its raised top
+  if (/pillar/i.test(it.n)) { const ps = Math.min(W, H) * 0.56, px = x + (W - ps) / 2, py = y + (H - ps) / 2; c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(px + s * 0.05, py + s * 0.07, ps, ps); c.fillStyle = shade(col, 0.18); c.fillRect(px, py, ps, ps); c.strokeStyle = dk; c.lineWidth = Math.max(1.5, s * 0.06); c.strokeRect(px, py, ps, ps); }
 }
-/* furniture, storage, lamps and appliances: a top-down symbol of their kind, in the colour of their picture, so a room reads at a
-   glance. Decorations, dolls, fossils, kits and special one-off items keep their pictures: one symbol couldn't tell them apart. */
 const FURN_KINDS = [
   ['lamp', /lamp|\blights?\b|spotlight|lantern|chandelier|streetlight|candle|torch/i],
   ['bed', /\bbed\b/i], ['fridge', /fridge|refrigerator/i], ['stove', /stove|oven/i], ['sink', /\bsink\b/i], ['washer', /washing machine/i],
@@ -2333,20 +2234,20 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
   const shadow = (bx, by, bw, bh, r) => { c.fillStyle = 'rgba(0,0,0,.16)'; roundRect(c, bx + s * 0.04, by + s * 0.06, bw, bh, Math.min(r, bw / 2, bh / 2)); c.fill(); };
   const dot = (dx, dy, r, fill, stroke) => { c.beginPath(); c.arc(dx, dy, Math.max(0.5, r), 0, 7); c.fillStyle = fill; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw; c.stroke(); } };
   const body = (f, r) => { const p = P(f), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p; shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, col); return [bx, by, bw, bh]; };
-  if (Math.min(W, H) * dpr < 20) { c.fillStyle = kind === 'lamp' ? '#ffd65a' : col; const p = P(kind === 'lamp' || kind === 'stool' ? 0.25 : 0.1); c.fillRect(x + p, y + p, W - 2 * p, H - 2 * p); return; } // too small for details: its colour
+  if (Math.min(W, H) * dpr < 20) { c.fillStyle = kind === 'lamp' ? '#ffd65a' : col; const p = P(kind === 'lamp' || kind === 'stool' ? 0.25 : 0.1); c.fillRect(x + p, y + p, W - 2 * p, H - 2 * p); return; }
   c.save();
   switch (kind) {
-    case 'bed': { // frame, pillow at the head, blanket with its fold
+    case 'bed': {
       const p = P(0.07), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p, r = P(0.12), m = P(0.08), pil = '#f6f2e9';
       shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, shade(col, -0.25));
       const across = horiz ? hc : wc, pils = Math.max(1, across), len = horiz ? bw : bh, wid = horiz ? bh : bw, hd = len * 0.3, g = m * 0.6;
-      if (!horiz) shape(bx + m, by + hd, bw - 2 * m, bh - hd - m, r * 0.6, col); else shape(bx + hd, by + m, bw - hd - m, bh - 2 * m, r * 0.6, col); // the blanket
-      c.fillStyle = lt; if (!horiz) c.fillRect(bx + m, by + hd, bw - 2 * m, Math.max(2, len * 0.1)); else c.fillRect(bx + hd, by + m, Math.max(2, len * 0.1), bh - 2 * m); // turned down at the top
+      if (!horiz) shape(bx + m, by + hd, bw - 2 * m, bh - hd - m, r * 0.6, col); else shape(bx + hd, by + m, bw - hd - m, bh - 2 * m, r * 0.6, col);
+      c.fillStyle = lt; if (!horiz) c.fillRect(bx + m, by + hd, bw - 2 * m, Math.max(2, len * 0.1)); else c.fillRect(bx + hd, by + m, Math.max(2, len * 0.1), bh - 2 * m);
       for (let i = 0; i < pils; i++) { const pw = (wid - 2 * m - g * (pils - 1)) / pils, o = m + i * (pw + g); if (!horiz) shape(bx + o, by + m, pw, hd - m * 1.6, P(0.1), pil, shade(pil, -0.35)); else shape(bx + m, by + o, hd - m * 1.6, pw, P(0.1), pil, shade(pil, -0.35)); }
       break;
     }
     case 'table': { const [bx, by, bw, bh] = body(0.1, P(0.14)); if (big) { c.strokeStyle = lt; c.lineWidth = lw; roundRect(c, bx + P(0.09), by + P(0.09), bw - P(0.18), bh - P(0.18), P(0.08)); c.stroke(); } break; }
-    case 'chair': { // seat with its back
+    case 'chair': {
       const p = P(0.13), bk = P(0.19);
       if (horiz) { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p + bk * 0.6, y + p, W - 2 * p - bk * 0.6, H - 2 * p, P(0.1), col); shape(x + p, y + p - P(0.03), bk, H - 2 * p + P(0.06), P(0.06), shade(col, -0.28)); }
       else if (vert) { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p, y + p + bk * 0.6, W - 2 * p, H - 2 * p - bk * 0.6, P(0.1), col); shape(x + p - P(0.03), y + p, W - 2 * p + P(0.06), bk, P(0.06), shade(col, -0.28)); }
@@ -2354,33 +2255,33 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
       break;
     }
     case 'stool': { const r = Math.min(W, H) * 0.3; c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.arc(cx + s * 0.04, cy + s * 0.06, r, 0, 7); c.fill(); dot(cx, cy, r, col, dk); if (big) dot(cx, cy, r * 0.55, lt); break; }
-    case 'sofa': { // back along the long side, arms at the ends, a cushion per square
+    case 'sofa': {
       const p = P(0.08), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p, r = P(0.14), back = (vert ? bw : bh) * 0.3, arm = P(0.16), cush = shade(col, 0.22);
       shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, shade(col, -0.22));
       if (!vert) { shape(bx + arm, by + back, bw - 2 * arm, bh - back - P(0.04), P(0.08), cush); c.strokeStyle = dk; c.lineWidth = lw; for (let i = 1; i < wc; i++) { const lx = bx + arm + (bw - 2 * arm) * i / wc; c.beginPath(); c.moveTo(lx, by + back); c.lineTo(lx, by + bh - P(0.04)); c.stroke(); } }
       else { shape(bx + back, by + arm, bw - back - P(0.04), bh - 2 * arm, P(0.08), cush); c.strokeStyle = dk; c.lineWidth = lw; for (let i = 1; i < hc; i++) { const ly = by + arm + (bh - 2 * arm) * i / hc; c.beginPath(); c.moveTo(bx + back, ly); c.lineTo(bx + bw - P(0.04), ly); c.stroke(); } }
       break;
     }
-    case 'bench': { // a long seat with slats
+    case 'bench': {
       const t = (vert ? W : H) * 0.5, bx = vert ? x + (W - t) / 2 : x + P(0.1), by = vert ? y + P(0.1) : y + (H - t) / 2, bw = vert ? t : W - P(0.2), bh = vert ? H - P(0.2) : t;
       shadow(bx, by, bw, bh, P(0.06)); shape(bx, by, bw, bh, P(0.06), col); c.strokeStyle = dk; c.lineWidth = lw; c.globalAlpha *= 0.7;
       for (const f of [1 / 3, 2 / 3]) { c.beginPath(); if (vert) { c.moveTo(bx + bw * f, by + P(0.04)); c.lineTo(bx + bw * f, by + bh - P(0.04)); } else { c.moveTo(bx + P(0.04), by + bh * f); c.lineTo(bx + bw - P(0.04), by + bh * f); } c.stroke(); }
       break;
     }
-    case 'storage': { // a box with its lid and catch
+    case 'storage': {
       const [bx, by, bw, bh] = body(0.1, P(0.08)); c.strokeStyle = shade(col, -0.35); c.lineWidth = lw;
       if (!vert) { c.beginPath(); c.moveTo(bx + lw, by + bh * 0.3); c.lineTo(bx + bw - lw, by + bh * 0.3); c.stroke(); shape(cx - P(0.08), by + bh * 0.3 - P(0.06), P(0.16), P(0.14), P(0.03), '#e7c35a', '#7a5a12'); }
       else { c.beginPath(); c.moveTo(bx + bw * 0.3, by + lw); c.lineTo(bx + bw * 0.3, by + bh - lw); c.stroke(); shape(bx + bw * 0.3 - P(0.06), cy - P(0.08), P(0.14), P(0.16), P(0.03), '#e7c35a', '#7a5a12'); }
       break;
     }
-    case 'shelf': { // against the wall at the back, with books along its front
+    case 'shelf': {
       const d = (vert ? W : H) * 0.56, bx = x + P(0.06), by = y + P(0.06), bw = vert ? d : W - P(0.12), bh = vert ? H - P(0.12) : d;
       shadow(bx, by, bw, bh, P(0.05)); shape(bx, by, bw, bh, P(0.05), col);
       if (big) { const books = ['#d9534a', '#4f8fd0', '#e3b341', '#5cae6a', '#9a6bc4'], n = Math.max(3, Math.round((vert ? bh : bw) / (s * 0.16)));
         for (let i = 0; i < n; i++) { c.fillStyle = books[i % books.length]; const f = (i + 0.2) / n, g = 0.6 / n; if (vert) c.fillRect(bx + bw * 0.55, by + bh * f, bw * 0.32, bh * g); else c.fillRect(bx + bw * f, by + bh * 0.55, bw * g, bh * 0.32); } }
       break;
     }
-    case 'lamp': { // its light, glowing round it
+    case 'lamp': {
       const R = Math.min(W, H) * 0.5, g = c.createRadialGradient(cx, cy, 0, cx, cy, R); g.addColorStop(0, 'rgba(255,214,90,.9)'); g.addColorStop(0.55, 'rgba(255,214,90,.45)'); g.addColorStop(1, 'rgba(255,214,90,0)');
       c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.fill(); dot(cx, cy, P(0.27), col, dk); dot(cx, cy, P(0.13), '#fff3b0', shade('#fff3b0', -0.4));
       if (big) { c.strokeStyle = 'rgba(170,120,20,.7)'; c.lineWidth = lw; c.beginPath(); for (let a = 0; a < 8; a++) { const an = a * Math.PI / 4; c.moveTo(cx + Math.cos(an) * P(0.33), cy + Math.sin(an) * P(0.33)); c.lineTo(cx + Math.cos(an) * P(0.44), cy + Math.sin(an) * P(0.44)); } c.stroke(); } break;
@@ -2396,24 +2297,23 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
   }
   c.restore();
 }
-function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true, at = null) { // an item on the map as its picture, or its drawn shape until that loads; at: [x, y, w, h] on the map, so building pieces join up
-  if (structural(it)) { const u = picsFor(it)[0]; if (u) mapPic(u); drawStructure(c, it, x, y, s, wc, hc, at); return; } // (its picture only gives the colour)
+function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true, at = null) {
+  if (structural(it)) { const u = picsFor(it)[0]; if (u) mapPic(u); drawStructure(c, it, x, y, s, wc, hc, at); return; }
   const fk = furnKind(it); if (fk && s * dpr >= MAP_PIC_MIN) { const u = picsFor(it)[0]; if (u) mapPic(u); drawFurniture(c, it, fk, x, y, s, wc, hc); return; }
   const url = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = url && mapPic(url);
   if (!p) { drawItem(c, it, x, y, s, wc, hc, label); return; }
   const w = s * wc, hh = s * hc;
   if (it.sh === 'kit') { drawItem(c, it, x, y, s, wc, hc, label, (bx, by, bw, bh) => drawPicIn(c, p, bx, by, bw, bh)); return; }
-  if (it.sh === 'block') { drawPicIn(c, p, x, y, w, hh); return; } // a block that isn't a building piece: the block fills its square
-  if (it.c !== 'Nature') { const a = c.globalAlpha; c.globalAlpha = a * 0.22; c.fillStyle = it.col; roundRect(c, x + 1, y + 1, w - 2, hh - 2, Math.min(8, s * 0.2)); c.fill(); c.globalAlpha = a; } // the squares it takes up
+  if (it.sh === 'block') { drawPicIn(c, p, x, y, w, hh); return; }
+  if (it.c !== 'Nature') { const a = c.globalAlpha; c.globalAlpha = a * 0.22; c.fillStyle = it.col; roundRect(c, x + 1, y + 1, w - 2, hh - 2, Math.min(8, s * 0.2)); c.fill(); c.globalAlpha = a; }
   const pad = Math.max(1, s * 0.05); drawPicIn(c, p, x + pad, y + pad, w - pad * 2, hh - pad * 2);
 }
-function picsReady(urls, ms) { // wait (up to ms) until these pictures have loaded or failed
+function picsReady(urls, ms) {
   urls = [...new Set(urls.filter(Boolean))]; urls.forEach(mapPic); const t0 = performance.now();
   return new Promise(res => { const tick = () => { if (performance.now() - t0 > ms || urls.every(u => { const p = mapPics.get(u); return p.img || p.failed; })) res(); else setTimeout(tick, 60); }; tick(); });
 }
-addEventListener('online', () => { for (const [u, p] of mapPics) if (p.failed) mapPics.delete(u); requestDraw(); }); // try ones that failed offline again
-/* keeping every picture on the device: saved in the background into a cache the offline helper (sw.js) reads from */
-const allPicURLs = () => [...Object.keys(PICS.pics).map(localPic), ...Object.keys(PICS.top || {}).filter(k => PICS.top[k][0]).map(k => 'pics/top/' + k + '.webp?v=' + PICS.top[k][0])]; // pictures and floor tiles
+addEventListener('online', () => { for (const [u, p] of mapPics) if (p.failed) mapPics.delete(u); requestDraw(); });
+const allPicURLs = () => [...Object.keys(PICS.pics).map(localPic), ...Object.keys(PICS.top || {}).filter(k => PICS.top[k][0]).map(k => 'pics/top/' + k + '.webp?v=' + PICS.top[k][0])];
 const PIC_CACHE = 'pokopia-pics';
 const picFill = { total: 0, done: 0, failed: 0, running: false, waiting: false, unsupported: false };
 async function fillPictures(force) {
@@ -2424,7 +2324,7 @@ async function fillPictures(force) {
   try {
     const c = await caches.open(PIC_CACHE);
     const want = new Set(urls.map(u => new URL(u, location.href).href)), have = new Set();
-    for (const r of await c.keys()) { if (want.has(r.url)) have.add(r.url); else await c.delete(r); } // drop old versions
+    for (const r of await c.keys()) { if (want.has(r.url)) have.add(r.url); else await c.delete(r); }
     const todo = [...want].filter(u => !have.has(u));
     picFill.total = want.size; picFill.done = have.size; picUI();
     let next = 0, shown = 0;
@@ -2457,7 +2357,7 @@ function picUI() {
   if (!picFill.running && (picFill.waiting || (picFill.total && picFill.done < picFill.total && navigator.onLine))) el.append(' ', h('button', { class: 'btn sm', onclick: () => fillPictures(true) }, picFill.waiting ? 'Save them now' : 'Try again'));
 }
 function swatchEl(it, cls = 'swatch') { const s = h('span', { class: cls }); const u = picURL(it); s.style.backgroundImage = (u ? `url("${u}"), ` : '') + `url(${swatchURL(it)})`; return s; }
-function picEl(it, cls = 'pic') { // a large picture of the item; falls back to the drawn tile
+function picEl(it, cls = 'pic') {
   const u = picURL(it), im = h('img', { class: cls, alt: '', loading: 'lazy', decoding: 'async', src: u || swatchURL(it) });
   if (u) im.onerror = () => { im.onerror = null; im.src = swatchURL(it); };
   return im;
@@ -2476,7 +2376,7 @@ function renderOptbar() {
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
       if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', 'data-tip': sizeGuessed(it) ? 'Guessed size: change it if yours differs in game' : 'Size in tiles' }, (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? '?' : ''), ft[0] !== ft[1] ? ibtn('rotate', 'Rotate (Q)', () => { rotated = !rotated; renderOptbar(); requestDraw(); }, 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'))); }
-      if ((it.L !== 'g' && multi(it)) || isRug(it)) { } // one item per tap: no brush
+      if ((it.L !== 'g' && multi(it)) || isRug(it)) { }
       else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, segmented([['solid', 'Solid'], ['outline', 'Outline']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode'), tipBtn('Drag a rectangle. Outline fills only its edge: quick walls.')));
       else if (tool === 'place') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item'));
@@ -2499,7 +2399,6 @@ function renderOptbar() {
   else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool('select') }, 'Cancel')));
 }
 
-/* ---------- selection / inspector ---------- */
 function zoneAt(x, y) { for (let i = plan.zones.length - 1; i >= 0; i--) { const z = plan.zones[i]; if (x >= z.x && y >= z.y && x < z.x + z.w && y < z.y + z.h) return z; } return null; }
 function tapSelect(x, y) {
   if (!inB(plan, x, y)) { closeInspector(); return; }
@@ -2514,7 +2413,7 @@ function tapSelect(x, y) {
 function closeInspector() { $('#inspector').classList.remove('open'); $('#inspector').textContent = ''; if (selection && !selection.rect) selection = null; requestDraw(); }
 let inspMin = LS.get('pokopia-planner:inspmin') === '1';
 function setInspMin(on) { inspMin = on; LS.set('pokopia-planner:inspmin', on ? '1' : '0'); const box = $('#inspector'); box.classList.toggle('min', on); const b = box.querySelector('.insp-min'); if (b) { b.setAttribute('aria-expanded', on ? 'false' : 'true'); b.title = on ? 'Show details' : 'Hide details'; b.setAttribute('aria-label', b.title); } }
-function inspectorShell(title, sw, sub, tip) { // the title and the buttons stay put at the top; the details below scroll. tip: an explanation behind an ⓘ
+function inspectorShell(title, sw, sub, tip) {
   const box = $('#inspector'); box.textContent = '';
   const head = h('div', { class: 'insp-head' }, sw || '', h('div', { style: 'min-width:0' }, h('h3', null, title, tip ? ' ' : '', tipBtn(tip)), sub ? h('div', { class: 'sub', style: 'margin:0' }, sub) : ''),
     h('button', { class: 'close insp-min', 'aria-label': 'Fold', 'data-tip': 'Fold' }, icon('chev')),
@@ -2577,16 +2476,16 @@ function resizeObjDialog(ob) {
     commitTx('Resize'); selection = { obj: r.ob }; showObjInspector(r.ob);
   });
 }
-function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every item of this kind in the plan
+function setItemSize(it, w, hh, applyPlaced, keepSel) {
   plan.isz = plan.isz || {}; if (!it.sg && w === (it.w || 1) && hh === (it.h || 1)) { delete plan.isz[it.n]; delete userSizes[it.n]; } else { plan.isz[it.n] = [w, hh]; userSizes[it.n] = [w, hh]; } saveUserSizes();
   let done = 0, skipped = 0, selNew = null;
-  if (applyPlaced && isRug(it)) for (const r of rugsOf(plan).filter(q => q.i === it.i)) { // each rug from its top-left corner, keeping its turn
+  if (applyPlaced && isRug(it)) for (const r of rugsOf(plan).filter(q => q.i === it.i)) {
     const [nw, nh] = r.w === r.h || w === hh ? [w, hh] : (r.w > r.h) === (w > hh) ? [w, hh] : [hh, w]; if (r.w === nw && r.h === nh) continue;
     if (r.x + nw > plan.w || r.y + nh > plan.h || rugsOf(plan).some(q => q !== r && overlaps(q, r.x, r.y, nw, nh))) { skipped++; continue; }
     delRug(r); addRug(r.i, r.x, r.y, nw, nh); done++;
   }
   if (applyPlaced && !isRug(it)) for (const ob of [...plan.objs.values()].filter(o => o.i === it.i)) {
-    const [nw, nh] = ob.w === ob.h ? wallTurn(it, ob.x, ob.y, w, hh) : w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w]; // keep each one's turn; square doors follow their wall
+    const [nw, nh] = ob.w === ob.h ? wallTurn(it, ob.x, ob.y, w, hh) : w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w];
     if (ob.w === nw && ob.h === nh) { if (ob === keepSel) selNew = ob; continue; }
     const r = reshapeObj(ob, ob.x, ob.y, nw, nh); if (!r.ob) { skipped++; continue; }
     if (ob === keepSel) selNew = r.ob; done++;
@@ -2596,7 +2495,6 @@ function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every it
   if (keepSel) { const ob = selNew || keepSel; if (plan.objs.has(ob.id)) { selection = { obj: ob }; showObjInspector(ob); } }
   if (IED.ob) iedRefresh();
 }
-/* ---------- checking item sizes: a picture of each item and one tap per size ---------- */
 const SZ_SKIP = new Set(['Terrain', 'Blocks', 'Wallpaper']);
 const SZ_PRESETS = [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2], [3, 3]];
 let szFilter = null, szQuery = '';
@@ -2656,7 +2554,6 @@ function showRegionInspector() {
   acts.append(ibtn('copy', 'Copy', () => copyRegion(r)), ibtn('zone', 'Make a zone', () => createZone(r)), ibtn('trash', 'Clear items', () => clearRegion(r, true), 'danger'), ibtn('erase', 'Clear everything, ground too', () => clearRegion(r, false), 'danger'));
 }
 function deleteSelection() { if (!selection) return; if (selection.obj) { deleteObjNow(selection.obj); return; } if (selection.zone) { confirmDeleteZone(selection.zone); return; } if (selection.house) { const hs = houseById.get(selection.house); if (hs) confirmDeleteHouse(hs); return; } if (selection.rect) clearRegion(selection.rect, true); selection = null; closeInspector(); }
-/* ---------- deleting homes and habitats in one go (always undoable) ---------- */
 function choiceModal(title, intro, choices) {
   modal(title, (box) => {
     for (const p of [].concat(intro)) if (p) box.append(typeof p === 'string' ? h('p', { class: 'sub' }, p) : p);
@@ -2673,9 +2570,9 @@ function deleteObjNow(ob) {
   removeObj(ob); moveOut(who); commitTx('Delete'); selection = null; closeInspector();
   undoToast((it.cap ? it.n.replace(/ kit$/, '') : it.n) + ' deleted' + (who.length ? '. ' + listNames(who) + ' moved out' : ''));
 }
-function houseParts(hs) { // wall and door pieces round a house (corners too), split into its own and those a neighbouring house also needs; plus what stands inside
+function houseParts(hs) {
   const Wd = plan.w, Hd = plan.h, idx = autoHouses.indexOf(hs), O = hs.area.outer, own = new Set(), shared = new Set(), inside = new Set();
-  const encloses = (o) => o.x <= O.x && o.y <= O.y && o.x + o.w >= O.x + O.w && o.y + o.h >= O.y + O.h; // a bigger walled space this house stands in
+  const encloses = (o) => o.x <= O.x && o.y <= O.y && o.x + o.w >= O.x + O.w && o.y + o.h >= O.y + O.h;
   const neededNextDoor = (ob) => { for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) { if (!inB(plan, x, y)) continue; const j = cellHouse[y * Wd + x]; if (j >= 0 && j !== idx && !encloses(autoHouses[j])) return true; } return false; };
   for (const k of hs.cells) {
     if (cellHouse[k] !== idx) continue; const x = k % Wd, y = (k / Wd) | 0, oid = plan.occ[k]; if (oid) inside.add(plan.objs.get(oid));
@@ -2702,7 +2599,7 @@ function deleteHouseNow(hs, all) {
   moveOut(who); commitTx(cur.enclosure ? 'Delete enclosure' : 'Delete house'); selection = null; closeInspector();
   undoToast((cur.enclosure ? 'Enclosure' : 'House') + ' deleted' + (who.length ? '. ' + listNames(who) + ' moved out' : ''));
 }
-function zoneContents(z) { // items wholly inside a zone; homes (kit homes, and houses you built that are finished or lived in) are left alone
+function zoneContents(z) {
   const prot = new Set();
   for (const hs of autoHouses) { if (hs.enclosure || !(hs.ok || residentsOf(houseHome(hs)).length)) continue; const p = houseParts(hs); for (const ob of [...p.walls, ...p.shared]) for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) prot.add(y * plan.w + x); for (const k of hs.cells) prot.add(k); }
   const out = [], kept = [];
@@ -2740,7 +2637,6 @@ function pasteAt(x0, y0) {
   commitTx('Paste'); if (skipped) toast(skipped + ' item(s) did not fit');
 }
 
-/* ---------- zones ---------- */
 function createZone(r) {
   const n = plan.zones.filter(z => z.kind === zoneKind).length + 1;
   const z = { id: uid(), kind: zoneKind, x: r.x, y: r.y, w: r.w, h: r.h, name: zoneKind === 'house' ? 'House ' + n : zoneKind === 'label' ? 'Area ' + n : 'Zone ' + n, target: null };
@@ -2804,10 +2700,9 @@ function selectZone(z) {
   requestDraw();
 }
 
-/* ---------- habitat stamping ---------- */
 function* spiral(cx, cy, maxR) { yield [cx, cy]; for (let r = 1; r <= maxR; r++) { for (let dx = -r; dx <= r; dx++) yield [cx + dx, cy - r]; for (let dy = -r + 1; dy <= r; dy++) yield [cx + r, cy + dy]; for (let dx = r - 1; dx >= -r; dx--) yield [cx + dx, cy + r]; for (let dy = r - 1; dy >= -r + 1; dy--) yield [cx - r, cy + dy]; } }
 function concreteReqs(hb, have) {
-  const out = []; // {terrain|item|high, n}
+  const out = [];
   for (const [tok, q] of hb.r) {
     const need = Math.max(0, q - (have ? reqHave(have, tok) : 0)); if (!need) continue;
     if (DATA.terrainReq[tok]) out.push({ terrain: BY_NAME.get(DATA.terrainReq[tok]), n: need });
@@ -2849,7 +2744,6 @@ function fillZoneMissing(z) {
   setZones(plan.zones.map(q => q.id === z.id ? nz : q)); commitTx('Add missing items'); selectZone(nz);
 }
 
-/* ============================== panels ============================== */
 let activeTab = 'build';
 const VALID_TABS = ['build', 'materials', 'habitats', 'pokemon', 'plans'];
 function showTab(t, fromHash) {
@@ -2941,7 +2835,6 @@ function setSheet(s) {
 let renderQueued = false;
 function renderPanel() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; const f = { build: renderBuild, materials: renderMaterials, habitats: renderHabitats, pokemon: renderPokemon, plans: renderPlans }[activeTab]; if (f) f(); }); }
 
-/* ---------- Build tab ---------- */
 let buildCat = 'Terrain', buildQuery = '';
 function renderBuild(keepFocus) {
   const root = $('#tab-build');
@@ -3018,7 +2911,6 @@ function showItemInfo(it) {
   }, 'Place it', () => { selectItem(it.n); if (innerWidth < 900) setSheet('peek'); });
 }
 
-/* ---------- Materials tab ---------- */
 let rawMode = false;
 function renderMaterials() {
   const root = $('#tab-materials'); root.textContent = '';
@@ -3046,7 +2938,6 @@ function renderMaterials() {
     root.append(h('table', { class: 'mats' }, h('thead', null, h('tr', null, h('th', null, 'Material'), h('th', null, 'Need'), h('th', null, 'Have'), h('th', null, 'Left'))), tb));
     root.append(h('div', { style: 'margin-top:10px;display:flex;gap:8px;flex-wrap:wrap' }, h('button', { class: 'btn sm', onclick: () => copyText(materialsText(t)) }, icon('copy'), 'Copy list'), h('button', { class: 'btn sm', onclick: () => { plan.inv = {}; markDirty(); renderMaterials(); } }, 'Reset "have"')));
   }
-  // processing jobs
   const proc = [...t.processed.entries()].filter(([m]) => DATA.process[m]);
   if (proc.length) {
     root.append(h('h4', null, 'Processing jobs'));
@@ -3063,7 +2954,6 @@ function renderMaterials() {
 function materialsText(t) { const lines = ['Pokopia plan: ' + plan.name + ' (' + plan.area + ')', '']; for (const [m, q] of [...t.need.entries()].sort((a, b) => b[1] - a[1])) { const have = +(plan.inv[m] || 0); const left = Math.max(0, Math.ceil(q) - have); lines.push(`${m}: ${Math.ceil(q)}${have ? ` (have ${have}, need ${left} more)` : ''}`); } if (t.gather.size) { lines.push('', 'Gather / plant:'); for (const [n, q] of t.gather) lines.push(`${n}: ${q}`); } return lines.join('\n'); }
 async function copyText(s) { try { await navigator.clipboard.writeText(s); toast('Copied'); } catch (e) { modal('Copy this text', (b) => { const ta = h('textarea', { style: 'width:100%;height:240px;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--paper)', readonly: true }); ta.value = s; b.append(ta); setTimeout(() => ta.select(), 50); }); } }
 
-/* ---------- Habitats tab ---------- */
 let habQuery = '', habReg = 'All', habOnlyNear = false, openHab = null;
 function openHabitat(id) { openHab = id; habQuery = ''; showTab('habitats'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); setTimeout(() => { const el = $('#hab-' + id); if (el) el.scrollIntoView({ block: 'center' }); }, 60); }
 function habCard(hb, extra) {
@@ -3080,7 +2970,6 @@ function habCard(hb, extra) {
 function renderHabitats() {
   const root = $('#tab-habitats'); root.textContent = '';
   root.append(h('h2', { class: 'hrow' }, 'Habitats', tipBtn('Zones check what you placed against the Habitat Dex. Stamp any habitat to lay out its items and a zone in one tap.')));
-  // zones
   root.append(h('h4', { class: 'hrow' }, 'Houses you built (' + autoHouses.length + ')', tipBtn('Build walls or fences all the way round a space (Fill → Outline makes this quick), put a door or gate in the wall, and add 3 kinds of furniture. The planner finds it automatically.')));
   if (!autoHouses.length) root.append(h('p', { class: 'note' }, 'None yet'));
   const showHs = (hs) => { const s2 = cellSize(); view.px = W / 2 - (hs.x + hs.w / 2) * s2; view.py = H * (innerWidth < 900 ? 0.3 : 0.5) - (hs.y + hs.h / 2) * s2; if (innerWidth < 900) setSheet('peek'); selectHouse(hs); };
@@ -3126,7 +3015,6 @@ function renderHabitats() {
     card.append(h('div', { class: 'acts' }, ibtn('map', 'Show on map', () => focusZone(z), 'sm'), ibtn('trash', 'Delete', () => confirmDeleteZone(z), 'sm danger', { style: 'margin-left:auto' })));
     root.append(card);
   }
-  // dex
   root.append(h('h4', null, 'Habitat Dex (' + HAB.length + ')'));
   const inp = h('input', { id: 'habSearch', type: 'search', placeholder: 'Search habitat, item or Pokémon', value: habQuery, autocomplete: 'off' });
   inp.oninput = () => { habQuery = inp.value.trim().toLowerCase(); renderHabList(); };
@@ -3152,7 +3040,6 @@ function renderHabList() {
 }
 function focusZone(z) { const s = cellSize(); const sheet = innerWidth < 900 ? 0.5 : 0; view.px = W / 2 - (z.x + z.w / 2) * s; view.py = H * (0.5 - sheet / 2.4) - (z.y + z.h / 2) * s; if (innerWidth < 900) setSheet('peek'); selectZone(z); requestDraw(); }
 
-/* ---------- Pokémon tab ---------- */
 let pkQuery = '', pkSpec = null, pkDex = 'All', openPk = null;
 function openPokemon(n) { openPk = n; pkQuery = n.toLowerCase(); showTab('pokemon'); }
 function renderPokemon() {
@@ -3165,7 +3052,6 @@ function renderPokemon() {
     h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Housed'), h('div', { class: 'v' }, (plan.res || []).filter(r => homeAt(r.x, r.y, r.k)).length))));
   root.append(h('div', { class: 'card', style: 'margin-top:10px;border-left:4px solid var(--accent)' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Group into houses'), tipBtn('Find who should share a home: Pokémon that like the same things need fewer decorations.')),
     h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: housemateGroups }, icon('ball'), 'Plan housemates'))));
-  // specialty coverage vs needs
   const cov = new Map(); for (const n of att.keys()) { const p = PK_BY_NAME.get(n); if (p) for (const s of p.s) cov.set(s, (cov.get(s) || 0) + 1); }
   const t = materialTotals(false); const needSpec = new Set(); for (const m of t.processed.keys()) if (SPEC_FOR_MAT[m]) needSpec.add(SPEC_FOR_MAT[m]); if (hc.kits) needSpec.add('Build');
   if (t.gather.size) { for (const n of t.gather.keys()) { const it = BY_NAME.get(n); if (it && it.c === 'Nature' && /Trees|Flowers|Hedges|Crops/.test(it.sub || '')) { needSpec.add('Grow'); break; } } }
@@ -3184,7 +3070,6 @@ function renderPokemon() {
     for (const [n, hb] of att) { const p = PK_BY_NAME.get(n); const hm = homeOfPokemon(n); l.append(h('div', { class: 'row', style: 'cursor:default' }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, n, ' ', p && p.ideal ? h('span', { class: 'env' }, p.ideal) : ''), h('div', { class: 'ds' }, (p ? p.s.join(' · ') + ' · ' : '') + (hm ? 'lives in ' + hm.label : 'in ' + hb.n + ', no house yet'))))); }
     root.append(l);
   }
-  // dex
   root.append(h('h4', null, 'Pokédex (' + PK.length + ')'));
   const inp = h('input', { id: 'pkSearch', type: 'search', placeholder: 'Pokémon, type, specialty, favourite', value: pkQuery, autocomplete: 'off' });
   inp.oninput = () => { pkQuery = inp.value.trim().toLowerCase(); renderPkList(); };
@@ -3210,11 +3095,9 @@ function renderPkList() {
   if (!n) list.append(h('p', { class: 'empty' }, 'No Pokémon match.'));
 }
 
-/* ---------- Plans tab ---------- */
 function renderPlans() {
   const root = $('#tab-plans'); root.textContent = '';
   root.append(h('h2', { class: 'hrow' }, 'Plans', tipBtn('Keep a plan per town or project. Changes save automatically.')));
-  // current plan settings
   const nameIn = h('input', { id: 'pName', value: plan.name }); nameIn.onchange = () => { plan.name = nameIn.value.trim() || 'Untitled area'; markDirty(); updateHeader(); };
   const areaSel = h('select', { id: 'pArea' }, DATA.areas.map(a => h('option', { value: a.n, selected: plan.area === a.n }, a.n))); areaSel.onchange = () => { plan.area = areaSel.value; markDirty(); updateHeader(); evaluateAll(); requestDraw(); renderPlans(); };
   const area = DATA.areas.find(a => a.n === plan.area);
@@ -3285,9 +3168,8 @@ function deletePlanDialog(id) {
   }, true);
 }
 
-/* ---------- modal ---------- */
 let modalOk = null;
-function modal(title, build, okLabel, onOk, danger, tip) { // tip: an explanation behind an ⓘ by the title
+function modal(title, build, okLabel, onOk, danger, tip) {
   const m = $('#modal'), box = $('#modalBox'); box.textContent = ''; box.className = 'box';
   box.append(h('div', { class: 'insp-head' }, h('h2', { style: 'margin:0' }, title, tip ? ' ' : '', tipBtn(tip)), h('button', { class: 'close', 'aria-label': 'Close', 'data-tip': 'Close', onclick: closeModal }, icon('close'))));
   build(box);
@@ -3299,7 +3181,6 @@ function closeModal() { $('#modal').classList.remove('open'); }
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-/* ============================== persistence ============================== */
 let exampleUntouched = false, dirty = false, saveTimer = null, saveState = 'local', cloud = null, downloads = null, cloudErr = '';
 function changed() { exampleUntouched = false; evaluateAll(); markDirty(); requestDraw(); if (activeTab !== 'build') renderPanel(); $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (selection && selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selection.zone = z; } if (selection && selection.house && $('#inspector').classList.contains('open')) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
 function markDirty() { dirty = true; plan.updated = Date.now(); setSave('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(persistNow, 1200); }
@@ -3333,7 +3214,7 @@ function installPlan(p) {
 }
 function updateHeader() { $('#hdrPlan').textContent = plan.name; $('#hdrArea').textContent = plan.area; const e = plansIndex.find(q => q.id === plan.id); if (e) Object.assign(e, indexEntry(plan)); }
 const cloudCache = new Map();
-const fileDownloads = { save: async ({ filename, data }) => { // used when the planner runs outside Claude (the downloaded copy)
+const fileDownloads = { save: async ({ filename, data }) => {
   const blob = data instanceof Blob ? data : new Blob([data], { type: /\.json$/.test(filename) ? 'application/json' : 'application/octet-stream' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
 } };
@@ -3355,7 +3236,6 @@ async function initCapabilities() {
       if (!local || (s.updated || 0) > (local.updated || 0)) { LS.set(LSK + 'plan:' + d.id, JSON.stringify(s)); plansIndex = plansIndex.filter(p => p.id !== d.id); plansIndex.push({ id: d.id, name: s.name, area: s.area, w: s.w, h: s.h, updated: s.updated }); if (plan && d.id === plan.id) newerCurrent = s; }
     }
     saveIndex();
-    // upload local plans the account does not have yet
     for (const p of plansIndex) if (!cloudCache.has(p.id)) { try { const s = JSON.parse(LS.get(LSK + 'plan:' + p.id) || 'null'); if (s) { await col.doc(p.id).set(s); cloudCache.set(p.id, s); } } catch (e) { } }
     if (newerCurrent && !dirty) { installPlan(deserialize(newerCurrent)); toast('Loaded your latest version from your account'); }
     else if (exampleUntouched && snap.docs.length) { const latest = snap.docs.map(d => d.data()).filter(s => s && s.w && s.id !== plan.id).sort((a, b) => (b.updated || 0) - (a.updated || 0))[0]; if (latest) { installPlan(deserialize(latest)); LS.set(LSK + 'current', latest.id); toast('Opened your latest plan: ' + latest.name); } }
@@ -3366,7 +3246,7 @@ async function exportJSON() { try { await downloads.save({ filename: (plan.name.
 async function exportPNG() {
   const S = clamp(Math.floor(2400 / Math.max(plan.w, plan.h)), 8, 32);
   const urls = [], grounds = new Set(plan.ground); for (const ob of plan.objs.values()) urls.push(picsFor(ITEMS[ob.i])[0]); for (const g of grounds) if (g) urls.push(picsFor(ITEMS[g - 1])[1]);
-  await picsReady(urls, 6000); // the saved image shows item pictures too
+  await picsReady(urls, 6000);
   const c = document.createElement('canvas'); c.width = plan.w * S; c.height = plan.h * S + 40; const x = c.getContext('2d');
   const saved = { ...view }; view.px = 0; view.py = 40; view.zoom = S / view.cs;
   const keep = { hover, selection, drag, sp: sparkles.splice(0) }; hover = null; selection = null; drag = null;
@@ -3382,11 +3262,6 @@ function importJSON(e) {
   rd.readAsText(f); e.target.value = '';
 }
 
-/* ============================== sync between devices: your Google account (Firebase) ==============================
-   Sign in with Google once per device. Plans live in Firestore under users/<uid>/pokopiaPlans/<plan id>
-   (item sizes in users/<uid>/pokopiaMeta/sizes), in the same free Firebase project as GM Companion.
-   This device's copy (localStorage) stays the working copy, so the planner works the same offline.
-   sync.base[id] is a plan's "updated" stamp when this device last agreed with Firebase about it. */
 const FB_CDN = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FB_CONFIG = { apiKey: 'AIzaSyALG2MwsGSaVaspLk8sv53gg3BhKjGMQjM', authDomain: 'my-gm-companion.firebaseapp.com', projectId: 'my-gm-companion' };
 let sync = null; try { sync = JSON.parse(LS.get(LSK + 'sync') || 'null'); } catch (e) { sync = null; }
@@ -3415,7 +3290,6 @@ function onUser(u) {
 function stopWatching() { unsubs.forEach(f => { try { f(); } catch (e) { } }); unsubs = []; remote = null; remoteSizes = null; }
 function startWatching() {
   const { S, db } = fb, me = fbUser.uid, live = { includeMetadataChanges: true };
-  // only snapshots the server has confirmed count: an empty offline cache would look like "every plan was deleted"
   unsubs.push(S.onSnapshot(S.collection(db, 'users', me, 'pokopiaPlans'), live, snap => {
     if (snap.metadata.fromCache) return;
     const m = new Map(), pend = new Set();
@@ -3459,7 +3333,6 @@ function syncOffDialog() {
 function scheduleSync(ms) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(reconcile, ms == null ? 2500 : ms); }
 const localPlanRaw = (id) => { try { return JSON.parse(LS.get(LSK + 'plan:' + id) || 'null'); } catch (e) { return null; } };
 function storeRaw(s) { LS.set(LSK + 'plan:' + s.id, JSON.stringify(s)); plansIndex = plansIndex.filter(p => p.id !== s.id); plansIndex.push({ id: s.id, name: s.name, area: s.area, w: s.w, h: s.h, updated: s.updated }); }
-// the example plan a new device starts with is never uploaded while it is untouched
 const isPristineExample = (id, upd) => { const [eid, eu] = (LS.get(LSK + 'example') || '').split(':'); return id === eid && String(upd) === eu; };
 const sizesStamp = () => +LS.get(LSK + 'sizesUpdated') || 0;
 function syncPending() {
@@ -3478,7 +3351,7 @@ function reconcile() {
   clearTimeout(syncTimer);
   if (!fb || !fbUser || !remote || !remoteSizes || !sync) { syncUI(); return; }
   if (dirty) persistNow(true);
-  if (!navigator.onLine) { syncSettled(); return; } // changes wait here until the connection is back
+  if (!navigator.onLine) { syncSettled(); return; }
   const { S, db } = fb, me = fbUser.uid, ref = (id) => S.doc(db, 'users', me, 'pokopiaPlans', id);
   const pulled = [], removed = [], gone = new Set(sync.gone || []);
   const done = () => { if (sync) saveSync(); syncSettled(); };
@@ -3486,12 +3359,11 @@ function reconcile() {
     inflight.set(key, true);
     write().then(() => { inflight.delete(key); if (sync) after(); done(); }, e => {
       inflight.delete(key);
-      if (e && e.code === 'pokopia/changed') scheduleSync(1500); // another device got there first: look again, nothing is lost
+      if (e && e.code === 'pokopia/changed') scheduleSync(1500);
       else { syncErr = syncProblem(e); if (e.code !== 'permission-denied') scheduleSync(30000); }
       done();
     });
   };
-  // every write checks that Firebase still holds what this device last saw there, so two devices can't overwrite each other
   const guarded = (r, expect, also, change) => S.runTransaction(db, async tx => {
     const d = await tx.get(r), cur = d.exists() ? (d.data() || {}).updated : null;
     if (cur !== expect && cur !== also) throw Object.assign(new Error('changed on another device'), { code: 'pokopia/changed' });
@@ -3505,28 +3377,27 @@ function reconcile() {
   const pull = (id, R) => { try { const s = JSON.parse(R.data); if (!s || !s.w || !s.h) return; s.id = id; storeRaw(s); sync.base[id] = s.updated; pulled.push(id); } catch (e) { } };
   const keepCopy = (s, label) => { if (!s) return; const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.name = s.name + ' (' + label + ')'; storeRaw(c); put(c, null); };
   for (const id of new Set([...plansIndex.map(p => p.id), ...remote.keys(), ...gone])) {
-    if (remotePending.has(id) || inflight.has(id)) continue; // our own change is still on its way
+    if (remotePending.has(id) || inflight.has(id)) continue;
     const L = plansIndex.find(p => p.id === id), R = remote.get(id), B = sync.base[id];
-    if (gone.has(id)) { // deleted on this device
-      if (R && B != null && R.updated !== B) { pull(id, R); sync.gone = sync.gone.filter(x => x !== id); } // changed elsewhere since: keep that version
+    if (gone.has(id)) {
+      if (R && B != null && R.updated !== B) { pull(id, R); sync.gone = sync.gone.filter(x => x !== id); }
       else if (R) send(id, () => guarded(ref(id), R.updated, null, (tx, cur) => { if (cur !== null) tx.delete(ref(id)); }), () => { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); });
       else { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); }
       continue;
     }
-    if (L && plan && id === plan.id && dirty) continue; // being edited right now: next round
+    if (L && plan && id === plan.id && dirty) continue;
     if (L && R) {
       if (L.updated === R.updated) { sync.base[id] = R.updated; continue; }
       const lCh = L.updated !== B, rCh = R.updated !== B;
-      if (lCh && rCh) { // changed on two devices: the newer version keeps the plan, the other is kept as a copy
+      if (lCh && rCh) {
         if (L.updated > R.updated) { try { keepCopy(JSON.parse(R.data), 'from another device'); } catch (e) { } push(id, R); } else { keepCopy(localPlanRaw(id), 'from this device'); pull(id, R); }
       } else if (lCh) push(id, R); else pull(id, R);
     } else if (L) {
-      if (isPristineExample(id, L.updated)) { if (remote.size) removed.push(id); continue; } // real plans arrived: the example goes
-      if (B != null && L.updated === B) removed.push(id); // deleted on another device
-      else push(id, null); // new here, or changed here after another device deleted it
+      if (isPristineExample(id, L.updated)) { if (remote.size) removed.push(id); continue; }
+      if (B != null && L.updated === B) removed.push(id);
+      else push(id, null);
     } else if (R) pull(id, R);
   }
-  // item sizes: one set for every plan and device
   if (!inflight.has('_sizes')) {
     const lTs = sizesStamp(), rTs = +remoteSizes.updated || 0, bTs = +sync.sizesBase || 0, sizesRef = S.doc(db, 'users', me, 'pokopiaMeta', 'sizes');
     const putSizes = (ts) => { const sizes = Object.assign({}, userSizes); send('_sizes', () => guarded(sizesRef, remoteSizes.updated == null ? null : remoteSizes.updated, ts, tx => tx.set(sizesRef, { sizes, updated: ts })), () => { sync.sizesBase = ts; }); };
@@ -3541,7 +3412,6 @@ function reconcile() {
   }
   for (const id of removed) { LS.del(LSK + 'plan:' + id); plansIndex = plansIndex.filter(p => p.id !== id); delete sync.base[id]; }
   saveIndex(); saveSync();
-  // what the other devices changed shows up here straight away
   if (plan && removed.includes(plan.id)) {
     const nx = [...plansIndex].sort((a, b) => b.updated - a.updated)[0], p = nx && readLocalPlan(nx.id);
     if (p) { installPlan(p); LS.set(LSK + 'current', p.id); if (pulled.length) toast('Opened “' + p.name + '” from your other device'); }
@@ -3567,29 +3437,24 @@ function syncCard() {
     card.append(note(syncOn() || (sync && sync.uid) ? 'Signed out on this device' : 'Same plans on all your devices'));
     if (syncErr) card.append(note(syncErr, true));
     card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: syncSignIn }, syncMsg || 'Sign in with Google')));
-    if (navigator.onLine) loadFirebase().catch(() => { }); // ready before the tap, so Google's window isn't blocked
+    if (navigator.onLine) loadFirebase().catch(() => { });
   }
   return card;
 }
 function syncUI() { const old = document.getElementById('syncCard'); if (old) old.replaceWith(syncCard()); }
 
-/* ============================== example plan ============================== */
 function makeExample() {
   const p = newPlan({ name: 'Example: Wasteland starter', area: 'Withered Wasteland', w: 56, h: 40, fill: 'Ordinary soil' });
   const prev = plan; plan = p; const G = (n) => BY_NAME.get(n).i + 1;
   const rect = (x, y, w, hh, n) => { for (let yy = y; yy < y + hh; yy++) for (let xx = x; xx < x + w; xx++) if (inB(p, xx, yy)) p.ground[yy * p.w + xx] = G(n); };
   rect(4, 4, 22, 14, 'Field grass'); rect(30, 22, 22, 14, 'Field grass');
-  // pond + stream
   rect(18, 20, 7, 5, 'Water'); rect(19, 25, 3, 2, 'Water'); rect(20, 27, 2, 9, 'Water');
-  // plateau
   for (let y = 4; y < 12; y++) for (let x = 40; x < 52; x++) { p.elev[y * p.w + x] = (x > 41 && x < 50 && y > 5 && y < 10) ? 3 : 1; p.ground[y * p.w + x] = G('Alpine grass'); }
-  // path
   for (let x = 3; x < 53; x++) addObjRaw(p, 'Wooden path', x, 19);
   for (let y = 12; y < 19; y++) addObjRaw(p, 'Wooden path', 34, y);
   tx = null;
   const st = (id, x, y) => { const z = stampCore(HAB_BY_ID.get(id), x, y); if (z) p.zones.push(z); tx = null; };
   st('001', 7, 7); st('004', 17, 22); st('008', 13, 8); st('002', 9, 14); st('017', 30, 26); st('020', 37, 29); st('012', 45, 7);
-  // kits & utilities
   addObjRaw(p, 'Leaf hut kit', 27, 6); addObjRaw(p, 'Leaf cottage kit', 26, 11); addObjRaw(p, 'Leaf den kit', 32, 6);
   for (let x = 42; x <= 48; x++) for (let y = 12; y <= 17; y++) if (x === 42 || x === 48 || y === 12 || y === 17) addObjRaw(p, x === 45 && y === 17 ? 'Rustic door' : 'Wooden wall', x, y);
   for (let x = 43; x <= 47; x++) for (let y = 13; y <= 16; y++) p.ground[y * p.w + x] = G('Wooden flooring');
@@ -3601,7 +3466,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T21:30';
+const APP_BUILD = '2026-11-20T22:00';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
@@ -3614,7 +3479,6 @@ async function updateNow() {
   if (reg.installing || reg.waiting) { toast('Updating…', 15000); setTimeout(() => { if (updateWanted) location.reload(); }, 15000); }
   else { updateWanted = false; toast('You have the latest version (' + appVersion() + ').'); }
 }
-/* ============================== boot ============================== */
 async function boot() {
   readTheme(); resize(); requestAnimationFrame(loop); fsInit(); tipsInit();
   if ('serviceWorker' in navigator && document.querySelector('link[rel="manifest"]') && /^https?:$/.test(location.protocol)) {
