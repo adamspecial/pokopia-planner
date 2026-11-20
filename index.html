@@ -235,6 +235,8 @@ kbd{font-family:inherit;font-size:12px;border:1px solid var(--line);border-botto
 button.res{cursor:pointer}
 .szb{display:inline-block;font-size:10.5px;font-weight:800;border-radius:5px;padding:1px 5px;margin-left:4px;background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--muted);vertical-align:1px;white-space:nowrap}
 .szb.big{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.szb.guess{background:transparent;outline:1px dashed color-mix(in srgb,currentColor 55%,transparent);outline-offset:-1px}
+button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-height:1.5;cursor:pointer}
 .res.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
 
 /* decorating a kit house: a large popup with the room on the left and help on the right */
@@ -731,11 +733,30 @@ function kitInfo(ob) { // interior size per floor, floors, Pokémon per floor
 function kitHome(ob) { const it = ITEMS[ob.i], ki = kitInfo(ob); return { kind: 'kit', key: 'kit:' + ob.id, ob, cap: it.cap, floors: ki.fl, pf: ki.pf, label: it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y, ax: ob.x, ay: ob.y }; }
 const floorName = (f) => f ? 'Upstairs' : 'Ground floor';
 /* den size: dens and the Poké Ball house take medium-sized Pokémon or smaller (community-tested list) */
-const tooBig = (p) => !!p && p.sz === 'n';
-const sizeUnsure = (p) => !!p && (!p.sz || p.sz.endsWith('?'));
+/* Pokémon size: small / medium / large. Large ones were tested by players (too big for dens); small vs medium is a guess
+   from height and weight (pg) until you set it; your choice is kept with item sizes as 'pk:<name>' and syncs */
+const SIZE_NAME = { s: 'Small', m: 'Medium', l: 'Large' }, SIZE_RANK = { s: 0, m: 1, l: 2 };
+const pkSize = (p) => (p && (userSizes['pk:' + p.n] || p.ps)) || 'm';
+const pkSizeMine = (p) => !!p && !!userSizes['pk:' + p.n];
+const pkSizeGuess = (p) => !!p && !pkSizeMine(p) && !!p.pg;
+const tooBig = (p) => !!p && pkSize(p) === 'l';
+const sizeUnsure = (p) => !!p && !pkSizeMine(p) && (!p.sz || p.sz.endsWith('?'));
 function smallOnly(home) { return home && home.kind === 'kit' && !!ITEMS[home.ob.i].sm; }
 function fitsHome(p, home) { return !smallOnly(home) || !tooBig(p); }
-function sizeBadge(p) { if (!p) return ''; if (p.sz === 'n') return h('span', { class: 'szb big', title: 'Too big for dens and the Poké Ball house (tested by players)' }, 'Large'); if (sizeUnsure(p)) return h('span', { class: 'szb', title: 'Not tested in a den yet' + (p.sz === 'n?' ? '; probably too big' : p.sz === 'y?' ? '; probably fits' : '') }, 'Size?'); return ''; }
+function sizeWhy(p) { const z = pkSize(p); if (pkSizeMine(p)) return 'Size you set'; if (!pkSizeGuess(p)) return 'Too big for dens and the Poké Ball house (tested by players)'; const hw = p.hw ? ' from its height (' + p.hw[0] + ' m) and weight (' + p.hw[1] + ' kg)' : ''; return (p.sz === 'y' ? 'Fits a den (tested); small or medium is a guess' : 'A guess') + hw + '. Tap to change'; }
+function sizeBadge(p, onChange) { if (!p) return ''; const z = pkSize(p), g = pkSizeGuess(p), lb = SIZE_NAME[z] + (g ? '?' : ''), cls = 'szb' + (z === 'l' ? ' big' : '') + (g ? ' guess' : '');
+  if (!onChange) return h('span', { class: cls, title: sizeWhy(p) }, lb);
+  return h('button', { class: cls + ' edit', title: sizeWhy(p), 'aria-label': p.n + ' size: ' + SIZE_NAME[z] + (g ? ' (guess)' : '') + '. Change', onclick: (e) => { e.stopPropagation(); pkSizeDialog(p, onChange); } }, lb); }
+function pkSizeDialog(p, onChange) {
+  let pick = pkSize(p);
+  modal('Size of ' + p.n, (box) => {
+    box.append(h('p', { class: 'sub' }, sizeWhy(p).replace('. Tap to change', '') + '. Size decides the rest item it needs (1×1 small, 2×1 medium, 2×2 large) and whether it fits a den (medium or smaller).'));
+    const seg = h('div', { class: 'szbtns', style: 'justify-content:flex-start;margin:6px 0' }); box.append(seg);
+    const draw = () => { seg.textContent = ''; for (const z of ['s', 'm', 'l']) seg.append(h('button', { 'aria-pressed': pick === z ? 'true' : 'false', onclick: () => { pick = z; draw(); } }, SIZE_NAME[z])); };
+    draw();
+    if (pkSizeMine(p)) box.append(h('button', { class: 'btn sm', style: 'margin-top:6px', onclick: () => { delete userSizes['pk:' + p.n]; saveUserSizes(); closeModal(); toast(p.n + ' is back to ' + SIZE_NAME[pkSize(p)].toLowerCase() + (pkSizeGuess(p) ? ' (guess)' : '')); onChange && onChange(); } }, 'Use the guess again'));
+  }, 'Save', () => { if (pick === (p.ps || 'm') && !p.pg) delete userSizes['pk:' + p.n]; else userSizes['pk:' + p.n] = pick; saveUserSizes(); toast(p.n + ' is ' + SIZE_NAME[pick].toLowerCase()); onChange && setTimeout(onChange, 0); });
+}
 function homeAt(x, y, kind) { // kind: 'k' kit, 'h' house you built, undefined: a kit first, then a house
   if (!inB(plan, x, y)) return null; const k = y * plan.w + x;
   const oid = plan.occ[k], ob = oid && plan.objs.get(oid); const kit = ob && ITEMS[ob.i].cap ? kitHome(ob) : null;
@@ -776,18 +797,18 @@ function decorPlan(home, floor) {
   const res = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const present = presentFavs(home, floor);
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
   const lack = new Set(comfortTrio(home).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
-  const lr = largeRest(home, floor), big = lr ? lr.big : [], needBig = !!lr && !lr.has;
-  for (const it of ITEMS) { if ((!it.fv && !it.tg) || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let fav = 0; const hits = []; for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); } const fill = !!(it.tg && lack.has(it.tg)), fits = big.length && isRest(it) ? (restClass(...footOf(it)) === 'large' ? 1 : -1) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig && fits > 0 ? fillW : 0; all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, sc: fav + (fill ? fillW : 0) + base + size }); }
+  const rf = restFit(home, floor), big = rf ? rf.short : [], needR = rf && rf.short.length ? rf.need : 0, needBig = needR > 0;
+  for (const it of ITEMS) { if ((!it.fv && !it.tg) || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let fav = 0; const hits = []; for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); } const fill = !!(it.tg && lack.has(it.tg)), fits = needBig && isRest(it) ? (SIZE_RANK[restClass(...footOf(it))[0]] >= needR ? 1 : -1) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig && fits > 0 ? fillW : 0; all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, sc: fav + (fill ? fillW : 0) + base + size }); }
   const sugg = all.filter(x => x.fav > 0 || x.fill).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
   const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => a.rank - b.rank || (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n));
-  return { res, present, need, sugg, lack, byTag, big, needBig };
+  return { res, present, need, sugg, lack, byTag, big, needBig, needR };
 }
 const ENV_TIP = { Bright: 'Add lamps and lights, and leave some roof open for daylight.', Dark: 'Keep lights out and roof it over fully.', Humid: 'Add water and plants, and keep the plants watered.', Dry: 'Keep water and plants away; a Smooth rock dries the area.', Warm: 'Use real flames (campfire, candles, a fireplace); lamps don\'t warm a room.', Cool: 'Keep fires and heat sources away.' };
 function resChip(home, r, onChange) {
   const p = PK_BY_NAME.get(r.p); const f = r.f || 0;
   const flBtn = home.floors > 1 ? h('button', { class: 'flr', title: 'Move to ' + floorName(1 - f).toLowerCase(), 'aria-label': 'Move ' + r.p + ' to ' + floorName(1 - f).toLowerCase(), onclick: () => { if (!floorHasRoomFor(home, 1 - f, r.p)) { toast(floorName(1 - f) + ' is full (' + home.pf + ' per floor)'); return; } setResidentFloor(r.p, 1 - f); onChange(); } }, f ? '2F' : '1F') : '';
   const big = smallOnly(home) && tooBig(p);
-  return h('span', { class: 'res' + (big ? ' bad' : ''), title: big ? 'Too big to live in a den' : null }, flBtn, r.p, p && p.ideal ? h('span', { class: 'env' }, p.ideal) : '', big ? h('span', { class: 'szb big' }, 'Too big') : '', h('button', { 'aria-label': 'Move ' + r.p + ' out', title: 'Move out', onclick: () => { removeResident(r.p); onChange(); } }, icon('close')));
+  return h('span', { class: 'res' + (big ? ' bad' : ''), title: big ? 'Too big to live in a den' : null }, flBtn, r.p, p && p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p ? sizeBadge(p, onChange) : '', big ? h('span', { class: 'szb big' }, 'Too big') : '', h('button', { 'aria-label': 'Move ' + r.p + ' out', title: 'Move out', onclick: () => { removeResident(r.p); onChange(); } }, icon('close')));
 }
 function floorHasRoomFor(home, f, name) { if (!home.pf) return true; return residentsOf(home, f).filter(r => r.p !== name).length < home.pf; }
 function residentsSection(home) {
@@ -842,19 +863,19 @@ function residentPicker(home, floor) {
   });
 }
 const trioLabel = (t) => (TRIO.find(x => x[0] === t) || [])[1] || t;
-function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it), sz = fw + '×' + fh + (sizeGuessed(sg.it) ? ' (guess)' : ''); bits.push(sg.fits > 0 ? sz + ', large' + (dp.needBig ? ': needed for ' + listNames(dp.big) : '') : sg.fits < 0 ? sz + ', too small for ' + listNames(dp.big) : sz + ', ' + restClass(fw, fh)); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length ? ' — none of their favourite kinds' : ''); }
+function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it), sz = fw + '×' + fh + (sizeGuessed(sg.it) ? ' (guess)' : ''); bits.push(sz + ', ' + restClass(fw, fh) + (sg.fits > 0 ? ': big enough for ' + listNames(dp.big) : sg.fits < 0 ? ': too small for ' + listNames(dp.big) : '')); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length ? ' — none of their favourite kinds' : ''); }
 function decorModal(home) {
   const dp = decorPlan(home); let filt = null;
   modal('Decorate ' + home.label, (box) => {
     box.classList.add('wide');
     box.append(h('p', { class: 'sub' }, home.kind === 'house' ? 'Green ticks are favourite kinds already inside the house\'s active area.' : 'Kit interiors aren\'t on this map, so nothing is ticked. Put these inside the house in game.'));
-    for (const p of dp.res) box.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, 'Ideal: ' + p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
+    for (const p of dp.res) box.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, 'Ideal: ' + p.ideal) : '', sizeBadge(p, () => { closeModal(); afterResChange(home); decorModal(home); }), p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
       h('div', null, (p.fv || []).map(f => h('span', { class: 'fav ' + (dp.present.has(f) ? 'have' : 'want'), title: dp.present.has(f) ? 'Inside: ' + dp.present.get(f).join(', ') : 'Missing' }, dp.present.has(f) ? '✓' : '', FAVS[f])))));
     const envCount = new Map(); for (const p of dp.res) if (p.ideal) envCount.set(p.ideal, (envCount.get(p.ideal) || 0) + 1);
     if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); box.append(h('h4', null, 'Environment')); box.append(h('p', { class: 'note', style: 'margin:0' }, top.map(([e, n]) => e + ' ×' + n).join(' · ') + '. ' + ENV_TIP[top[0][0]] + (top.length > 1 ? ' With mixed types, aim for the majority.' : ''))); }
     box.append(h('h4', null, 'Suggested items'));
     const needF = [...dp.need].filter(([f]) => !dp.present.has(f)).sort((a, b) => b[1] - a[1]).map(([f]) => f);
-    const trio = comfortTrio(home).map(t => t[2] === 'Relaxation' && dp.needBig ? [t[0], false, t[2], 'large one needed'] : t), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : null;
+    const trio = comfortTrio(home).map(t => t[2] === 'Relaxation' && dp.needBig ? [t[0], false, t[2], RANK_WORD[dp.needR] + ' one needed'] : t), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : null;
     const TAB = { Relaxation: 'Rest items', Toy: 'Toys', Decoration: 'Decorations' };
     const chips = h('div', { class: 'cats', role: 'group', 'aria-label': 'Suggestions' }), info = h('p', { class: 'note', style: 'margin:0 0 6px' }), list = h('div', { class: 'list' }); box.append(chips, info, list);
     const render = () => {
@@ -863,7 +884,7 @@ function decorModal(home) {
       chips.append(chip(null, 'Best overall'));
       for (const f of needF) chips.append(chip(f, FAVS[f]));
       list.textContent = ''; let arr;
-      if (typeof filt === 'string') { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = t === 'Relaxation' && dp.big.length ? listNames(dp.big) + (dp.big.length > 1 ? ' are large Pokémon and need' : ' is a large Pokémon and needs') + ' a large (2×2) rest item. ' + (dp.needBig ? 'Those come first. A size marked guess may differ in your game: tap the item, then Change next to its size.' : 'There\'s one in range already.') : (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby.'; }
+      if (typeof filt === 'string') { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = t === 'Relaxation' && dp.needBig ? listNames(dp.big) + (dp.big.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[dp.needR] + ' rest item (' + RANK_FOOT[dp.needR] + (dp.needR < 2 ? ' or bigger' : '') + '); those come first. Sizes with ? are guesses: tap a Pokémon\'s size above, or an item\'s size after you pick it, to change it.' : (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby.'; }
       else if (filt == null) { arr = dp.sugg.slice(0, 14); info.textContent = dp.lack.size ? 'Items that fill the missing ' + [...dp.lack].map(t => trioLabel(t).toLowerCase()).join(' and ') + ' item count extra here.' : ''; }
       else { arr = dp.sugg.filter(x => (x.it.fv || []).includes(filt)).slice(0, 40); info.textContent = ''; }
       info.hidden = !info.textContent;
@@ -1245,12 +1266,15 @@ function comfortTrio(home) { // players find comfort is best with a rest, a toy 
    A large Pokémon (too big for dens) needs a large rest item; the app can't tell small from medium Pokémon. */
 const isRest = (it) => !!it && it.tg === 'Relaxation';
 const restClass = (w, h) => Math.min(w, h) >= 2 ? 'large' : Math.max(w, h) >= 2 ? 'medium' : 'small';
-function largeRest(home, floor) { // large residents and whether a large rest item is in range
-  const big = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(tooBig); if (!big.length) return null;
+function restFit(home, floor) { // which residents still need a bigger rest item in range
+  const pks = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(p => p && pkSize(p) !== 's'); if (!pks.length) return null;
   const rest = home.kind === 'kit' ? kitPieces(home.ob).filter(pc => isRest(pc.it)) : [...plan.objs.values()].filter(ob => isRest(ITEMS[ob.i]) && objInArea(ob, home.hs.area));
-  return { big: big.map(p => p.n), has: rest.some(o => restClass(o.w, o.h) === 'large') };
+  const top = rest.reduce((m, o) => Math.max(m, SIZE_RANK[restClass(o.w, o.h)[0]]), -1);
+  const short = pks.filter(p => SIZE_RANK[pkSize(p)] > top), need = short.reduce((m, p) => Math.max(m, SIZE_RANK[pkSize(p)]), 0);
+  return { pks, short: short.map(p => p.n), need, guess: short.some(pkSizeGuess) };
 }
-function largeRestChip(home, floor) { const b = largeRest(home, floor); if (!b) return ''; return h('span', { class: 'req ' + (b.has ? 'ok' : ''), title: 'Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large. Large Pokémon need a large one.' }, b.has ? '✓' : '·', 'Large rest item for ' + listNames(b.big)); }
+const RANK_FOOT = ['1×1', '2×1', '2×2'], RANK_WORD = ['small', 'medium', 'large'];
+function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) return ''; const ok = !b.short.length; return h('span', { class: 'req ' + (ok ? 'ok' : ''), title: 'Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large. Each Pokémon needs one at least its size.' + (b.guess ? ' Some sizes here are guesses: tap a size to change it.' : '') }, ok ? '✓' : '·', ok ? 'Rest item big enough' : RANK_WORD[b.need][0].toUpperCase() + RANK_WORD[b.need].slice(1) + ' rest item (' + RANK_FOOT[b.need] + ') for ' + listNames(b.short) + (b.guess ? '?' : '')); }
 function trioChips(home) { return h('div', { class: 'reqs', title: 'Players find Pokémon are most comfortable with a rest, a toy and a decoration item in range' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : '') }, ok ? '✓' : '·', lb + ' item')), largeRestChip(home)); }
 /* ---------- community box: Gather Pokémon fill it when the whole box is within 4 tiles of their home's dotted line (player-tested) ---------- */
 const CBOX = 'Community box', BOX_R = 4;
@@ -2589,10 +2613,10 @@ function renderPkList() {
   const list = $('#pkList'); if (!list) return; list.textContent = ''; const q = pkQuery; let n = 0; const att = planPokemon();
   for (const p of PK) {
     if (pkSpec && !p.s.includes(pkSpec)) continue;
-    if (q && !(p.n.toLowerCase().includes(q) || p.t.join(' ').toLowerCase().includes(q) || p.s.join(' ').toLowerCase().includes(q) || (p.ideal || '').toLowerCase().includes(q) || (p.fv || []).some(f => FAVS[f].toLowerCase().includes(q)) || (q === 'large' && tooBig(p)) || (q === 'small' && p.sz === 'y'))) continue;
+    if (q && !(p.n.toLowerCase().includes(q) || p.t.join(' ').toLowerCase().includes(q) || p.s.join(' ').toLowerCase().includes(q) || (p.ideal || '').toLowerCase().includes(q) || (p.fv || []).some(f => FAVS[f].toLowerCase().includes(q)) || (SIZE_NAME[pkSize(p)].toLowerCase() === q))) continue;
     const habs = h('div', { class: 'mons' }); if (p.hab.length) { habs.append('Habitats: '); p.hab.forEach((id, k) => { habs.append(h('button', { onclick: () => openHabitat(id) }, HAB_BY_ID.get(id).n), k < p.hab.length - 1 ? ', ' : ''); }); } else habs.append('No habitat: met through the story or events');
     const hm = homeOfPokemon(p.n);
-    list.append(h('div', { class: 'card', style: openPk === p.n ? 'border-color:var(--accent)' : '' }, h('div', { class: 'hd' }, h('span', { class: 'no' }, p.dex === 'Main' ? '#' + p.no : p.dex === 'Basin' ? 'Basin ' + p.no.slice(1) : 'Event ' + p.no.slice(1)), h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p), att.has(p.n) ? h('span', { class: 'chip good', style: 'margin-left:auto' }, 'In plan') : ''), h('div', null, h('span', { class: 'note' }, p.t.join(' / ') + ' · '), p.s.map(s => h('span', { class: 'spec' }, s))), p.fv && p.fv.length ? h('div', { class: 'note', style: 'margin-top:4px' }, 'Likes: ' + p.fv.map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')) : '', hm ? h('div', { class: 'note' }, 'Lives in ' + hm.label) : '', habs));
+    list.append(h('div', { class: 'card', style: openPk === p.n ? 'border-color:var(--accent)' : '' }, h('div', { class: 'hd' }, h('span', { class: 'no' }, p.dex === 'Main' ? '#' + p.no : p.dex === 'Basin' ? 'Basin ' + p.no.slice(1) : 'Event ' + p.no.slice(1)), h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p, () => renderPanel()), att.has(p.n) ? h('span', { class: 'chip good', style: 'margin-left:auto' }, 'In plan') : ''), h('div', null, h('span', { class: 'note' }, p.t.join(' / ') + ' · '), p.s.map(s => h('span', { class: 'spec' }, s))), p.fv && p.fv.length ? h('div', { class: 'note', style: 'margin-top:4px' }, 'Likes: ' + p.fv.map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')) : '', hm ? h('div', { class: 'note' }, 'Lives in ' + hm.label) : '', habs));
     if (++n >= 120) { list.append(h('p', { class: 'note' }, 'Showing the first 120. Search or filter to narrow it down.')); break; }
   }
   if (!n) list.append(h('p', { class: 'empty' }, 'No Pokémon match.'));
@@ -2630,6 +2654,7 @@ function renderPlans() {
     h('li', null, 'Active areas (dotted button by the zoom controls, or A) match the white dotted line the game shows with the right stick: 4 tiles past a habitat on every side, 4 levels up or down. For block houses only the floor inside the walls counts.'),
     h('li', null, 'Tap a house (or a kit house) to choose who lives there. "Decorate for them" lists each resident\'s favourite kinds of things, ticks the ones already inside, and suggests items that please the most residents.'),
     h('li', null, 'Houses you build cube by cube are found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 pieces of furniture. Use Fill → Outline to lay walls fast.'),
+    h('li', null, 'Pokémon sizes: large ones were tested by players (too big for dens); small or medium with a ? is a guess from height and weight. Tap a size to change it; yours syncs. Each Pokémon needs a rest item at least its size: 1×1 small, 2×1 medium, 2×2 large.'),
     h('li', null, 'Doors, gates and windows go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls.'),
     h('li', null, 'Shortcuts: A active areas, B place, R fill, E erase, V select, Z zone, T height, I pick, H pan, Q rotate item, [ ] brush, Space+drag pan.')));
   root.append(h('h4', null, 'Data sources'));
@@ -2984,7 +3009,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T07:44';
+const APP_BUILD = '2026-11-20T07:56';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
