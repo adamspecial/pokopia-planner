@@ -10,4 +10,12 @@ The pictures live in `pics/` inside the app, so they show without internet. The 
 
 `tools/pictures.py` copies them from Serebii. GitHub runs it for you (`.github/workflows/pictures.yml`) whenever `data.json` changes, once a week to retry any that failed, or from **Actions → Item pictures → Run workflow**.
 
+## Sync between devices
+
+Plans → **Sync between devices** → **Sign in with Google**, once on each device. Plans and item sizes then stay the same everywhere: changes show up on your other devices within seconds, and edits made offline are sent when the device is back online. Each device keeps its own copy too, so the planner works the same without internet.
+
+The plans are stored in Firestore, in the free Firebase project GM Companion already uses (`my-gm-companion`), under `users/<you>/pokopiaPlans` and `users/<you>/pokopiaMeta`, apart from GM Companion's data; its existing rules let only you read and write them. One-time step: Firebase console → Authentication → Settings → Authorized domains → add `adamspecial.github.io`.
+
+If the same plan is changed on two devices before they sync, the newer version keeps the plan and the other is kept as a copy, so nothing is lost.
+
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item pictures from Serebii.net.

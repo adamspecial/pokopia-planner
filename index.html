@@ -572,7 +572,8 @@ function setGround(k, v) { if (plan.ground[k] === v) return; beginTx(); if (!tx.
 function setElev(k, v) { v = clamp(v, 0, 9); if (plan.elev[k] === v) return; beginTx(); if (!tx.e.has(k)) tx.e.set(k, [plan.elev[k], v]); else tx.e.get(k)[1] = v; plan.elev[k] = v; }
 /* item sizes: the sizes you set apply to every plan on this device (userSizes); a plan also keeps a copy (plan.isz) so it looks right when shared */
 let userSizes = {}; try { userSizes = JSON.parse(LS.get('pokopia-planner:sizes') || '{}') || {}; } catch (e) { userSizes = {}; }
-const saveUserSizes = () => LS.set('pokopia-planner:sizes', JSON.stringify(userSizes));
+const saveUserSizes = () => { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); LS.set(LSK + 'sizesUpdated', String(Date.now())); scheduleSync(); };
+if (Object.keys(userSizes).length && !LS.get(LSK + 'sizesUpdated')) LS.set(LSK + 'sizesUpdated', '1'); // sizes set before sync existed still get synced
 const sizeSet = (it) => userSizes[it.n] || (plan && plan.isz && plan.isz[it.n]) || null;
 const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
@@ -2460,6 +2461,7 @@ function renderPlans() {
     downloads ? h('button', { class: 'btn', onclick: exportPNG }, icon('down'), 'Save image') : '',
     downloads ? h('button', { class: 'btn', onclick: exportJSON }, icon('down'), 'Export file') : h('button', { class: 'btn', onclick: () => copyText(JSON.stringify(serialize(plan))) }, icon('copy'), 'Copy plan data'),
     h('label', { class: 'btn', for: 'importFile' }, icon('up'), 'Import file'), h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON })));
+  root.append(syncCard());
   root.append(h('p', { class: 'note', style: 'margin:4px 0' }, storageNote()));
   root.append(h('p', { class: 'note', id: 'picLine', style: 'margin:4px 0' })); picUI();
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
@@ -2506,8 +2508,9 @@ function resizePlanDialog() {
 function duplicatePlan() { const s = serialize(plan); s.id = uid(); s.name = plan.name + ' (copy)'; s.updated = Date.now(); const p = deserialize(s); installPlan(p); persistNow(); toast('Duplicated'); }
 function deletePlanDialog(id) {
   const meta = plansIndex.find(p => p.id === id); if (!meta) return;
-  modal('Delete "' + meta.name + '"?', (box) => box.append(h('p', { class: 'sub' }, 'This removes the plan from this device and your account. It cannot be undone.')), 'Delete', async () => {
+  modal('Delete "' + meta.name + '"?', (box) => box.append(h('p', { class: 'sub' }, 'This removes the plan from this device' + (syncOn() ? ' and your other synced devices' : cloud ? ' and your account' : '') + '. It cannot be undone.')), 'Delete', async () => {
     plansIndex = plansIndex.filter(p => p.id !== id); LS.del(LSK + 'plan:' + id); saveIndex(); if (cloud) { try { await cloud.col.doc(id).delete(); } catch (e) { } }
+    if (sync) { sync.gone = [...new Set([...(sync.gone || []), id])]; saveSync(); scheduleSync(300); }
     if (plan.id === id) { if (plansIndex.length) openPlan(plansIndex[0].id); else installPlan(makeExample()); persistNow(); }
     renderPlans();
   }, true);
@@ -2533,8 +2536,8 @@ function changed() { exampleUntouched = false; evaluateAll(); markDirty(); reque
 function markDirty() { dirty = true; plan.updated = Date.now(); setSave('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(persistNow, 1200); }
 function saveIndex() { LS.set(LSK + 'index', JSON.stringify(plansIndex)); }
 function indexEntry(p) { return { id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, updated: p.updated }; }
-async function persistNow() {
-  clearTimeout(saveTimer); if (!plan) return; const s = serialize(plan); const str = JSON.stringify(s);
+async function persistNow(noSync) {
+  clearTimeout(saveTimer); if (!plan) return; if (!noSync) scheduleSync(); const s = serialize(plan); const str = JSON.stringify(s);
   const okLocal = LS.set(LSK + 'plan:' + plan.id, str); LS.set(LSK + 'current', plan.id);
   plansIndex = plansIndex.filter(p => p.id !== plan.id); plansIndex.push(indexEntry(plan)); saveIndex(); dirty = false;
   if (cloud) {
@@ -2545,12 +2548,12 @@ async function persistNow() {
   updateHeader();
 }
 function setSave(st, msg) {
-  saveState = st; const chip = $('#saveChip'); chip.className = 'chip ' + (st === 'cloud' ? 'good' : st === 'bad' ? 'bad' : st === 'local' ? '' : 'warn');
-  chip.lastChild.textContent = { cloud: 'Saved to your account', local: 'Saved on this device', pending: 'Unsaved changes', saving: 'Saving…', bad: 'Not saved' }[st] || st;
+  saveState = st; const chip = $('#saveChip'); chip.className = 'chip ' + (st === 'cloud' || st === 'synced' ? 'good' : st === 'bad' ? 'bad' : st === 'local' || st === 'syncing' ? '' : 'warn');
+  chip.lastChild.textContent = { cloud: 'Saved to your account', local: 'Saved on this device', pending: 'Unsaved changes', saving: 'Saving…', bad: 'Not saved', synced: 'Synced', syncing: 'Syncing…' }[st] || st;
   chip.title = msg || '';
   if (msg && st === 'bad') toast(msg, 3500);
 }
-function storageNote() { return cloud ? 'Plans are saved to your Claude account, so they open on any device where you view this page.' : 'Plans are saved in this browser only. Export a file to keep a backup or move a plan to another device.'; }
+function storageNote() { return cloud ? 'Plans are saved to your Claude account, so they open on any device where you view this page.' : syncOn() ? 'Plans are saved on this device and synced with your Google account. Export a file for an extra backup.' : 'Plans are saved in this browser only. Sign in above to sync them, or export a file to keep a backup or move a plan to another device.'; }
 function loadLocalPlans() { try { plansIndex = JSON.parse(LS.get(LSK + 'index') || '[]'); } catch (e) { plansIndex = []; } }
 function readLocalPlan(id) { try { const s = LS.get(LSK + 'plan:' + id); return s ? deserialize(JSON.parse(s)) : null; } catch (e) { return null; } }
 function openPlan(id) { if (dirty) persistNow(); const p = readLocalPlan(id) || (cloudCache.has(id) ? deserialize(cloudCache.get(id)) : null); if (!p) { toast('That plan could not be opened'); return; } installPlan(p); LS.set(LSK + 'current', id); }
@@ -2608,6 +2611,197 @@ function importJSON(e) {
   rd.readAsText(f); e.target.value = '';
 }
 
+/* ============================== sync between devices: your Google account (Firebase) ==============================
+   Sign in with Google once per device. Plans live in Firestore under users/<uid>/pokopiaPlans/<plan id>
+   (item sizes in users/<uid>/pokopiaMeta/sizes), in the same free Firebase project as GM Companion.
+   This device's copy (localStorage) stays the working copy, so the planner works the same offline.
+   sync.base[id] is a plan's "updated" stamp when this device last agreed with Firebase about it. */
+const FB_CDN = 'https://www.gstatic.com/firebasejs/10.14.1/';
+const FB_CONFIG = { apiKey: 'AIzaSyALG2MwsGSaVaspLk8sv53gg3BhKjGMQjM', authDomain: 'my-gm-companion.firebaseapp.com', projectId: 'my-gm-companion' };
+let sync = null; try { sync = JSON.parse(LS.get(LSK + 'sync') || 'null'); } catch (e) { sync = null; }
+if (sync && !sync.uid) sync = null;
+let fb = null, fbLoading = null, fbUser = undefined, unsubs = [], remote = null, remotePending = new Set(), remoteSizes = null;
+let syncErr = '', syncMsg = '', syncTimer = null; const inflight = new Map();
+function saveSync() { if (sync) LS.set(LSK + 'sync', JSON.stringify(sync)); else LS.del(LSK + 'sync'); }
+const syncOn = () => !!(sync && sync.on);
+function loadFirebase() {
+  if (!fbLoading) fbLoading = Promise.all(['app', 'auth', 'firestore'].map(n => import(FB_CDN + 'firebase-' + n + '.js'))).then(([A, U, S]) => {
+    const app = A.initializeApp(FB_CONFIG, 'pokopia-planner');
+    fb = { U, S, auth: U.getAuth(app), db: S.getFirestore(app) };
+    U.onAuthStateChanged(fb.auth, onUser);
+    return fb;
+  }).catch(e => { fbLoading = null; throw e; });
+  return fbLoading;
+}
+function onUser(u) {
+  stopWatching(); fbUser = u || null;
+  if (u) {
+    if (!sync || sync.uid !== u.uid) sync = { uid: u.uid, base: {}, sizesBase: 0, gone: [], last: 0 };
+    sync.on = true; sync.email = u.email || ''; saveSync(); syncErr = ''; startWatching();
+  }
+  syncUI(); syncSettled();
+}
+function stopWatching() { unsubs.forEach(f => { try { f(); } catch (e) { } }); unsubs = []; remote = null; remoteSizes = null; }
+function startWatching() {
+  const { S, db } = fb, me = fbUser.uid, live = { includeMetadataChanges: true };
+  // only snapshots the server has confirmed count: an empty offline cache would look like "every plan was deleted"
+  unsubs.push(S.onSnapshot(S.collection(db, 'users', me, 'pokopiaPlans'), live, snap => {
+    if (snap.metadata.fromCache) return;
+    const m = new Map(), pend = new Set();
+    snap.docs.forEach(d => { if (d.metadata.hasPendingWrites) pend.add(d.id); const v = d.data(); if (v && typeof v.data === 'string') m.set(d.id, v); });
+    remote = m; remotePending = pend; reconcile();
+  }, watchFailed));
+  unsubs.push(S.onSnapshot(S.doc(db, 'users', me, 'pokopiaMeta', 'sizes'), live, snap => {
+    if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
+    remoteSizes = snap.exists() ? (snap.data() || {}) : {}; reconcile();
+  }, watchFailed));
+}
+function watchFailed(e) { syncErr = syncProblem(e); syncUI(); syncSettled(); }
+function syncProblem(e) {
+  const c = (e && e.code) || '';
+  if (c === 'permission-denied' || c === 'firestore/permission-denied') return 'Firebase refused access to your plans. Its database rules need to allow users/<you>/… (GM Companion\'s rules already do).';
+  if (c === 'unavailable' || c === 'deadline-exceeded') return 'Can\'t reach Firebase right now. Changes are kept here and sync once it\'s back.';
+  if (c === 'resource-exhausted') return 'Today\'s free Firebase allowance is used up. Changes are kept here and sync tomorrow.';
+  return 'Syncing hit a problem (' + (c || (e && e.message) || 'unknown') + '). Changes are kept here and sync once it clears.';
+}
+function signInProblem(e) {
+  const c = (e && e.code) || '';
+  if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request' || c === 'auth/user-cancelled') return '';
+  if (c === 'auth/unauthorized-domain') return 'Firebase doesn\'t allow this address yet. In the Firebase console open Authentication → Settings → Authorized domains and add ' + location.hostname + '.';
+  if (c === 'auth/popup-blocked') return 'The browser blocked Google\'s sign-in window. Tap Sign in with Google again, or allow pop-ups for this site.';
+  if (!c || c === 'auth/network-request-failed' || !navigator.onLine) return 'Couldn\'t reach Google. Check your connection and try again.';
+  return 'Google sign-in didn\'t work (' + c + ').';
+}
+async function syncSignIn() {
+  syncErr = ''; syncMsg = 'Opening Google…'; syncUI();
+  try { const f = await loadFirebase(); await f.U.signInWithPopup(f.auth, new f.U.GoogleAuthProvider()); toast('Sync is on'); }
+  catch (e) { syncErr = signInProblem(e); }
+  syncMsg = ''; syncUI();
+}
+function syncOffDialog() {
+  modal('Sign out on this device?', (b) => b.append(h('p', { class: 'sub' }, 'Your plans stay on this device and in your Google account. Your other devices keep syncing.')), 'Sign out', async () => {
+    if (sync) { sync.on = false; saveSync(); } stopWatching(); clearTimeout(syncTimer);
+    try { if (fb) await fb.U.signOut(fb.auth); } catch (e) { }
+    fbUser = null; syncErr = ''; if (saveState === 'synced') setSave('local'); renderPlans(); toast('Signed out on this device');
+  });
+}
+function scheduleSync(ms) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(reconcile, ms == null ? 2500 : ms); }
+const localPlanRaw = (id) => { try { return JSON.parse(LS.get(LSK + 'plan:' + id) || 'null'); } catch (e) { return null; } };
+function storeRaw(s) { LS.set(LSK + 'plan:' + s.id, JSON.stringify(s)); plansIndex = plansIndex.filter(p => p.id !== s.id); plansIndex.push({ id: s.id, name: s.name, area: s.area, w: s.w, h: s.h, updated: s.updated }); }
+// the example plan a new device starts with is never uploaded while it is untouched
+const isPristineExample = (id, upd) => { const [eid, eu] = (LS.get(LSK + 'example') || '').split(':'); return id === eid && String(upd) === eu; };
+const sizesStamp = () => +LS.get(LSK + 'sizesUpdated') || 0;
+function syncPending() {
+  if (!sync) return false;
+  if (inflight.size || (sync.gone || []).length || sizesStamp() !== (+sync.sizesBase || 0)) return true;
+  return plansIndex.some(p => sync.base[p.id] !== p.updated && !isPristineExample(p.id, p.updated));
+}
+function syncSettled() {
+  const ok = fbUser && remote && remoteSizes && !syncErr && navigator.onLine && !syncPending();
+  if (ok && sync) { sync.last = Date.now(); saveSync(); }
+  if (ok && (saveState === 'local' || saveState === 'syncing')) setSave('synced');
+  else if (!ok && saveState === 'synced') setSave('local', syncErr || undefined);
+  syncUI();
+}
+function reconcile() {
+  clearTimeout(syncTimer);
+  if (!fb || !fbUser || !remote || !remoteSizes || !sync) { syncUI(); return; }
+  if (dirty) persistNow(true);
+  if (!navigator.onLine) { syncSettled(); return; } // changes wait here until the connection is back
+  const { S, db } = fb, me = fbUser.uid, ref = (id) => S.doc(db, 'users', me, 'pokopiaPlans', id);
+  const pulled = [], removed = [], gone = new Set(sync.gone || []);
+  const done = () => { if (sync) saveSync(); syncSettled(); };
+  const send = (key, write, after) => {
+    inflight.set(key, true);
+    write().then(() => { inflight.delete(key); if (sync) after(); done(); }, e => {
+      inflight.delete(key);
+      if (e && e.code === 'pokopia/changed') scheduleSync(1500); // another device got there first: look again, nothing is lost
+      else { syncErr = syncProblem(e); if (e.code !== 'permission-denied') scheduleSync(30000); }
+      done();
+    });
+  };
+  // every write checks that Firebase still holds what this device last saw there, so two devices can't overwrite each other
+  const guarded = (r, expect, also, change) => S.runTransaction(db, async tx => {
+    const d = await tx.get(r), cur = d.exists() ? (d.data() || {}).updated : null;
+    if (cur !== expect && cur !== also) throw Object.assign(new Error('changed on another device'), { code: 'pokopia/changed' });
+    change(tx, cur);
+  });
+  const put = (s, expect) => {
+    const json = JSON.stringify(s); if (json.length > 900000) { syncErr = '“' + s.name + '” is too big to sync.'; return; }
+    send(s.id, () => guarded(ref(s.id), expect, s.updated, tx => tx.set(ref(s.id), { name: s.name, updated: s.updated, data: json })), () => { sync.base[s.id] = s.updated; });
+  };
+  const push = (id, R) => { const s = localPlanRaw(id); if (s) { s.id = id; put(s, R ? R.updated : null); } };
+  const pull = (id, R) => { try { const s = JSON.parse(R.data); if (!s || !s.w || !s.h) return; s.id = id; storeRaw(s); sync.base[id] = s.updated; pulled.push(id); } catch (e) { } };
+  const keepCopy = (s, label) => { if (!s) return; const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.name = s.name + ' (' + label + ')'; storeRaw(c); put(c, null); };
+  for (const id of new Set([...plansIndex.map(p => p.id), ...remote.keys(), ...gone])) {
+    if (remotePending.has(id) || inflight.has(id)) continue; // our own change is still on its way
+    const L = plansIndex.find(p => p.id === id), R = remote.get(id), B = sync.base[id];
+    if (gone.has(id)) { // deleted on this device
+      if (R && B != null && R.updated !== B) { pull(id, R); sync.gone = sync.gone.filter(x => x !== id); } // changed elsewhere since: keep that version
+      else if (R) send(id, () => guarded(ref(id), R.updated, null, (tx, cur) => { if (cur !== null) tx.delete(ref(id)); }), () => { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); });
+      else { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); }
+      continue;
+    }
+    if (L && plan && id === plan.id && dirty) continue; // being edited right now: next round
+    if (L && R) {
+      if (L.updated === R.updated) { sync.base[id] = R.updated; continue; }
+      const lCh = L.updated !== B, rCh = R.updated !== B;
+      if (lCh && rCh) { // changed on two devices: the newer version keeps the plan, the other is kept as a copy
+        if (L.updated > R.updated) { try { keepCopy(JSON.parse(R.data), 'from another device'); } catch (e) { } push(id, R); } else { keepCopy(localPlanRaw(id), 'from this device'); pull(id, R); }
+      } else if (lCh) push(id, R); else pull(id, R);
+    } else if (L) {
+      if (isPristineExample(id, L.updated)) { if (remote.size) removed.push(id); continue; } // real plans arrived: the example goes
+      if (B != null && L.updated === B) removed.push(id); // deleted on another device
+      else push(id, null); // new here, or changed here after another device deleted it
+    } else if (R) pull(id, R);
+  }
+  // item sizes: one set for every plan and device
+  if (!inflight.has('_sizes')) {
+    const lTs = sizesStamp(), rTs = +remoteSizes.updated || 0, bTs = +sync.sizesBase || 0, sizesRef = S.doc(db, 'users', me, 'pokopiaMeta', 'sizes');
+    const putSizes = (ts) => { const sizes = Object.assign({}, userSizes); send('_sizes', () => guarded(sizesRef, remoteSizes.updated == null ? null : remoteSizes.updated, ts, tx => tx.set(sizesRef, { sizes, updated: ts })), () => { sync.sizesBase = ts; }); };
+    let sizesIn = false;
+    if (lTs !== rTs) {
+      const lCh = lTs !== bTs, rCh = rTs !== bTs;
+      if (lCh && rCh) { userSizes = Object.assign({}, remoteSizes.sizes || {}, userSizes); const ts = Date.now(); LS.set(LSK + 'sizesUpdated', String(ts)); sizesIn = true; putSizes(ts); }
+      else if (lCh) putSizes(lTs);
+      else { userSizes = Object.assign({}, remoteSizes.sizes || {}); LS.set(LSK + 'sizesUpdated', String(rTs)); sync.sizesBase = rTs; sizesIn = true; }
+    } else sync.sizesBase = rTs;
+    if (sizesIn) { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); requestDraw(); if (activeTab !== 'plans') renderPanel(); }
+  }
+  for (const id of removed) { LS.del(LSK + 'plan:' + id); plansIndex = plansIndex.filter(p => p.id !== id); delete sync.base[id]; }
+  saveIndex(); saveSync();
+  // what the other devices changed shows up here straight away
+  if (plan && removed.includes(plan.id)) {
+    const nx = [...plansIndex].sort((a, b) => b.updated - a.updated)[0], p = nx && readLocalPlan(nx.id);
+    if (p) { installPlan(p); LS.set(LSK + 'current', p.id); if (pulled.length) toast('Opened “' + p.name + '” from your other device'); }
+    else { const ex = makeExample(); installPlan(ex); LS.set(LSK + 'example', ex.id + ':' + ex.updated); persistNow(true); }
+  } else if (plan && pulled.includes(plan.id) && !dirty) {
+    const p = readLocalPlan(plan.id); if (p) { const v = { ...view }; installPlan(p); Object.assign(view, v); requestDraw(); toast('Updated “' + p.name + '” from your other device'); }
+  }
+  if (pulled.length || removed.length) { updateHeader(); if (activeTab === 'plans') renderPlans(); }
+  done();
+}
+function ago(t) { const s = (Date.now() - t) / 1000; return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : new Date(t).toLocaleDateString(); }
+function syncCard() {
+  const signedIn = !!fbUser, waiting = syncOn() && fbUser === undefined;
+  const state = signedIn ? (syncErr ? ['bad', 'Problem'] : !navigator.onLine || syncPending() ? ['warn', 'Waiting'] : ['good', 'On']) : waiting ? ['', 'Connecting…'] : null;
+  const card = h('div', { class: 'card', id: 'syncCard' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Sync between devices'), state ? h('span', { class: 'chip ' + state[0], style: 'margin-left:auto' }, h('span', { class: 'dot' }), state[1]) : ''));
+  const note = (t, bad) => h('p', { class: 'note', style: 'margin:6px 0 0' + (bad ? ';color:var(--bad)' : '') }, t);
+  if (signedIn) {
+    card.append(note(syncErr || (!navigator.onLine ? 'You\'re offline. Changes are saved here and sync when you\'re back online.' : 'Plans and item sizes sync with your Google account' + (sync && sync.email ? ' (' + sync.email + ')' : '') + '. ' + (syncPending() ? 'Sending changes…' : 'Last synced ' + (sync && sync.last ? ago(sync.last) : 'just now') + '.')), !!syncErr));
+    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Sign out')));
+  } else if (waiting) {
+    card.append(note(syncErr || (navigator.onLine ? 'Connecting to your Google account…' : 'You\'re offline. Changes are saved here and sync when you\'re back online.'), !!syncErr));
+  } else {
+    card.append(note(syncOn() || (sync && sync.uid) ? 'You\'re signed out on this device. Sign in again to keep syncing.' : 'Keep plans and item sizes the same on your phone, tablet and computer: sign in with your Google account once on each device.'));
+    if (syncErr) card.append(note(syncErr, true));
+    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: syncSignIn }, syncMsg || 'Sign in with Google')));
+    if (navigator.onLine) loadFirebase().catch(() => { }); // ready before the tap, so Google's window isn't blocked
+  }
+  return card;
+}
+function syncUI() { const old = document.getElementById('syncCard'); if (old) old.replaceWith(syncCard()); }
+
 /* ============================== example plan ============================== */
 function makeExample() {
   const p = newPlan({ name: 'Example: Wasteland starter', area: 'Withered Wasteland', w: 56, h: 40, fill: 'Ordinary soil' });
@@ -2657,16 +2851,20 @@ async function boot() {
   loadLocalPlans();
   const cur = LS.get(LSK + 'current'); let p = cur ? readLocalPlan(cur) : null;
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);
-  if (!p) { p = makeExample(); exampleUntouched = true; }
+  if (!p) { p = makeExample(); exampleUntouched = true; LS.set(LSK + 'example', p.id + ':' + p.updated); }
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
   selectItem('Field grass', false); setTool('place'); setShowAreas(showAreas);
   showTab(VALID_TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'build', true);
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
   setTimeout(() => fillPictures(), 1500);
-  addEventListener('online', () => { if (picFill.done < picFill.total) fillPictures(); });
-  addEventListener('pagehide', () => { if (dirty) persistNow(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && dirty) persistNow(); });
+  const startSync = () => { if (syncOn() && !fbLoading) loadFirebase().catch(() => { if (navigator.onLine) { syncErr = 'Couldn\'t load Google sign-in. Trying again when the connection changes.'; syncUI(); } }); };
+  startSync();
+  addEventListener('online', () => { if (picFill.done < picFill.total) fillPictures(); startSync(); syncErr = ''; scheduleSync(500); syncUI(); });
+  addEventListener('offline', () => { syncSettled(); });
+  const leaving = () => { if (dirty) persistNow(true); if (syncOn() && syncPending()) reconcile(); };
+  addEventListener('pagehide', leaving);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); else syncUI(); });
 }
 boot();
 </script>
