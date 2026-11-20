@@ -1,0 +1,51 @@
+# Copies the item pictures from Serebii into pics/ so the planner shows them offline.
+# Runs by itself when data.json changes, once a week to retry any that failed,
+# and from the Actions tab (Item pictures → Run workflow).
+name: Item pictures
+
+on:
+  push:
+    paths:
+      - data.json
+      - tools/pictures.py
+      - .github/workflows/pictures.yml
+  schedule:
+    - cron: '37 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pictures-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pictures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Pillow
+        run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --quiet pillow
+
+      - name: Download missing pictures
+        run: /tmp/venv/bin/python tools/pictures.py
+
+      - name: Commit pictures
+        if: always()
+        run: |
+          git add pics
+          if git diff --cached --quiet; then echo "Nothing new"; exit 0; fi
+          n=$(python3 -c "import json; d = json.load(open('pics/index.json')); print(len(d['pics']), 'pictures,', len(d['missing']), 'missing')")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Item pictures for offline use: $n"
+          for i in 1 2 3; do
+            git pull --rebase --quiet origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            sleep 5
+          done
+          exit 1
