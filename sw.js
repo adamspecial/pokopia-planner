@@ -1,6 +1,6 @@
-// Offline helper: keeps the planner on the device so it opens without internet. Version 8099924499
+// Offline helper: keeps the planner on the device so it opens without internet. Version 2579141426
 // Item pictures (pics/) and the Google sign-in code for sync (pinned version) go in caches that survive app updates.
-const CACHE = 'pokopia-8099924499', PICS = 'pokopia-pics', LIB = 'pokopia-lib', FILES = ["./", "index.html", "data.json", "pics/index.json", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
+const CACHE = 'pokopia-2579141426', PICS = 'pokopia-pics', LIB = 'pokopia-lib', FILES = ["./", "index.html", "data.json", "pics/index.json", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('pokopia-') && k !== CACHE && k !== PICS && k !== LIB).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
