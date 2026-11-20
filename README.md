@@ -4,6 +4,8 @@ Plan habitats, houses, residents and decorations for Pokémon Pokopia.
 
 Open it at **https://adamspecial.github.io/pokopia-planner/** and, on a phone or tablet, use the browser menu → **Install app** / **Add to home screen**. It opens full screen and works offline, item pictures included.
 
+The screen keeps to a few words. Most buttons are icons: hover over one, or long-press it on a phone, to see its name. Tap ⓘ, or a chip, to see the details behind it.
+
 ## Item pictures
 
 Furniture, storage, shelves, lamps and appliances show on the map, and in kit rooms, as top-down symbols of their kind (a bed with its pillows, a sofa with its cushions, a stove with its burners), in the colour of their pictures. Decorations, dolls, fossils, plants, kits and other one-off items show as their own pictures. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint, with the floor kept under it and furniture standing on it. Rug sizes are guesses until you set them with **Change**, which can also resize the rugs already placed. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
