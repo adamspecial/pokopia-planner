@@ -1,6 +1,3 @@
-# Copies the item pictures from Serebii into pics/ so the planner shows them offline.
-# Runs by itself when data.json changes, once a week to retry any that failed,
-# and from the Actions tab (Item pictures → Run workflow).
 name: Item pictures
 
 on:
