@@ -583,8 +583,31 @@ const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 function addObj(i, x, y, w, h) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
-function overSmall(x, y, w, h) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return null; const under = new Set(); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = plan.occ[yy * plan.w + xx]; if (!o) continue; const ob = plan.objs.get(o); if (!ob || ob.w > 1 || ob.h > 1) return null; under.add(ob); } return under; }
-function addOver(i, x, y, w, h) { const under = overSmall(x, y, w, h); if (!under) return null; for (const ob of under) delObj(ob); return addObj(i, x, y, w, h); }
+/* walls, doors and windows: doors, gates and windows sit in wall lines and take the place of the wall pieces they cover;
+   when one leaves (moved, turned, resized, deleted) the gap closes again with the wall on either side. Other items never cover walls. */
+const inWall = (it) => isDoor(it) || isWindow(it);
+const structural = (it) => isWall(it) || inWall(it);
+function replaces(it, q) { if (q.w > 1 || q.h > 1 || q.i === it.i) return false; const qi = ITEMS[q.i]; if (inWall(it)) return true; if (isWall(it)) return !inWall(qi); return !structural(qi); }
+function blocker(it, x, y, w, h, self) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'edge'; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = plan.occ[yy * plan.w + xx]; if (!o || o === self) continue; const q = plan.objs.get(o); if (q && !replaces(it, q)) return q; } return null; }
+function clearFor(x, y, w, h, self) { const gone = new Set(); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = plan.occ[yy * plan.w + xx]; if (o && o !== self) gone.add(plan.objs.get(o)); } for (const q of gone) if (q) delObj(q); }
+function lineAt(x, y) { if (!inB(plan, x, y)) return null; const o = plan.occ[y * plan.w + x]; const q = o && plan.objs.get(o); return q && structural(ITEMS[q.i]) ? q : null; }
+function wallAlong(x, y, dx, dy) { for (let n = 0; n < 16; n++, x += dx, y += dy) { const q = lineAt(x, y); if (!q) return null; if (isWall(ITEMS[q.i]) && q.w === 1 && q.h === 1) return q.i; } return null; }
+function closeWall(r, keep) { // r: where a door or window stood; keep: area it covers now (left alone)
+  const runs = []; const kept = (x, y) => keep && x >= keep.x && x < keep.x + keep.w && y >= keep.y && y < keep.y + keep.h;
+  const fill = (cells, wi) => { for (const [x, y] of cells) if (!kept(x, y) && !plan.occ[y * plan.w + x]) addObj(wi, x, y, 1, 1); };
+  let done = false;
+  if (r.w >= r.h) for (let y = r.y; y < r.y + r.h; y++) { if (!lineAt(r.x - 1, y) || !lineAt(r.x + r.w, y)) continue; const wi = wallAlong(r.x - 1, y, -1, 0) ?? wallAlong(r.x + r.w, y, 1, 0); if (wi == null) continue; const cells = []; for (let x = r.x; x < r.x + r.w; x++) cells.push([x, y]); runs.push([cells, wi]); done = true; }
+  if (!done && r.h >= r.w) for (let x = r.x; x < r.x + r.w; x++) { if (!lineAt(x, r.y - 1) || !lineAt(x, r.y + r.h)) continue; const wi = wallAlong(x, r.y - 1, 0, -1) ?? wallAlong(x, r.y + r.h, 0, 1); if (wi == null) continue; const cells = []; for (let y = r.y; y < r.y + r.h; y++) cells.push([x, y]); runs.push([cells, wi]); }
+  for (const [cells, wi] of runs) fill(cells, wi); return runs.length > 0;
+}
+function wallTurn(it, x, y, w, h) { if (w === h || !inWall(it) || !lineAt(x, y)) return [w, h]; const across = lineAt(x - 1, y) || lineAt(x + 1, y), down = lineAt(x, y - 1) || lineAt(x, y + 1); return (down && !across && w > h) || (across && !down && h > w) ? [h, w] : [w, h]; }
+function putObj(it, x, y, w, h) { const b = blocker(it, x, y, w, h); if (b) return { err: b }; clearFor(x, y, w, h); return { ob: addObj(it.i, x, y, w, h) }; }
+function reshapeObj(ob, x, y, w, h) { // move, turn or resize one item, keeping walls whole
+  const it = ITEMS[ob.i], b = blocker(it, x, y, w, h, ob.id); if (b) return { err: b };
+  delObj(ob); if (inWall(it)) closeWall(ob, { x, y, w, h }); clearFor(x, y, w, h); const n = addObj(ob.i, x, y, w, h); if (n && ob.int) n.int = ob.int; return { ob: n };
+}
+function removeObj(ob) { delObj(ob); if (inWall(ITEMS[ob.i])) closeWall(ob); }
+function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'No room here'; if (b === 'edge') return where + ': it would go off the edge of the plan'; const qi = ITEMS[b.i]; return where + ': ' + (w > 1 || h > 1 ? 'the ' + w + '×' + h + ' footprint' : 'it') + ' would cover the ' + qi.n + (structural(qi) && !inWall(it) ? '. Only doors, gates and windows go into walls' : ''); }
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
@@ -656,13 +679,14 @@ const AREA_R = 4; // the game's habitat range reaches 4 tiles past the habitat o
 let showAreas = LS.get('pokopia-planner:areas') === '1';
 const isWall = (it) => it.c !== 'Kits' && it.c !== 'Wallpaper' && it.c !== 'Poster' && (it.sh === 'block' || /fenc|\bwall\b|pillar|siding|enclosure|railing|barrier|levee|\bposts\b/i.test(it.n)) && !/door|gate|curtain|wall-mounted|wall (light|torch|clock|mirror|switch|monitor|storage|photo|calendar|decoration)|partition|wallpaper/i.test(it.n);
 const isDoor = (it) => /\b(doors?|gate)\b/i.test(it.n) && !/hatch|crossing/i.test(it.n);
+const isWindow = (it) => it.c === 'Buildings' && /\bwindow\b|window pane/i.test(it.n);
 const FURN_CATS = new Set(['Furniture', 'Misc', 'Utilities', 'Outdoor', 'Other', 'Special', 'Poster', 'Wallpaper']);
 /* ---------- houses built block by block: found automatically ----------
    A house is any space fully enclosed (side to side, not diagonally) by walls/fences, with a door or gate in the wall. */
 let autoHouses = [], houseById = new Map(), cellHouse = null;
 function detectHouses() {
   const Wd = plan.w, Hd = plan.h, N = Wd * Hd, bar = new Uint8Array(N);
-  for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; const v = isDoor(it) ? 2 : isWall(it) ? 1 : 0; if (!v) continue; for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) bar[y * Wd + x] = v; }
+  for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; const v = isDoor(it) ? 2 : isWall(it) || isWindow(it) ? 1 : 0; if (!v) continue; for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) bar[y * Wd + x] = v; }
   const outside = new Uint8Array(N), st = [];
   const seed = (k) => { if (!bar[k] && !outside[k]) { outside[k] = 1; st.push(k); } };
   for (let x = 0; x < Wd; x++) { seed(x); seed((Hd - 1) * Wd + x); } for (let y = 0; y < Hd; y++) { seed(y * Wd); seed(y * Wd + Wd - 1); }
@@ -1519,13 +1543,13 @@ function draw(t, c = ctx) {
   if (hover && !drag && plan) {
     const [hx, hy] = hover; const it = currentItem();
     if (tool === 'place' && it && inB(plan, hx, hy)) {
-      const ft = footOf(it), mu = it.L !== 'g' && multi(it); const fw = it.L === 'g' ? brush : (mu ? (rotated ? ft[1] : ft[0]) : brush), fh = it.L === 'g' ? brush : (mu ? (rotated ? ft[0] : ft[1]) : brush);
-      const ok = it.L === 'g' || !mu || !!overSmall(hx, hy, fw, fh);
+      const ft = footOf(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = it.L === 'g' ? brush : tw, fh = it.L === 'g' ? brush : th;
+      const hq = plan.objs.get(plan.occ[hy * plan.w + hx]); const ok = it.L === 'g' || (mu ? !blocker(it, hx, hy, fw, fh) : brush > 1 || !hq || hq.i === it.i || replaces(it, hq));
       c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if ((tool === 'stamp' || tool === 'paste' || tool === 'move') && inB(plan, hx, hy)) {
       const fw = tool === 'paste' ? clip.w : tool === 'move' ? moving.w : 5, fh = tool === 'paste' ? clip.h : tool === 'move' ? moving.h : 5;
-      c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = tool === 'stamp' ? hx - 2 : hx, oy = tool === 'stamp' ? hy - 2 : hy; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
+      c.strokeStyle = tool === 'move' && moving && blocker(ITEMS[moving.i], hx, hy, moving.w, moving.h, moving.id) ? theme.bad : theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = tool === 'stamp' ? hx - 2 : hx, oy = tool === 'stamp' ? hy - 2 : hy; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
     } else if (inB(plan, hx, hy) && s >= 8) { c.strokeStyle = theme.accent; c.lineWidth = 1.5; c.strokeRect(view.px + hx * s + 0.5, view.py + hy * s + 0.5, s * brushFor() - 1, s * brushFor() - 1); }
   }
   // sparkles
@@ -1592,20 +1616,23 @@ function selectItem(name, switchTool = true) {
 function placeCell(x, y) {
   const it = currentItem(); if (!it) return;
   if (it.L === 'g') { for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) { const xx = x + dx, yy = y + dy; if (inB(plan, xx, yy)) setGround(yy * plan.w + xx, it.i + 1); } return; }
-  if (multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (!addOver(it.i, x, y, w, hh)) toast(noRoom(x, y, w, hh)); return; }
+  if (multi(it)) { const ft = footOf(it), [w, hh] = wallTurn(it, x, y, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]); const r = putObj(it, x, y, w, hh); if (r.err) toast(whyNot(r.err, w, hh, it)); return; }
+  let put = 0, stop = null;
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
-    if (oid) { const ob = plan.objs.get(oid); if (ob.i === it.i) continue; if (ob.w > 1 || ob.h > 1) continue; delObj(ob); }
-    addObj(it.i, xx, yy, 1, 1);
+    if (oid) { const ob = plan.objs.get(oid); if (ob.i === it.i) { put++; continue; } if (!replaces(it, ob)) { stop = stop || ob; continue; } delObj(ob); }
+    addObj(it.i, xx, yy, 1, 1); put++;
   }
+  if (!put && stop) { const si = ITEMS[stop.i]; toast(si.n + ' is in the way. ' + (inWall(si) ? 'Doors and windows stay in their wall: move or erase it first.' : isWall(si) ? 'Only doors, gates and windows go into walls: erase it first.' : 'Move or erase it first.')); }
 }
-function noRoom(x, y, w, h) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'No room here: the ' + w + '×' + h + ' footprint goes off the edge of the plan'; return 'No room here: the ' + w + '×' + h + ' footprint overlaps a bigger item'; }
 function eraseCell(x, y) {
+  const shut = [];
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
-    if (oid && eraseMode !== 'ground') { delObj(plan.objs.get(oid)); if (eraseMode === 'both') continue; }
+    if (oid && eraseMode !== 'ground') { const ob = plan.objs.get(oid); delObj(ob); if (inWall(ITEMS[ob.i])) shut.push(ob); if (eraseMode === 'both') continue; }
     if (!oid && eraseMode !== 'objects') setGround(k, 0); else if (eraseMode === 'ground') setGround(k, 0);
   }
+  for (const ob of shut) closeWall(ob);
 }
 function heightCell(x, y, seen) {
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
@@ -1616,7 +1643,7 @@ function heightCell(x, y, seen) {
 function lineCells(x0, y0, x1, y1, fn) { const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; for (; ;) { fn(x0, y0); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
 function fillRect(r) {
   const it = currentItem(); if (!it) return;
-  if (it.L !== 'g' && multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (r.w < w || r.h < hh) { if (!addOver(it.i, r.x, r.y, w, hh)) toast(noRoom(r.x, r.y, w, hh)); return; } let n = 0; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (addOver(it.i, x, y, w, hh)) n++; if (!n) toast('No room here: every ' + w + '×' + hh + ' spot in that area has a bigger item in it'); return; }
+  if (it.L !== 'g' && multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (r.w < w || r.h < hh) { const [tw, th] = wallTurn(it, r.x, r.y, w, hh), q = putObj(it, r.x, r.y, tw, th); if (q.err) toast(whyNot(q.err, tw, th, it)); return; } let n = 0, last = null; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) { const q = putObj(it, x, y, w, hh); if (q.ob) n++; else last = q.err; } if (!n && last) toast(whyNot(last, w, hh, it)); return; }
   const b = brush; brush = 1; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (fillMode === 'outline' && x > r.x && x < r.x + r.w - 1 && y > r.y && y < r.y + r.h - 1) continue; if (inB(plan, x, y)) placeCell(x, y); } brush = b;
 }
 
@@ -1895,7 +1922,7 @@ function showObjInspector(ob) {
   acts.append(h('button', { class: 'btn sm', onclick: () => { selectItem(it.n); toast('Placing ' + it.n); } }, icon('brush'), 'Place more'));
   acts.append(h('button', { class: 'btn sm', onclick: () => { moving = ob; setTool('move'); } }, icon('move'), 'Move'));
   if (ob.w !== ob.h) {
-    acts.append(h('button', { class: 'btn sm', onclick: () => { const nw = ob.h, nh = ob.w; if (fits(plan, ob.x, ob.y, nw, nh, ob.id)) { delObj(ob); const n = addObj(ob.i, ob.x, ob.y, nw, nh); if (n && ob.int) n.int = ob.int; commitTx('Rotate'); selection = { obj: n }; showObjInspector(n); } else toast('Not enough room to rotate'); } }, icon('rotate'), 'Rotate'));
+    acts.append(h('button', { class: 'btn sm', onclick: () => { const r = reshapeObj(ob, ob.x, ob.y, ob.h, ob.w); if (r.ob) { commitTx('Rotate'); selection = { obj: r.ob }; showObjInspector(r.ob); } else toast(whyNot(r.err, ob.h, ob.w, ITEMS[ob.i]).replace('No room here', 'Can\'t turn it')); } }, icon('rotate'), 'Rotate'));
   }
   acts.append(h('button', { class: 'btn sm', onclick: () => resizeObjDialog(ob) }, 'Resize'));
   acts.append(h('button', { class: 'btn sm danger', onclick: () => deleteObjNow(ob) }, icon('trash'), 'Delete'));
@@ -1913,18 +1940,18 @@ function resizeObjDialog(ob) {
   }, 'Resize', () => {
     const w = clamp(+$('#rsW').value | 0, 1, 30), hh = clamp(+$('#rsH').value | 0, 1, 30);
     if ($('#rsAll').checked) { setItemSize(it, w, hh, true, ob); return; }
-    if (!fits(plan, ob.x, ob.y, w, hh, ob.id)) { toast('That size overlaps something'); return false; }
-    delObj(ob); const n = addObj(ob.i, ob.x, ob.y, w, hh); if (n && ob.int) n.int = ob.int; commitTx('Resize'); selection = { obj: n }; showObjInspector(n);
+    const r = reshapeObj(ob, ob.x, ob.y, w, hh); if (!r.ob) { toast(whyNot(r.err, w, hh, it).replace('No room here', 'Can\'t make it that size')); return false; }
+    commitTx('Resize'); selection = { obj: r.ob }; showObjInspector(r.ob);
   });
 }
 function setItemSize(it, w, hh, applyPlaced, keepSel) { // one size for every item of this kind in the plan
   plan.isz = plan.isz || {}; if (!it.sg && w === (it.w || 1) && hh === (it.h || 1)) { delete plan.isz[it.n]; delete userSizes[it.n]; } else { plan.isz[it.n] = [w, hh]; userSizes[it.n] = [w, hh]; } saveUserSizes();
   let done = 0, skipped = 0, selNew = null;
   if (applyPlaced) for (const ob of [...plan.objs.values()].filter(o => o.i === it.i)) {
-    const [nw, nh] = ob.w === ob.h || w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w]; // keep each one's turn
+    const [nw, nh] = ob.w === ob.h ? wallTurn(it, ob.x, ob.y, w, hh) : w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w]; // keep each one's turn; square doors follow their wall
     if (ob.w === nw && ob.h === nh) { if (ob === keepSel) selNew = ob; continue; }
-    if (!fits(plan, ob.x, ob.y, nw, nh, ob.id)) { skipped++; continue; }
-    delObj(ob); const n = addObj(ob.i, ob.x, ob.y, nw, nh); if (n && ob.int) n.int = ob.int; if (ob === keepSel) selNew = n; done++;
+    const r = reshapeObj(ob, ob.x, ob.y, nw, nh); if (!r.ob) { skipped++; continue; }
+    if (ob === keepSel) selNew = r.ob; done++;
   }
   commitTx('Resize'); markDirty(); renderOptbar(); requestDraw();
   toast(it.n + ' is now ' + w + '×' + hh + (done ? ' · ' + done + ' resized' : '') + (skipped ? ' · ' + skipped + ' had no room, so they kept their size' : ''), skipped ? 5000 : 2600);
@@ -1981,7 +2008,7 @@ function itemSizeDialog(it) {
     if (placed) box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'isAll', checked: '' }), 'Also resize the ' + placed + ' already on the map'));
   }, 'Save size', () => { setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), placed ? $('#isAll').checked : false); });
 }
-function moveObjTo(ob, x, y) { if (!plan.objs.has(ob.id)) { setTool('select'); return; } if (!fits(plan, x, y, ob.w, ob.h, ob.id)) { toast('No room there'); return; } for (const r of plan.res || []) if (r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h) { r.x += x - ob.x; r.y += y - ob.y; } delObj(ob); const n = addObj(ob.i, x, y, ob.w, ob.h); if (n && ob.int) n.int = ob.int; commitTx('Move'); moving = null; setTool('select'); selection = { obj: n }; showObjInspector(n); }
+function moveObjTo(ob, x, y) { if (!plan.objs.has(ob.id)) { setTool('select'); return; } let [mw, mh] = wallTurn(ITEMS[ob.i], x, y, ob.w, ob.h); if (blocker(ITEMS[ob.i], x, y, mw, mh, ob.id)) [mw, mh] = [ob.w, ob.h]; const bq = blocker(ITEMS[ob.i], x, y, mw, mh, ob.id); if (bq) { toast(whyNot(bq, mw, mh, ITEMS[ob.i], true)); return; } for (const r of plan.res || []) if (r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h) { r.x += x - ob.x; r.y += y - ob.y; } const n = reshapeObj(ob, x, y, mw, mh).ob; commitTx('Move'); moving = null; setTool('select'); selection = { obj: n }; showObjInspector(n); }
 function pickAt(x, y) { if (!inB(plan, x, y)) return; const k = y * plan.w + x; const oid = plan.occ[k]; if (oid) { selectItem(ITEMS[plan.objs.get(oid).i].n); return; } const g = plan.ground[k]; if (g) selectItem(ITEMS[g - 1].n); }
 
 function showRegionInspector() {
@@ -2009,7 +2036,7 @@ const listNames = (a) => a.length < 3 ? a.join(' and ') : a.slice(0, -1).join(',
 function moveOut(names) { if (!names.length) return; const set = new Set(names); setRes((plan.res || []).filter(r => !set.has(r.p))); }
 function deleteObjNow(ob) {
   if (!plan.objs.has(ob.id)) return; const it = ITEMS[ob.i], who = it.cap ? residentsOf(kitHome(ob)).map(r => r.p) : [];
-  delObj(ob); moveOut(who); commitTx('Delete'); selection = null; closeInspector();
+  removeObj(ob); moveOut(who); commitTx('Delete'); selection = null; closeInspector();
   undoToast((it.cap ? it.n.replace(/ kit$/, '') : it.n) + ' deleted' + (who.length ? '. ' + listNames(who) + ' moved out' : ''));
 }
 function houseParts(hs) { // wall and door pieces round a house (corners too), split into its own and those a neighbouring house also needs; plus what stands inside
@@ -2018,7 +2045,7 @@ function houseParts(hs) { // wall and door pieces round a house (corners too), s
   const neededNextDoor = (ob) => { for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) { if (!inB(plan, x, y)) continue; const j = cellHouse[y * Wd + x]; if (j >= 0 && j !== idx && !encloses(autoHouses[j])) return true; } return false; };
   for (const k of hs.cells) {
     if (cellHouse[k] !== idx) continue; const x = k % Wd, y = (k / Wd) | 0, oid = plan.occ[k]; if (oid) inside.add(plan.objs.get(oid));
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= Wd || yy >= Hd) continue; const n = yy * Wd + xx; if (cellHouse[n] === idx) continue; const o = plan.occ[n]; if (!o) continue; const ob = plan.objs.get(o); if (!ob || own.has(ob) || shared.has(ob)) continue; const it = ITEMS[ob.i]; if (!isWall(it) && !isDoor(it)) continue; (neededNextDoor(ob) ? shared : own).add(ob); }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= Wd || yy >= Hd) continue; const n = yy * Wd + xx; if (cellHouse[n] === idx) continue; const o = plan.occ[n]; if (!o) continue; const ob = plan.objs.get(o); if (!ob || own.has(ob) || shared.has(ob)) continue; const it = ITEMS[ob.i]; if (!isWall(it) && !isDoor(it) && !isWindow(it)) continue; (neededNextDoor(ob) ? shared : own).add(ob); }
   }
   return { walls: [...own], shared: [...shared], inside: [...inside] };
 }
@@ -2580,7 +2607,8 @@ function renderPlans() {
     h('li', null, 'Active areas (dotted button by the zoom controls, or A) match the white dotted line the game shows with the right stick: 4 tiles past a habitat on every side, 4 levels up or down. For block houses only the floor inside the walls counts.'),
     h('li', null, 'Tap a house (or a kit house) to choose who lives there. "Decorate for them" lists each resident\'s favourite kinds of things, ticks the ones already inside, and suggests items that please the most residents.'),
     h('li', null, 'Houses you build cube by cube are found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 pieces of furniture. Use Fill → Outline to lay walls fast.'),
-    h('li', null, 'Shortcuts: A active areas, B place, R fill, E erase, V select, Z zone, T height, I pick, H pan, Q rotate kit, [ ] brush, Space+drag pan.')));
+    h('li', null, 'Doors, gates and windows go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls.'),
+    h('li', null, 'Shortcuts: A active areas, B place, R fill, E erase, V select, Z zone, T height, I pick, H pan, Q rotate item, [ ] brush, Space+drag pan.')));
   root.append(h('h4', null, 'Data sources'));
   root.append(h('ul', { class: 'srcs', style: 'padding-left:18px;margin:0' }, DATA.sources.map(([t, u]) => h('li', null, h('a', { href: u, target: '_blank', rel: 'noopener' }, t)))));
   root.append(h('p', { class: 'note' }, 'Community-researched data current to the game\'s Bubbly Basin update and the autumn 2026 event. Kit footprints marked "estimated" and group memberships (Seat, Table, Toy…) may differ slightly in game. Fan-made planner, not affiliated with Nintendo or The Pokémon Company.'));
@@ -2933,7 +2961,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T06:52';
+const APP_BUILD = '2026-11-20T07:07';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
