@@ -1,14 +1,3 @@
-#!/usr/bin/env python3
-"""Copies the item pictures into the app (pics/) so they show offline.
-
-Run from anywhere:  python3 tools/pictures.py
-Needs Pillow (pip install pillow). GitHub runs this for you: see .github/workflows/pictures.yml.
-
-For every item in data.json with a picture ("im"), it downloads the PNG once from Serebii,
-shrinks it to at most 256 px, saves it as pics/<slug>.webp and records it in pics/index.json:
-  { "v": 1, "pics": { slug: short content hash }, "missing": { slug: reason } }
-Pictures already in pics/ are not downloaded again. Pictures that failed are retried each run.
-"""
 import concurrent.futures as cf
 import hashlib
 import io
@@ -31,7 +20,6 @@ UA = 'Mozilla/5.0 (compatible; pokopia-planner picture sync; +https://github.com
 
 
 def slug(name):
-    """Same as picSlug() in index.html."""
     s = unicodedata.normalize('NFD', name)
     s = re.sub('[̀-ͯ]', '', s).lower()
     return re.sub('[^a-z0-9]', '', s)
@@ -59,7 +47,7 @@ def fetch(url):
             if e.code == 404:
                 raise
             last = e
-        except Exception as e:  # network hiccup: wait and try again
+        except Exception as e:
             last = e
         time.sleep(1.5 * (attempt + 1))
     raise last
@@ -114,7 +102,7 @@ def main():
         path = os.path.join(PICS, s + '.webp')
         if s in have and os.path.exists(path):
             pics[s] = have[s]
-        elif os.path.exists(path):  # a file added by hand
+        elif os.path.exists(path):
             with open(path, 'rb') as f:
                 pics[s] = short_hash(f.read())
         else:
@@ -130,7 +118,6 @@ def main():
             if n % 100 == 0:
                 print('  %d / %d' % (n, len(todo)))
 
-    # pictures no item uses any more
     for name in os.listdir(PICS):
         if name.endswith('.webp') and name[:-5] not in wanted:
             os.remove(os.path.join(PICS, name))
@@ -146,7 +133,6 @@ def main():
         reasons[r] = reasons.get(r, 0) + 1
     for r, c in sorted(reasons.items(), key=lambda x: -x[1])[:8]:
         print('  missing because %s: %d' % (r, c))
-    # fail the run (the index is still written, so the reasons can be read in it) if there are no pictures at all
     return 1 if want and not pics else 0
 
 
