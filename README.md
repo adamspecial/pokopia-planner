@@ -6,6 +6,12 @@ Open it at **https://adamspecial.github.io/pokopia-planner/** and, on a phone or
 
 The screen keeps to a few words. Most buttons are icons: hover over one, or long-press it on a phone, to see its name. Tap ⓘ, or a chip, to see the details behind it.
 
+## Moving things
+
+The planner opens on **Select**. Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. Dragging from an empty square still selects an area.
+
+In **Decorate**, tapping a suggestion folds the window into a small bar under the map and centres the house, so you can see where the item goes. Once you've placed it, the window opens again where you left it. The bar's buttons bring it back early or close it.
+
 ## Item pictures
 
 Furniture, storage, shelves, lamps and appliances show on the map, and in kit rooms, as top-down symbols of their kind (a bed with its pillows, a sofa with its cushions, a stove with its burners), in the colour of their pictures. Decorations, dolls, fossils, plants, kits and other one-off items show as their own pictures. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint, with the floor kept under it and furniture standing on it. Rug sizes are guesses until you set them with **Change**, which can also resize the rugs already placed. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.

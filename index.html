@@ -96,6 +96,13 @@ button{cursor:pointer}
 
 .inspector{position:absolute;left:6px;bottom:40px;width:min(370px,calc(100% - 58px));background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.16);display:none;flex-direction:column;max-height:calc(100% - 96px);overflow:hidden;transform-origin:left bottom}
 .inspector.open{display:flex;animation:pop .22s var(--ease)}
+.minidlg{position:absolute;left:56px;right:56px;bottom:8px;display:flex;justify-content:center;pointer-events:none;z-index:7}
+.minidlg[hidden]{display:none}
+.minidlg .in{pointer-events:auto;display:flex;align-items:center;gap:7px;max-width:100%;background:var(--panel);border:1.5px solid var(--accent);border-radius:14px;padding:5px 5px 5px 10px;box-shadow:0 8px 24px rgba(0,0,0,.18);animation:pop .22s var(--ease)}
+.minidlg .in>svg{width:18px;height:18px;color:var(--accent);flex:none}
+.minidlg .mt{display:flex;flex-direction:column;min-width:0;line-height:1.25}
+.minidlg .mt b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.minidlg .mt small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .insp-top{flex:none;padding:10px 12px 8px}
 .insp-acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
 .insp-acts:empty{display:none}
@@ -331,6 +338,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
   .tabs{touch-action:none;user-select:none}
   .tab{padding:3px 2px 6px;font-size:11px}
   .status,.zoomctl{transform:translate3d(0,calc(-1 * var(--sheet-h)),0);transition:transform .34s var(--ease-sheet)}
+  .minidlg{bottom:calc(var(--sheet-h) + 8px);transition:bottom .34s var(--ease-sheet)}
   .inspector{bottom:calc(var(--sheet-h) + 40px);width:calc(100% - 58px);max-height:calc(100% - var(--sheet-h) - 88px);transition:bottom .34s var(--ease-sheet)}
   .sheetdrag .status,.sheetdrag .zoomctl,.sheetdrag .inspector{transition:none}
   .top{padding:5px 10px}
@@ -407,10 +415,10 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
 
   <nav class="toolbar" aria-label="Tools">
     <button class="tbtn" data-tool="pan" aria-pressed="false" data-tip="Pan (H)"><svg><use href="#i-hand"/></svg>Pan</button>
-    <button class="tbtn" data-tool="place" aria-pressed="true" data-tip="Place (B)"><svg><use href="#i-brush"/></svg>Place</button>
+    <button class="tbtn" data-tool="place" aria-pressed="false" data-tip="Place (B)"><svg><use href="#i-brush"/></svg>Place</button>
     <button class="tbtn" data-tool="rect" aria-pressed="false" data-tip="Fill area (R)"><svg><use href="#i-rect"/></svg>Fill</button>
     <button class="tbtn" data-tool="erase" aria-pressed="false" data-tip="Erase (E)"><svg><use href="#i-erase"/></svg>Erase</button>
-    <button class="tbtn" data-tool="select" aria-pressed="false" data-tip="Select (V)"><svg><use href="#i-select"/></svg>Select</button>
+    <button class="tbtn" data-tool="select" aria-pressed="true" data-tip="Select (V)"><svg><use href="#i-select"/></svg>Select</button>
     <button class="tbtn" data-tool="zone" aria-pressed="false" data-tip="Zone (Z)"><svg><use href="#i-zone"/></svg>Zone</button>
     <button class="tbtn" data-tool="height" aria-pressed="false" data-tip="Height (T)"><svg><use href="#i-height"/></svg>Height</button>
     <button class="tbtn" data-tool="pick" aria-pressed="false" data-tip="Pick item (I)"><svg><use href="#i-pick"/></svg>Pick</button>
@@ -431,6 +439,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
         <button class="iconbtn" id="zfit" aria-label="Fit plan on screen" data-tip="Fit on screen"><svg><use href="#i-fit"/></svg></button>
       </div>
       <div class="inspector" id="inspector" role="dialog" aria-label="Selection details"></div>
+      <div class="minidlg" id="minidlg" hidden></div>
     </div>
 
     <aside class="panel" id="panel">
@@ -694,9 +703,9 @@ function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'N
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
-  if (!tx) return; const t = tx; tx = null;
-  if (!t.g.size && !t.e.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r) return;
-  t.label = label; undoStack.push(t); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; changed();
+  if (!tx) return null; const t = tx; tx = null;
+  if (!t.g.size && !t.e.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r) return null;
+  t.label = label; undoStack.push(t); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; changed(); return t;
 }
 function applyTx(t, dir) {
   const bi = dir < 0 ? 0 : 1;
@@ -1086,7 +1095,27 @@ function residentPicker(home, floor) {
 const trioLabel = (t) => (TRIO.find(x => x[0] === t) || [])[1] || t;
 function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it); bits.push(fw + '×' + fh + (sizeGuessed(sg.it) ? '?' : '') + (sg.fits > 0 ? ', fits ' + listNames(dp.big) : sg.fits < 0 ? ', too small for ' + listNames(dp.big) : '')); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); if (sg.envGood.length || sg.envBad.length) { const fx = envFxText(sg.it, dp.env); if (sg.envGood.length) bits.push(fx + ' → ' + listNames(sg.envGood)); if (sg.envBad.length) bits.push('⚠ ' + (sg.envGood.length ? '' : fx + ': ') + 'bad for ' + sg.envBad.map(n => n + ' (' + PK_BY_NAME.get(n).ideal + ')').join(', ')); } return bits.join(' · ') + (who.length ? ' · pleases ' + who.join(', ') : ''); }
 const isEnvFilt = (f) => typeof f === 'string' && f.startsWith('env:'), isTagFilt = (f) => typeof f === 'string' && f.startsWith('tg:');
-function decorModal(home) {
+function decorMinimize(home, it, filt) {
+  decorMini = null; closeModal(); selectItem(it.n); closeInspector();
+  decorMini = { home, item: it.n, filt, scroll: $('#modalBox').scrollTop }; renderMini();
+  if (innerWidth < 900) setSheet('peek');
+  if (home.hs) centerOn(home.hs.x + home.hs.w / 2, home.hs.y + home.hs.h / 2);
+}
+function renderMini() {
+  const el = $('#minidlg'); el.textContent = ''; el.hidden = !decorMini; if (!decorMini) return;
+  el.append(h('div', { class: 'in', role: 'dialog', 'aria-label': 'Decorate, minimised' }, icon('sofa'), h('span', { class: 'mt' }, h('b', null, 'Place ' + decorMini.item), h('small', null, 'Decorate ' + decorMini.home.label)),
+    ibtn('expand', 'Back to Decorate', decorRestore, 'sm primary'), ibtn('close', 'Close Decorate', () => { decorMini = null; renderMini(); }, 'sm')));
+}
+function decorRestore() {
+  const m = decorMini; if (!m) return; decorMini = null; renderMini();
+  let home = m.home; if (home.kind === 'house') { const hs = houseById.get(home.hs.id); if (!hs) { toast('That house changed: tap it to decorate again'); return; } home = houseHome(hs); }
+  decorModal(home, m);
+}
+function placedFromDecor(t) {
+  const m = decorMini; if (!m || !t || !t.add.some(o => ITEMS[o.i].n === m.item)) return;
+  setTimeout(() => { if (decorMini === m) decorRestore(); }, 450);
+}
+function decorModal(home, keep) {
   const dp = decorPlan(home); let filt = null;
   modal('Decorate ' + home.label, (box) => {
     box.classList.add('wide');
@@ -1096,6 +1125,7 @@ function decorModal(home) {
     box.append(h('h4', null, 'Suggested'));
     const needF = [...dp.need].filter(([f]) => !dp.present.has(f)).sort((a, b) => b[1] - a[1]).map(([f]) => f);
     const trio = comfortTrio(home).map(t => t[2] === 'Relaxation' && dp.needBig ? [t[0], false, t[2], RANK_FOOT[dp.needR] + '+'] : t), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : dp.envN.length ? 'env:' + dp.envN[0].ideal : null;
+    if (keep && (keep.filt == null || trio.some(t => 'tg:' + t[2] === keep.filt) || dp.envN.some(n => 'env:' + n.ideal === keep.filt) || needF.includes(keep.filt))) filt = keep.filt;
     const chips = h('div', { class: 'cats', role: 'group', 'aria-label': 'Suggestions' }), info = h('p', { class: 'note', style: 'margin:0 0 6px' }), list = h('div', { class: 'list' }); box.append(chips, info, list);
     const render = () => {
       chips.textContent = ''; const chip = (key, ...kids) => h('button', { class: 'cat', 'aria-pressed': filt === key ? 'true' : 'false', onclick: () => { filt = key; render(); } }, ...kids);
@@ -1111,7 +1141,7 @@ function decorModal(home) {
       info.hidden = !info.childNodes.length;
       for (const sg of arr) {
         const cost = sg.it.m && sg.it.m.length ? sg.it.m.map(([m, n]) => n + ' ' + m).join(' · ') : (sg.it.c === 'Special' ? 'Not crafted' : '');
-        list.append(h('button', { class: 'row', style: 'align-items:flex-start', onclick: () => { closeModal(); selectItem(sg.it.n); if (innerWidth < 900) setSheet('peek'); toast(home.kind === 'house' ? 'Place ' + sg.it.n + ' inside the house' : 'Selected ' + sg.it.n); } },
+        list.append(h('button', { class: 'row', style: 'align-items:flex-start', onclick: () => { if (home.kind === 'house') { decorMinimize(home, sg.it, filt); return; } closeModal(); selectItem(sg.it.n); if (innerWidth < 900) setSheet('peek'); toast('Selected ' + sg.it.n); } },
           swatchEl(sg.it), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, sg.it.n, sg.it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : ''), h('div', { class: 'ds', style: 'white-space:normal;color:var(--ink)' }, suggLine(dp, sg)), cost ? h('div', { class: 'ds', style: 'white-space:normal' }, cost) : '')));
       }
       if (!arr.length) list.append(h('p', { class: 'empty' }, isEnvFilt(filt) ? 'Nothing to place: take something out.' : 'Nothing to suggest.'));
@@ -1122,7 +1152,8 @@ function decorModal(home) {
       cands.sort((a, b) => (b.inPlan - a.inPlan) || (b.c.score - a.c.score)); const top = cands.filter(x => x.c.sameEnv).slice(0, 5);
       if (top.length) { box.append(h('h4', { class: 'hrow' }, 'Good housemates', tipBtn('Pokémon who share their likes and whose ideal habitat doesn\'t clash. Tap one to move it in.'))); const l = h('div', { class: 'list' }); for (const x of top) l.append(pkRow(x.p, (x.inPlan ? 'In your habitats · ' : '') + x.c.shared + ' shared like' + (x.c.shared === 1 ? '' : 's'), () => { assignResident(x.p.n, home); closeModal(); toast(x.p.n + ' moved in'); afterResChange(home); })); box.append(l); }
     }
-  }, null, null, false, home.kind === 'house' ? 'Ticks are favourite kinds already in the active area. Tap an item to place it.' : 'Kit interiors aren\'t on this map, so nothing is ticked here: use Decorate inside, or put these in the house in game.');
+  }, null, null, false, home.kind === 'house' ? 'Ticks are favourite kinds already in the active area. Tap an item: this window folds away while you place it, then comes back.' : 'Kit interiors aren\'t on this map, so nothing is ticked here: use Decorate inside, or put these in the house in game.');
+  if (keep && keep.scroll) requestAnimationFrame(() => { $('#modalBox').scrollTop = keep.scroll; });
 }
 const IED = { rot: false, ob: null, floor: 0, tool: 'place', item: null, picked: null, hover: null, stroke: null, drag: null, sel: null, filt: null, q: '', cat: 'Furniture', cs: 32, ox: 0, oy: 0 };
 const indoorOK = (it) => !!it && it.L === 'o' && it.c !== 'Kits';
@@ -1868,7 +1899,7 @@ function draw(t, c = ctx) {
     }
   }
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
-  if (selection && selection.obj && plan.objs.has(selection.obj.id)) { const ob = selection.obj; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
+  if (selection && ((selection.obj && plan.objs.has(selection.obj.id)) || (selection.rug && plan.rugs.has(selection.rug.id)))) { const ob = selection.obj || selection.rug; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
   if (selection && selection.rect) { const r = selection.rect; c.strokeStyle = theme.accent; c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.08; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; }
   if (drag && drag.rect) { const r = normRect(drag.rect); c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.12; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; c.fillStyle = theme.ink; c.font = '700 12px sans-serif'; c.fillText(r.w + ' × ' + r.h, view.px + (r.x + r.w) * s + 6, view.py + r.y * s + 8); }
   if (hover && !drag && plan) {
@@ -1878,11 +1909,13 @@ function draw(t, c = ctx) {
       const hq = plan.objs.get(plan.occ[hy * plan.w + hx]); const ok = rug ? hx + fw <= plan.w && hy + fh <= plan.h : it.L === 'g' || (mu ? !blocker(it, hx, hy, fw, fh) : brush > 1 || !hq || hq.i === it.i || replaces(it, hq));
       c.globalAlpha = 0.55; if (rug) { if (!drawRug(c, it, view.px + hx * s, view.py + hy * s, s, fw, fh)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s); } } else if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawPicItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false, [hx, hy, mu ? fw : 1, mu ? fh : 1]); c.globalAlpha = 1;
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
-    } else if ((tool === 'stamp' || tool === 'paste' || tool === 'move') && inB(plan, hx, hy)) {
-      const fw = tool === 'paste' ? clip.w : tool === 'move' ? moving.w : 5, fh = tool === 'paste' ? clip.h : tool === 'move' ? moving.h : 5;
-      c.strokeStyle = tool === 'move' && moving && blocker(ITEMS[moving.i], hx, hy, moving.w, moving.h, moving.id) ? theme.bad : theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = tool === 'stamp' ? hx - 2 : hx, oy = tool === 'stamp' ? hy - 2 : hy; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
-    } else if (inB(plan, hx, hy) && s >= 8) { c.strokeStyle = theme.accent; c.lineWidth = 1.5; c.strokeRect(view.px + hx * s + 0.5, view.py + hy * s + 0.5, s * brushFor() - 1, s * brushFor() - 1); }
+    } else if (tool === 'move' && moving && inB(plan, hx, hy)) drawMovePreview(c, s, moving, fitMove(moving, hx, hy, 0, 0));
+    else if ((tool === 'stamp' || tool === 'paste') && inB(plan, hx, hy)) {
+      const fw = tool === 'paste' ? clip.w : 5, fh = tool === 'paste' ? clip.h : 5;
+      c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = tool === 'stamp' ? hx - 2 : hx, oy = tool === 'stamp' ? hy - 2 : hy; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
+    } else if (inB(plan, hx, hy) && s >= 8) { const g = grabAt(hx, hy), [gx, gy, gw, gh] = g ? [g.x, g.y, g.w, g.h] : [hx, hy, brushFor(), brushFor()]; c.strokeStyle = theme.accent; c.lineWidth = 1.5; c.strokeRect(view.px + gx * s + 0.5, view.py + gy * s + 0.5, s * gw - 1, s * gh - 1); }
   }
+  if (drag && drag.kind === 'objmove' && drag.moved && drag.fit) drawMovePreview(c, s, drag.ob, drag.fit);
   if (sparkles.length) {
     const now = performance.now();
     for (let i = sparkles.length - 1; i >= 0; i--) {
@@ -1922,8 +1955,8 @@ function zoneLabel(z, r) {
   return z.name || 'Habitat zone';
 }
 
-let fillMode = 'solid', tool = 'place', curItem = 'Field grass', brush = 1, rotated = false, eraseMode = 'both', heightMode = 'raise', zoneKind = 'habitat';
-let selection = null, hover = null, drag = null, clip = null, stampHab = null, moving = null;
+let fillMode = 'solid', tool = 'select', curItem = 'Field grass', brush = 1, rotated = false, eraseMode = 'both', heightMode = 'raise', zoneKind = 'habitat';
+let selection = null, hover = null, drag = null, clip = null, stampHab = null, moving = null, decorMini = null;
 const pointers = new Map(); let pinch = null;
 const recent = [];
 function currentItem() { return BY_NAME.get(curItem); }
@@ -1936,6 +1969,7 @@ function setTool(t) {
   renderOptbar(); requestDraw();
 }
 function selectItem(name, switchTool = true) {
+  if (decorMini && name !== decorMini.item) { decorMini = null; renderMini(); }
   curItem = name; rotated = false; const i = recent.indexOf(name); if (i >= 0) recent.splice(i, 1); recent.unshift(name); recent.length = Math.min(recent.length, 8);
   if (switchTool && !['place', 'rect'].includes(tool)) setTool('place'); else renderOptbar();
   $$('#tab-build .row[data-item]').forEach(r => r.setAttribute('aria-pressed', r.dataset.item === name ? 'true' : 'false'));
@@ -1990,9 +2024,11 @@ function onDown(e) {
     const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, zoom: view.zoom, px: view.px, py: view.py }; return;
   }
   if (pointers.size > 2) return;
-  const [cx, cy] = toCell(e.offsetX, e.offsetY);
+  const [cx, cy] = toCell(e.offsetX, e.offsetY); hover = [cx, cy]; updateStatus();
   if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, px: view.px, py: view.py }; cv.style.cursor = 'grabbing'; return; }
   if (e.button === 2) return;
+  const gob = grabAt(cx, cy);
+  if (gob) { drag = { kind: 'objmove', ob: gob, gx: cx - gob.x, gy: cy - gob.y, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false, fit: null }; return; }
   if (e.pointerType === 'touch' && !drag) { drag = { kind: 'pending', cx, cy, sx: e.offsetX, sy: e.offsetY }; return; }
   startAction(cx, cy, e.offsetX, e.offsetY);
 }
@@ -2017,8 +2053,13 @@ function onMove(e) {
     view.zoom = z; view.px = mx - (pinch.cx - pinch.px) * k; view.py = my - (pinch.cy - pinch.py) * k; requestDraw(); return;
   }
   const [cx, cy] = toCell(e.offsetX, e.offsetY);
-  if (!hover || hover[0] !== cx || hover[1] !== cy) { hover = [cx, cy]; updateStatus(); requestDraw(); }
+  if (!hover || hover[0] !== cx || hover[1] !== cy) { hover = [cx, cy]; updateStatus(); requestDraw(); if (!drag) cv.style.cursor = grabAt(cx, cy) ? 'grab' : ''; }
   if (!drag) return;
+  if (drag.kind === 'objmove') {
+    if (!drag.moved) { if (Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) < 6) return; drag.moved = true; cv.style.cursor = 'grabbing'; }
+    if (!drag.fit || drag.fx !== cx || drag.fy !== cy) { drag.fx = cx; drag.fy = cy; drag.fit = fitMove(drag.ob, cx, cy, drag.gx, drag.gy); requestDraw(); }
+    return;
+  }
   if (drag.kind === 'pending') { if (Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) < 5) return; const d = drag; drag = null; startAction(d.cx, d.cy, d.sx, d.sy); if (!drag) return; }
   if (drag.kind === 'pan') { view.px = drag.px + e.offsetX - drag.sx; view.py = drag.py + e.offsetY - drag.sy; requestDraw(); return; }
   if (drag.kind === 'stroke') {
@@ -2035,11 +2076,20 @@ function onUp(e) {
   if (!drag) return;
   if (drag.kind === 'pending') { const p = drag; drag = null; startAction(p.cx, p.cy, p.sx, p.sy); if (!drag) return; }
   const d = drag; drag = null; cv.style.cursor = '';
-  if (d.kind === 'stroke') { commitTx(d.label); return; }
-  if (d.kind === 'kit') { placeCell(d.x, d.y); commitTx('Place ' + curItem); return; }
+  if (d.kind === 'objmove') {
+    if (e.type === 'pointercancel') { requestDraw(); return; }
+    if (d.moved) { if (d.fit) doMove(d.ob, d.fit); requestDraw(); return; }
+    if (tool === 'select') { tapSelect(d.cx, d.cy); requestDraw(); return; }
+    startAction(d.cx, d.cy, d.sx, d.sy); const d2 = drag; drag = null; if (d2) finishDrag(d2); return;
+  }
+  finishDrag(d);
+}
+function finishDrag(d) {
+  if (d.kind === 'stroke') { const t = commitTx(d.label); if (tool === 'place') placedFromDecor(t); return; }
+  if (d.kind === 'kit') { placeCell(d.x, d.y); placedFromDecor(commitTx('Place ' + curItem)); return; }
   if (d.kind === 'rect') {
     const r = normRect(d.rect);
-    if (tool === 'rect') { fillRect(r); commitTx('Fill ' + curItem); }
+    if (tool === 'rect') { fillRect(r); placedFromDecor(commitTx('Fill ' + curItem)); }
     else if (tool === 'zone') { if (!d.moved && r.w === 1 && r.h === 1) { const z = zoneAt(r.x, r.y); if (z) { selectZone(z); } else toast('Drag to draw a zone'); } else createZone(r); }
     else if (tool === 'select') { if (!d.moved) tapSelect(r.x, r.y); else { selection = { rect: r }; showRegionInspector(); } }
     requestDraw(); return;
@@ -2082,7 +2132,7 @@ addEventListener('keydown', e => {
   if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) $('#zarea').click();
   if (e.key === '[') { brush = Math.max(1, brush - 1); renderOptbar(); }
   if (e.key === ']') { brush = Math.min(5, brush + 1); renderOptbar(); }
-  if (e.key === 'Escape') { closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool('select'); requestDraw(); }
+  if (e.key === 'Escape') { if (drag && drag.kind === 'objmove') { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool('select'); requestDraw(); }
   if ((e.key === 'Delete' || e.key === 'Backspace') && selection) { deleteSelection(); }
   if (e.key.toLowerCase() === 'q' && tool === 'place') { rotated = !rotated; renderOptbar(); requestDraw(); }
 });
@@ -2437,7 +2487,7 @@ function renderOptbar() {
   } else if (tool === 'zone') {
     ob.append(h('span', { class: 'pill' }, segmented([['habitat', 'Habitat'], ['label', 'Label']], zoneKind, v => { zoneKind = v; renderOptbar(); }, 'Zone type'), tipBtn('Drag to draw a zone. Houses you build from walls are found automatically: no zone needed.')));
   } else if (tool === 'select') {
-    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to inspect · drag to select')));
+    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to inspect · drag to move'), tipBtn('Drag an item to move it. Drag from an empty square to select an area. Tap a selected rug again to select what\'s under it.')));
   } else if (tool === 'pick') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap an item to reuse it')));
   else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Drag to pan · pinch to zoom')));
   else if (tool === 'stamp' && stampHab) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap the map to place'), h('b', null, stampHab.n), h('button', { class: 'btn sm', onclick: () => setTool('select') }, 'Cancel')));
@@ -2448,13 +2498,24 @@ function renderOptbar() {
 function zoneAt(x, y) { for (let i = plan.zones.length - 1; i >= 0; i--) { const z = plan.zones[i]; if (x >= z.x && y >= z.y && x < z.x + z.w && y < z.y + z.h) return z; } return null; }
 function tapSelect(x, y) {
   if (!inB(plan, x, y)) { closeInspector(); return; }
-  const oid = plan.occ[y * plan.w + x];
-  if (oid) { selection = { obj: plan.objs.get(oid) }; showObjInspector(selection.obj); return; }
-  const z = zoneAt(x, y); if (z) { selectZone(z); return; }
-  const hs = houseAt(x, y) || autoHouses.find(q => q.doors.has(y * plan.w + x)); if (hs) { selectHouse(hs); return; }
-  const rg = rugAt(x, y); if (rg) { selection = null; showItemInfo(ITEMS[rg.i]); return; }
-  const g = plan.ground[y * plan.w + x]; if (g) { selection = null; showItemInfo(ITEMS[g - 1]); return; }
-  closeInspector();
+  const k = y * plan.w + x, oid = plan.occ[k], ob = oid && plan.objs.get(oid), rg = rugAt(x, y), z = zoneAt(x, y), hs = houseAt(x, y) || autoHouses.find(q => q.doors.has(k));
+  const stack = [ob && { obj: ob }, rg && { rug: rg }, z && { zone: z }, hs && { house: hs }].filter(Boolean);
+  if (!stack.length) { selection = null; closeInspector(); return; }
+  const now = selection ? stack.findIndex(q => q.obj ? selection.obj && selection.obj.id === q.obj.id : q.rug ? selection.rug && selection.rug.id === q.rug.id : q.zone ? selection.zone === q.zone : selection.house === q.house.id) : -1;
+  const p = stack[now < 0 || stack[now].obj ? Math.max(now, 0) : (now + 1) % stack.length];
+  if (p.obj) { selection = { obj: p.obj }; showObjInspector(p.obj); } else if (p.rug) showRugInspector(p.rug); else if (p.zone) selectZone(p.zone); else selectHouse(p.house);
+}
+function showRugInspector(r) {
+  const it = ITEMS[r.i]; selection = { rug: r };
+  const box = inspectorShell(it.n, swatchEl(it), 'Rug · ' + r.w + '×' + r.h, 'Drag it to move it. Tap again to select what\'s under it.');
+  box.append(recipeChips(it));
+  const acts = box.acts;
+  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n); }));
+  acts.append(ibtn('move', 'Move', () => { moving = r; setTool('move'); }));
+  if (r.w !== r.h) acts.append(ibtn('rotate', 'Rotate', () => { const b = rugBlocker(r, r.x, r.y, r.h, r.w); if (b) { toast(whyNot(b, r.h, r.w, it).replace('No room here', 'Can\'t turn it')); return; } delRug(r); const n = addRug(r.i, r.x, r.y, r.h, r.w); commitTx('Rotate'); showRugInspector(n); }));
+  acts.append(ibtn('info', 'About', () => showItemInfo(it)));
+  acts.append(ibtn('trash', 'Delete', () => { delRug(r); commitTx('Delete ' + it.n); selection = null; closeInspector(); }, 'danger'));
+  requestDraw();
 }
 function closeInspector() { $('#inspector').classList.remove('open'); $('#inspector').textContent = ''; if (selection && !selection.rect) selection = null; requestDraw(); }
 let inspMin = LS.get('pokopia-planner:inspmin') === '1';
@@ -2589,7 +2650,55 @@ function itemSizeDialog(it) {
     if (placed) box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'isAll', checked: '' }), 'Resize the ' + placed + ' placed'));
   }, 'Save size', () => { setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), placed ? $('#isAll').checked : false); }, false, 'Applies to every ' + it.n + ' in all your plans, on the map and inside kit houses.');
 }
-function moveObjTo(ob, x, y) { if (!plan.objs.has(ob.id)) { setTool('select'); return; } let [mw, mh] = wallTurn(ITEMS[ob.i], x, y, ob.w, ob.h); if (blocker(ITEMS[ob.i], x, y, mw, mh, ob.id)) [mw, mh] = [ob.w, ob.h]; const bq = blocker(ITEMS[ob.i], x, y, mw, mh, ob.id); if (bq) { toast(whyNot(bq, mw, mh, ITEMS[ob.i], true)); return; } for (const r of plan.res || []) if (r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h) { r.x += x - ob.x; r.y += y - ob.y; } const n = reshapeObj(ob, x, y, mw, mh).ob; commitTx('Move'); moving = null; setTool('select'); selection = { obj: n }; showObjInspector(n); }
+function grabAt(x, y) {
+  if (!plan || !inB(plan, x, y) || tool === 'pan') return null;
+  const oid = plan.occ[y * plan.w + x], ob = oid ? plan.objs.get(oid) : null;
+  if (selection && selection.obj && ob && ob.id === selection.obj.id) return ob;
+  if (selection && selection.rug && plan.rugs.has(selection.rug.id) && overlaps(selection.rug, x, y, 1, 1)) return selection.rug;
+  if (tool !== 'select') return null;
+  return ob || rugAt(x, y);
+}
+function rugBlocker(r, x, y, w, h) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'edge'; for (const q of plan.rugs.values()) if (q.id !== r.id && overlaps(q, x, y, w, h)) return q; return null; }
+function moveBlocker(ob, x, y, w, h) { return ob.rug ? rugBlocker(ob, x, y, w, h) : blocker(ITEMS[ob.i], x, y, w, h, ob.id); }
+function fitMove(ob, cx, cy, gx, gy) {
+  const it = ITEMS[ob.i], wall = !ob.rug && inWall(it), cands = [], orients = [[ob.w, ob.h, gx, gy]];
+  if (ob.w !== ob.h) orients.push([ob.h, ob.w, ob.h - 1 - gy, gx]);
+  orients.forEach(([w, h, ax, ay], turn) => {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      const x = cx - dx, y = cy - dy; let cost = Math.abs(dx - ax) + Math.abs(dy - ay) + turn * 1.5;
+      if (wall && wallTurn(it, x, y, w, h)[0] !== w) cost += 4;
+      cands.push({ x, y, w, h, cost });
+    }
+  });
+  cands.sort((a, b) => a.cost - b.cost);
+  for (const c of cands) if (!moveBlocker(ob, c.x, c.y, c.w, c.h)) return Object.assign(c, { ok: true });
+  const c = cands[0]; return Object.assign(c, { ok: false, err: moveBlocker(ob, c.x, c.y, c.w, c.h) });
+}
+function doMove(ob, f) {
+  const it = ITEMS[ob.i], same = f.x === ob.x && f.y === ob.y && f.w === ob.w && f.h === ob.h;
+  if (!(ob.rug ? plan.rugs.has(ob.id) : plan.objs.has(ob.id))) { if (tool === 'move') setTool('select'); return; }
+  if (!f.ok) { toast(whyNot(f.err, f.w, f.h, it, true)); return; }
+  moving = null; if (tool === 'move') setTool('select');
+  if (ob.rug) { const n = same ? ob : (delRug(ob), addRug(ob.i, f.x, f.y, f.w, f.h)); commitTx('Move'); showRugInspector(n); return; }
+  if (same) { selection = { obj: ob }; showObjInspector(ob); return; }
+  const inside = (r) => r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h, res = plan.res || [];
+  if (res.some(inside)) setRes(res.map(r => { if (!inside(r)) return r; const rx = r.x - ob.x, ry = r.y - ob.y; return f.w === ob.w ? Object.assign({}, r, { x: f.x + rx, y: f.y + ry }) : Object.assign({}, r, { x: f.x + ob.h - 1 - ry, y: f.y + rx }); }));
+  const n = reshapeObj(ob, f.x, f.y, f.w, f.h).ob; commitTx('Move'); selection = { obj: n }; showObjInspector(n);
+}
+function moveObjTo(ob, x, y) { doMove(ob, fitMove(ob, x, y, 0, 0)); }
+function drawMovePreview(c, s, ob, f) {
+  const it = ITEMS[ob.i], X = (x) => view.px + x * s, Y = (y) => view.py + y * s;
+  c.save(); c.setLineDash([3, 3]); c.lineWidth = 1.5; c.strokeStyle = theme.muted; c.strokeRect(X(ob.x) + 0.5, Y(ob.y) + 0.5, ob.w * s - 1, ob.h * s - 1);
+  if (f.ok) {
+    c.globalAlpha = 0.55;
+    if (ob.rug) { if (!drawRug(c, it, X(f.x), Y(f.y), s, f.w, f.h)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(X(f.x), Y(f.y), f.w * s, f.h * s); } }
+    else drawPicItem(c, it, X(f.x), Y(f.y), s, f.w, f.h, false, [f.x, f.y, f.w, f.h]);
+    c.globalAlpha = 0.28; c.fillStyle = theme.bad;
+    if (!ob.rug) for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) { const o = plan.occ[y * plan.w + x], q = o && o !== ob.id && plan.objs.get(o); if (q && !(inWall(it) && structural(ITEMS[q.i]))) c.fillRect(X(x), Y(y), s, s); }
+    c.globalAlpha = 1;
+  }
+  c.setLineDash([6, 4]); c.lineWidth = 2; c.strokeStyle = f.ok ? theme.accent : theme.bad; c.strokeRect(X(f.x) + 1, Y(f.y) + 1, f.w * s - 2, f.h * s - 2); c.restore();
+}
 function pickAt(x, y) { if (!inB(plan, x, y)) return; const k = y * plan.w + x; const oid = plan.occ[k]; if (oid) { selectItem(ITEMS[plan.objs.get(oid).i].n); return; } const rg = rugAt(x, y); if (rg) { selectItem(ITEMS[rg.i].n); return; } const g = plan.ground[k]; if (g) selectItem(ITEMS[g - 1].n); }
 
 function showRegionInspector() {
@@ -2599,7 +2708,7 @@ function showRegionInspector() {
   const acts = box.acts;
   acts.append(ibtn('copy', 'Copy', () => copyRegion(r)), ibtn('zone', 'Make a zone', () => createZone(r)), ibtn('trash', 'Clear items', () => clearRegion(r, true), 'danger'), ibtn('erase', 'Clear everything, ground too', () => clearRegion(r, false), 'danger'));
 }
-function deleteSelection() { if (!selection) return; if (selection.obj) { deleteObjNow(selection.obj); return; } if (selection.zone) { confirmDeleteZone(selection.zone); return; } if (selection.house) { const hs = houseById.get(selection.house); if (hs) confirmDeleteHouse(hs); return; } if (selection.rect) clearRegion(selection.rect, true); selection = null; closeInspector(); }
+function deleteSelection() { if (!selection) return; if (selection.obj) { deleteObjNow(selection.obj); return; } if (selection.rug) { delRug(selection.rug); commitTx('Delete ' + ITEMS[selection.rug.i].n); selection = null; closeInspector(); return; } if (selection.zone) { confirmDeleteZone(selection.zone); return; } if (selection.house) { const hs = houseById.get(selection.house); if (hs) confirmDeleteHouse(hs); return; } if (selection.rect) clearRegion(selection.rect, true); selection = null; closeInspector(); }
 function choiceModal(title, intro, choices) {
   modal(title, (box) => {
     for (const p of [].concat(intro)) if (p) box.append(typeof p === 'string' ? h('p', { class: 'sub' }, p) : p);
@@ -3258,7 +3367,7 @@ function loadLocalPlans() { try { plansIndex = JSON.parse(LS.get(LSK + 'index') 
 function readLocalPlan(id) { try { const s = LS.get(LSK + 'plan:' + id); return s ? deserialize(JSON.parse(s)) : null; } catch (e) { return null; } }
 function openPlan(id) { if (dirty) persistNow(); const p = readLocalPlan(id) || (cloudCache.has(id) ? deserialize(cloudCache.get(id)) : null); if (!p) { toast('That plan could not be opened'); return; } installPlan(p); LS.set(LSK + 'current', id); }
 function installPlan(p) {
-  plan = p; undoStack.length = 0; redoStack.length = 0; selection = null; closeInspector(); firstEval = true; evaluateAll();
+  plan = p; undoStack.length = 0; redoStack.length = 0; selection = null; closeInspector(); if (decorMini) { decorMini = null; renderMini(); } firstEval = true; evaluateAll();
   if (!plansIndex.find(q => q.id === p.id)) { plansIndex.push(indexEntry(p)); saveIndex(); }
   updateHeader(); fitView(); renderPanel(); $('#undoBtn').disabled = true; $('#redoBtn').disabled = true;
 }
@@ -3516,7 +3625,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T23:00';
+const APP_BUILD = '2026-11-21T00:15';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
@@ -3556,7 +3665,7 @@ async function boot() {
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);
   if (!p) { p = makeExample(); exampleUntouched = true; LS.set(LSK + 'example', p.id + ':' + p.updated); }
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
-  selectItem('Field grass', false); setTool('place'); setShowAreas(showAreas);
+  selectItem('Field grass', false); setTool('select'); setShowAreas(showAreas);
   showTab(VALID_TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'build', true);
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
