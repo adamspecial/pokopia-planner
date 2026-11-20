@@ -6,7 +6,7 @@ Open it at **https://adamspecial.github.io/pokopia-planner/** and, on a phone or
 
 ## Item pictures
 
-Every item shows on the map, and in kit rooms, as its own picture: furniture, walls, kits, trees and everything else. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint on the floor around it, and furniture can stand on it. Rug sizes are guesses until you set them with **Change**. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
+Items you place show on the map, and in kit rooms, as their own pictures: furniture, decorations, plants, kits and the rest. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint on the floor around it, and furniture can stand on it. Rug sizes are guesses until you set them with **Change**. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
 
 The pictures live in `pics/` inside the app, so they show without internet. The first time the planner opens, it saves all of them on the device in the background (about 7 MB); the Plans tab shows how far it has got.
 
