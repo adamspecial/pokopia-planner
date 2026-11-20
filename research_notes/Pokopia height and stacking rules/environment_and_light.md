@@ -1,179 +1,243 @@
 # Pokopia home environment (light / warmth / humidity / daylight): vertical rules
 
-> How this was gathered: this session's network blocked page fetches for note.com, kyu49.github.io, game8.jp and bulbapedia.bulbagarden.net, so the primary ccopedia and ぽこポケ学会 pages could NOT be opened directly. Every finding below comes from web-search result snippets and the search tool's summaries of those pages. Japanese text in quotes is as the search tool returned it. Treat paraphrases as second-hand until someone reads the page itself. Labels: **Confirmed** = official / Nintendo patch notes; **Community-tested** = a player says they tested it; **Unverified** = wiki or blog claim with no test shown, or a search summary whose source is unclear. No height or range rule found here is Confirmed by Nintendo or The Pokémon Company.
+> Sources and how they were read. All three ccopedia posts were read in full: light, the 「完全版」 (complete edition) dated 2026-10-09; warmth, 2026-10-05; humidity, 2026-10-14. The ぽこポケ学会 house page was also read in full. Those posts are dated after Ver. 2.0.0 (4 Aug 2026), so they describe the current game. Game8 JP, Bulbapedia and gamemos.net could not be fetched; claims from those sites come from search snippets and are marked as such. Labels: **Confirmed** = official / Nintendo patch notes; **Community-tested** = a player shows an in-game test; **Unverified** = wiki or guide claim with no test, or a search snippet only. No height or range rule is Confirmed by Nintendo; the in-game tests are ccopedia's and KYU's.
+>
+> **Height convention used below (from ccopedia).** Height 0 is the "floor" space: the air layer inside the enclosure, at the same level as the 1-high wall ring and the door, where furniture normally stands. Height −1 is the ground/floor block under it. Height +3 is three layers above the standing layer.
 
 ## 1. Which space counts for a block-built house (the base vertical range)
 
 ### Takeaway
-The planner's model ("inside the walls or on the door tile, from 1 below to 3 above the floor; walls, anything on or under the walls, and anything outside never count") matches the most detailed community test found (gamemos.net, 10 Apr 2026). That test's author admits the height counting may be inconsistent. A second community claim ("about 4 below to 3 above the door's height") is about whether furniture is recognised for the house itself, and it does not match on the lower bound.
+The planner's rule is right, and it now has full community tests behind it for light, warmth and humidity alike. Only cells in "floor" columns count: the interior plus the door cell(s), from height −1 (the floor block itself and anything sunk one deep) to +3. Outside, the walls, and anything above or below the walls never count. Furniture recognition for comfort and favourites is a separate, wider range.
 
 ### Cited Findings
-- **Community-tested:** the range that affects the "favourite environment" of a self-built house is "inside the house plus above/below the door". Items placed outside the house, or above/below the house frame (家の枠の上下), have no effect — [gamemos.net 自作ハウスの"好きな環境"に影響する範囲 (2026-04-10)](https://gamemos.net/2026/04/10/post-140083/)
-- **Community-tested:** the valid height, taken from the floor surface, is −1 to +3 (床面から-1〜+3段). The author's diagram puts the floor block at Y=0 — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Community-tested, with a caveat:** the same article says the author could not make the height counting consistent (高さの数え方が統一できていない) — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Community-tested, about house recognition rather than environment:** a home's furniture is recognised within about 4 blocks below to 3 blocks above the door's height, and a home needs at least 3 different furniture types. The search tool drew this from two pages and did not say which one said what — [ぽこポケ学会 家と住み心地](https://kyu49.github.io/Pokopia/house/); [goccha-journal 家具は関係ある？](https://goccha-journal.com/8814)
-- **Community-tested:** "おねがいごと家具は上下4マス目の距離までOK" (furniture for requests counts up to the 4th tile above/below). The same post says a house needs at least 4 ground tiles, no ceiling, a door, and walls 1 high are enough if they enclose the space — [X @__ririmero](https://x.com/__ririmero/status/2029761931813474412)
-- **Community-tested:** a block house needs a floor of 2×2 or more (1×4 is not enough), walls at least 1 high, and at least one wall tile that is a door (two doors are fine). 2-tile doors, glass walls and even fences work as walls — [X @kyuphd (KYU, ぽこポケ学会 author)](https://x.com/kyuphd/status/2030234005325668475)
-- **Unverified (guide sites):** the interior must be between 2×2 and 10×9 (or 9×10). Walls need to be at least 1 high, and a roof is optional: "高さは1段以上必要（屋根の有無は自由）". Other guides give 10×10 as the maximum — [Game8 JP 家判定の条件](https://game8.jp/pocoapokemon/768198); [GameWith ブロックの家](https://gamewith.jp/pocoapokemon/547952); [気ままなニュース 家判定](https://dokodeyomu.hatenadiary.com/entry/Pocoa_Pokemon_House_Determination)
-- **Unverified:** Pokémon comfort only rises when the changes are made inside the house: "Such adjustments need to be made inside the house to affect the comfort levels of the Pokémon living there." The search tool surfaced this from Bulbapedia or thegameswiki and the exact page was not clear — [Bulbapedia Comfort level](https://bulbapedia.bulbagarden.net/wiki/Comfort_level)
+- **Community-tested:** ccopedia defines three terms for a block house. 床 (floor) is "ブロックとドアで囲まれた領域の内側の空間、およびドアが存在する空間": the space inside the blocks and door, plus the door's own space. 壁 (wall) is a space where a house block exists. 屋外 (outside) is everything beyond the enclosure. Light counts for 「床」とその上下-1～+3マスまでの範囲 (the floor and −1 to +3 above and below it) — [ccopedia 完全版「あかるい」「くらい」 (2026-10-09)](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** the same placement rule covers warmth and humidity. Warmth counts 屋内 / 床および床の上下-1～+3マスの範囲 / ※壁および壁の上下はNG (indoors, floor −1 to +3, walls and above/below walls not allowed) — [ccopedia 「あたたかい」「すずしい」 (2026-10-05)](https://note.com/ccopedia/n/n4b1e798887df). Humidity uses the same wording — [ccopedia 「うるおっている」「乾そうしている」 (2026-10-14)](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested: height −1 is the floor block layer.** "床を1マス掘って何かアイテムを置いたり、マグマを流したりするのはOK" (dig the floor one deep and place an item or pour magma: OK). Two deep does not count, so magma or items cannot be hidden under the floor blocks — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df). In the humidity side view, the vase at −1 and "屋内の地面を構成する芝生ブロック" (the grass blocks forming the indoor ground) both count — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** light sources at −1 count and at −2 do not; a Seedot lamp (タネボーランプ) at +4 does not count — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: the door cell is floor.** Magma rock (あついいわ) placed on top of the door is counted. Replacing the block directly under the door with ice pleased Articuno and upset Drifblim. Water under the door counts toward humidity — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df); [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** ぽこポケ学会 independently states that for light sources and other environment items, "家の中とドアの上下のみ。床面-1～+3マス" (inside the house and above/below the door only, floor −1 to +3), marked 検証不十分 (not fully verified). It adds "おそらく扉の正面も認識されるはず" (probably the tile in front of the door counts too); ccopedia does not support this — [ぽこポケ学会 家と住み心地](https://kyu49.github.io/Pokopia/house/)
+- **Community-tested: furniture recognition is a different, wider range.** The white dotted range shown with the R stick reaches +4 in every direction from the habitat or block house — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f). Items at −2 or +4 are inside that range, so Pokémon react to them as placed furniture, but they add no environment points — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f); [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested, conflicts slightly:** ぽこポケ学会 gives the furniture recognition range as "扉から-4マス～+3マス" (−4 to +3 from the door; footnoted to KYU). It also says furniture can be shared between houses — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/). ccopedia saw a lamp and an air conditioner at +4 recognised as furniture. This needs a re-test.
+- **Community-tested: house validity.** A house needs:
+  - walls 1 high, enclosing a space with at least one door (2-tile doors are fine);
+  - a floor of 2×2 or more (1×4 is not enough);
+  - no block directly in front of the door on the outside;
+  - 3 different furniture types, checked only at move-in.
+
+  Walls can be wooden fences or glass windows. No floor is needed. Houses may share walls but not doors. A house may sit underwater or in magma, have only 1 cell between floor and ceiling, or be stacked on another house, which then also counts — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/)
+- **Conflict on the maximum size:** ぽこポケ学会 says "9x10マス以上の床面積は不可" (a floor of 9×10 or more is not allowed) — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/). ccopedia built and tested a 9×10 interior and calls 90 tiles the upper limit — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** some build kits produce block houses, not kit houses. The ログハウスキット is one, and the 小さなオフィスキット follows block-house height rules, so block-house rules apply to them — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested (April, snippet only):** gamemos reached the same rule earlier: inside the house plus above/below the door, floor −1 to +3, and nothing counts above or below the house frame — [gamemos.net (2026-04-10)](https://gamemos.net/2026/04/10/post-140083/)
 
 ### Inferences
-- If Y=0 is the floor block, then −1..+3 covers: the block under the floor (Y=−1), the floor block itself (Y=0), and the first three air layers above it (Y=1, 2, 3). A planner should test an item's base cell against Y ∈ [−1, 3] relative to the floor block, using only columns inside the walls plus the door column(s).
-- The "4 below / 3 above the door" figure is about whether furniture counts for house status or requests. It may be a different check from the environment calculation, so it should not replace the −1..+3 environment range without a fresh test.
+- **Planner rule.** An item counts for the environment when its cell is in a floor column and its height h is between −1 and +3, with 0 the standing layer. Floor columns are every interior tile plus every door tile.
+- The h = −1 layer includes the floor blocks. Grass, dead-grass, ice and magma floor blocks therefore add humidity or warmth, and the planner must count the floor material.
+- Furniture or favourites counting should use the wider dotted range, about ±4, which includes walls and outside cells. Environment counting should use the strict floor-column band.
 
 ### Gaps
-- No official statement on the range exists. I found no community test after the 1.1.0 / 2.0.0 patches that repeats the −1..+3 measurement.
-- It is still unclear whether "−1" means items sunk into the floor layer (for example water or a light block used as a floor tile) or items under the floor block. The ccopedia pages that may answer this could not be opened.
+- No test confirms whether the tile directly in front of the door counts for the environment. ぽこポケ学会 says "probably"; ccopedia does not list it.
+- The +3 vs +4 discrepancy in furniture recognition is unresolved.
 
 ## 2. Items on top of walls and wall-mounted items (inside face vs outside face; clocks, mirrors, posters)
 
 ### Takeaway
-Items on top of the wall frame do not count (community-tested). A wall light on the inside of the house at floor +3 just counts; the same light any higher does not (community-tested). I found nothing on outside-face wall items, or on whether wall clocks, mirrors or posters count as furniture.
+On top of, inside, or under a wall: never counts, even for blocks that give off light, heat or moisture. A wall-mounted item on the inside face counts when its cell is at +3 or below. ccopedia tested this with an air conditioner (+4 no effect, +3 works) and with wall torches. Wall clocks, posters and mirrors have no environment points. They can still count as furniture or favourites anywhere in the wider recognition range, but how they score as decoration was not tested.
 
 ### Cited Findings
-- **Community-tested:** items above or below the house frame (家の枠の上下), meaning the walls, have no effect on the environment — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Community-tested:** the test assumed a bed on the floor. One step above its canopy (floor +3) is the upper limit, so a wall light (ウォールライト) placed there is just inside the range, and one placed any higher has no effect — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Community-tested:** in the same test, one light source rated "まあまあ" (okay) and two rated "満足" (satisfied) — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Unverified (blog):** each block stops light, so one lamp cannot light a whole room, and adding lights high on the walls reduces shadows. This is about how the room looks, not the environment calculation, and the blog cites no test — [気ままなニュース ブロック建築が暗い時](https://dokodeyomu.hatenadiary.com/entry/Pokoa_Pokemon_Block_Building)
-- **Unverified (fan wiki/guide):** the "Decoration" preference tag covers wall art, rugs, vases, shelving and ornamental items, so wall art and shelves share a tag. Nothing says whether wall art placed on a wall counts toward house furniture — [pokopia.center Furniture Categories](https://pokopia.center/posts/pokopia-furniture-categories-complete-2026/)
+- **Community-tested:** walls built from light-giving blocks do not count: block lights, or neon floor tiles (ネオンなゆか, light 80) used as walls — "明るさにはカウントされません" — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** light items placed above or below the wall cells do not count, while the same items above or below the door do — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** none of these warmed the house at all: magma and hot springs one tile outside the wall, あついいわ on top of the wall, magma flowing in a trench under the wall, and part of the wall built from magma rock. Drifblim did not react to any of them — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested:** walls made of grass or dead-grass blocks change no humidity points. Water under the walls and humidity items on top of the walls are all ignored — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** lights embedded inside walls (壁の中に照明器具を埋めたり) do not count — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: inside-face wall items.** An air conditioner set 4 above the floor gave no cooling, though it was recognised as being indoors. Lowered one block to +3, it gave "涼しくなった✅". The author warns that air conditioners and ceiling fans are the items people tend to mount too high — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested: wall-mounted item values.** かべかけたいまつ (wall torch) has light 40 and warmth 60, and only works when lit. モンスターボールのかべ has light 40 — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f); [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested: wall items with zero points.**
+  - Light: ほしぞらのカベ, and ネオンなゆか used as wallpaper (カベ紙) — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+  - Humidity: カベかけタオル, くさのカベかざり, かべかけフラワー, リース — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested: furniture beyond the walls still counts as furniture.** Furniture around a house also affects comfort; the range is the white dotted area. Pokémon that cannot reach an item are not affected by it, and furniture can be shared between houses — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/)
+- **Community-tested (snippet):** the gamemos test also found a wall light at floor +3 just inside the range, and one any higher had no effect — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
 
 ### Inferences
-- A wall light on the INSIDE face sits in an interior cell next to the wall, so it counts when that cell is at Y ≤ 3. The gamemos result fits this.
-- A wall light on the OUTSIDE face sits in an exterior cell, so under the "outside never counts" rule it should not count. Nobody has tested this directly.
-- A lamp or torch standing on top of a wall block is "above the house frame", so it does not count, whatever its height.
+- The rule works per cell, so the wall itself doesn't matter. A wall-mounted item on the inside face sits in an interior floor-column cell and counts if h ≤ 3. The same item on the outside face sits in an outside cell and never counts. The outside-face case has not been tested directly, but it follows from "屋外は完全に無関係" (outside is completely irrelevant) — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd).
+- A torch or lamp standing on top of a wall is in a wall column and never counts, at any height.
 
 ### Gaps
-- I found no test of outside-face wall lights or torches.
-- I found no test of whether wall clocks, mirrors, posters or paintings count toward the 3-furniture rule, a Pokémon's favourites, or the environment. I also found no confirmation of whether the game's footprint for a wall item is the wall cell or the cell next to it.
+- No test of wall clocks, mirrors or posters as "decoration" (かざりつけ) for comfort or favourites, or of whether a wall item hung on a wall's outer face still counts as furniture. It probably does if it is within the dotted range and the Pokémon can reach it, but that is untested.
+- It has not been confirmed which cell the game assigns to a wall-mounted item: the cell in front of the wall, or the wall cell. The air conditioner result implies the cell in front.
 
 ## 3. Items on tables, shelves and counters inside the house
 
 ### Takeaway
-I found no source that tests whether a light, candle or humidifying item placed ON a table or shelf counts. Under the community −1..+3 model, an item resting on a 1-high table (base at Y=2) is inside the range.
+The rule depends only on position: a cell in a floor column at height −1 to +3 counts, whatever the item rests on. An item on a table or counter therefore counts unless it ends up at +4 or higher. Nobody has tested tables specifically.
 
 ### Cited Findings
-- **Community-tested:** the range is described as a vertical band (floor −1 to +3) inside the house, not as "floor tiles only" — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Community-tested:** the canopy-bed example measures the limit by the stack height of things on the floor ("天蓋の一段上 = 床+3"). This suggests the band is measured in block layers, not by what the item rests on — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
+- **Community-tested:** a Castform charm (てるてるポワルン) at +3 inside a 2×2 house counts toward humidity — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** a waterfall at +3 and the splash where it lands at +2 both count, as 20 per cell. Placement is judged by cell height, not by what is underneath — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** in a block house, a waterfall from the sky down to deep underground only counts for 4 cells, 80 in total, because of the height limit — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** plants in vases (かびん系) count for humidity at 2.5 each, and so do potted trees (うえ木系) — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
 
 ### Inferences
-- The planner should count an item on a table, shelf or counter if its base cell is within Y=1..3 (floor block at Y=0), and treat that as Community-inferred, not tested.
-- Whether to use the item's base or its top cell for the +3 cut-off is not settled. The ceiling-light finding in section 4 suggests the occupied cell is what matters: a 1-tall item at Y=4 is out.
+- Count an item on a table, shelf or counter by the height of its own cell. A 1-high table puts the item at h = 1; a 2-high shelf top puts it at h = 2. Both count.
+- For a stacked item taller than one cell, the cell that matters is not established. For hanging lights, ccopedia says it is the light source's height (section 4). Planner default: test the item's own placement cell.
 
 ### Gaps
-- I found no direct test of stacked items (on tables, shelves or counters) for light, warmth or humidity.
-- It is unknown whether items placed on furniture "slots" are tracked separately from items on blocks.
+- No test of items sitting on furniture surfaces specifically, or of whether the planner's 2-high stacked furniture shifts the item to h = 2.
 
 ## 4. Ceiling lights, ceiling fans and ceiling height
 
 ### Takeaway
-A 1-block-tall ceiling light hung under a ceiling at floor +5 is out of range (community-tested), which fits a +3 cap. Reports of Gallade not being satisfied in tall rooms point the same way. I found no data on ceiling fans.
+In block houses, ceiling-hung lights and fans follow the +3 cap. What counts is where the hanging item's light source sits, which differs by item. One example: the 小さなオフィスキット has 16 ceiling block lights at 5 above the ground and its brightness is 0. In kit houses there is no height limit, so ceiling lights, fans and air conditioners count at any height.
 
 ### Cited Findings
-- **Community-tested:** "天井の位置が床+5だと、縦1ブロック分の大きさの天井照明は範囲外になる" — with the ceiling at floor +5, a ceiling light 1 block tall is out of range — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Unverified (rumour, as the source itself says):** some players place many lights and Gallade still is not satisfied. The source suggests ceiling height or light placement as the cause, and a high ceiling pushing lights out of range: "照明を大量に設置しても満足しないケースがあり、天井の高さや設置位置が影響している可能性が指摘されている" — [ぽちぽちゲーム速報 (note.com/game9820)](https://note.com/game9820/n/n23c73d331ff3)
-- **Opinion (looks only, not mechanics):** a player is about 1.5 blocks tall; a 2-block ceiling feels low, 3 is a normal house, 4 a shop and 5 a big station — [X @gyonge](https://x.com/gyonge/status/2033355317443215576)
+- **Community-tested:** ceiling-hung lights only work if the ceiling is lower than you'd expect: "天井からぶら下げるタイプの照明器具は、天井が思ってるより低めじゃないと明るさとしては機能しません". Each hanging light puts its source at a different height. In the example, of three hanging lights only the ポップなランプ, with its source at height 3, was counted — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** the office built by the 小さなオフィスキット has 16 block lights set in the ceiling at 5 above the ground. None of them count and the house's brightness is 0. Lights must be added to suit Pokémon that like bright homes — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** the ceiling fan (てんじょうせんぷうき) is warmth −60, and the air conditioner is −60 on cool or +60 on warm. Both need power and must be switched on, and both obey the +3 cap in block houses — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested, kit houses:** "高さの制限も無いので、天井からぶら下げる照明も普通に明るさとしてカウントされます" (no height limit, so hanging lights count normally). One ceiling グランドライト is enough for "明るくなった" — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f). In large kit houses a ceiling fan can only be fitted very high, and it still works; air conditioners also work at the highest position — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested (snippet):** gamemos found that with the ceiling at floor +5, a 1-block-tall ceiling light is out of range — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
+- **Unverified (rumour):** Gallade stays unsatisfied in tall rooms despite many lights — [ぽちぽちゲーム速報](https://note.com/game9820/n/n23c73d331ff3). This is explained by the +3 cap above.
 
 ### Inferences
-- With the floor block at Y=0, a ceiling block at Y=5 hangs a 1-tall light at Y=4, which is outside −1..+3. A ceiling at Y=4 hangs the light at Y=3, which counts. For a planner: a ceiling light counts only if the ceiling (roof) block above it is at Y ≤ 4, meaning 3 air layers at most. A 2-tall light would need the ceiling at Y ≤ 5 if its lowest cell is what's checked, but nobody has tested that.
+- **Planner rule for block houses.** A ceiling light or fan counts only if its source cell is at h ≤ 3. For a 1-tall hanging item directly under the ceiling, the ceiling block must be at h ≤ 4. Longer pendants allow a higher ceiling, depending on the item.
 
 ### Gaps
-- I found no data on ceiling fans, chandeliers taller than 1 block, or whether the top or bottom cell of a hanging light is checked.
-- It is not clear whether a light hung from a ceiling counts as "on the floor inside the walls" when its column is inside the walls. The ceiling result suggests it does when Y ≤ 3.
+- No per-item table of light-source height below the ceiling for hanging lights. Only ポップなランプ is named as reaching height 3 in the example.
 
 ## 5. Daylight: windows, open roof tiles, roof height, partial roofs, glass
 
 ### Takeaway
-ccopedia's model (natural light = 90 × the share of the area that light reaches, falling to 0 under a full roof, and rising tile by tile as roof blocks come off) is the only formula found, and it is community-tested. Wiki and guide claims that windows or gaps let light in are unverified and do not fit a sky-open-tile model. I found no source on glass roofs, or on whether a roof 2 blocks up behaves differently from one 5 blocks up.
+The formula is daylight = 90 × (floor cells open to the sky, door cells included) ÷ (total house footprint including walls). That gives 62.045 for a 9×10 interior; the 31.5 example is a 4×5 total footprint. Light only comes straight down. Windows, side openings, time of day and weather are all irrelevant. Any block at height ≥2 over a floor or door cell acts as a roof, and roof height has no upper limit. Nothing was found on glass blocks as a roof.
 
 ### Cited Findings
-- **Community-tested (ccopedia, through a search snippet of the English-translated page):** natural light brightness = 90 × light entry rate. Each roof block removed restores light in proportion, and a fully covered roof gives natural light 0 — [note.com/ccopedia 「あかるい」「くらい」の仕様 完全ガイド](https://note.com/ccopedia/n/ndadc82daf39f?hl=en)
-- **Community-tested (ccopedia, through a snippet):** if the total brightness of the placed furniture is 60 or less, the "くらくなった" (became dark) state can be kept — [note.com/ccopedia](https://note.com/ccopedia/n/ndadc82daf39f?hl=en)
-- **Unverified (guide):** a roof works just by covering the sky above a habitat with blocks: "屋根は、ポケモンの生息地の上空をブロックで覆うだけで効果が出るので比較的簡単です" — [Game8 JP 暗くするやり方](https://game8.jp/pocoapokemon/768268)
-- **Unverified (guide):** moving a Pokémon into a house with a roof also makes it dark, but a light inside the house cancels the dark judgement: "屋根のある家を建てて引っ越しさせることでも、暗くすることができます。ただし、家の中に照明があると暗い判定でなくなる" — [GameWith 暗くする方法](https://gamewith.jp/pocoapokemon/547918)
-- **Unverified (fan wiki):** enclosed habitats with a roof and walls at least 3 blocks high inside block natural light. Outdoor habitats are bright by default, and any opening lets light in. For dark-loving Pokémon, it says not to add window blocks or leave gaps in walls — [thegameswiki Brightness System](https://thegameswiki.com/pokopia/wiki/brightness-system)
-- **Unverified (guide):** "you can also add windows if your walls are high enough" (bright-habitat advice). Building outdoors is the easiest way to get a bright habitat, with streetlights for night — [Game8 EN How to Make a Bright Habitat](https://game8.co/games/Pokemon-Pokopia/archives/585695); [Game8 EN How to Make a Habitat Darker](https://game8.co/games/Pokemon-Pokopia/archives/585570)
-- **Community-tested (not houses):** the brightness of an underground space, where no sunlight enters, is the same at any height or depth: "地下空間（日光が入らない場所）の明るさはどの高さ・深さにあっても変わりません". A reader comment adds that the same light seems to reach further when it shines from above — [hyperts.net 地下空間の明るさ](https://hyperts.net/pokopoke/underground/)
-- **Unverified (guide):** roofs and light sources affect a home's brightness ("Roofs and light sources can affect the brightness of a home.") — [Bulbapedia Comfort level](https://bulbapedia.bulbagarden.net/wiki/Comfort_level)
+- **Community-tested: properties of natural light.**
+  - Time of day and weather make no difference.
+  - Light enters only from directly above: "真上から入光する（横方向は無関係）" (sideways irrelevant).
+  - Shaded area subtracts in proportion.
+  - Formula: 自然光の明るさ＝90×入光率＝90×入光している面積/すみかの範囲やブロック家の総面積 (90 × lit area ÷ total area).
+
+  — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: block-house specifics.** The lit fraction is taken over the house's total area, walls included. Walls are never lit; only floor cells, the door cell included, receive light. For the 9×10 interior: total 11×12 = 132, lit floor = 90 + 1 door = 91, daylight = 90 × 91/132 = 62.045 — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** a block house of 4×5 total area has 13 wall tiles and only 7 floor tiles, so even with no roof its daylight is 90 × 7/20 = 31.5. It is "dark" with no work at all. Three roof tiles bring daylight to 18, so even a light-80 item cannot make it bright — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: what makes a roof.** "地面・床を高さ0として、高さ2マス以上の位置にブロックを置けば屋根として機能します". The photo caption shows a block with one empty cell between it and the floor working as a roof. A roof can also sit above the door cell — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: roof height has no upper limit.** A single block at the maximum build height still worked as a roof; breaking it raised brightness. "屋根に高さは関係ないと思われる" (roof height seems irrelevant). Structures high in the sky can therefore shade a house by accident — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: solid stacks.** A column filled solid with blocks up to height 4 gets no light. A 3-high stack made no difference; that spot was already lit. This was tested in a habitat range — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested: windows.** "壁の窓も明るさや暗さには全くの無関係です" (wall windows are completely irrelevant to brightness or darkness). In kit houses, opening or closing the default curtains also has no effect — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** in habitats, walls and floors blocking a lamp's light visually is irrelevant: "壁や床でランプの光を遮光するとかは全く関係がありません". Any light in the range counts, including on top of a roof — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested, rounding quirk:** 3 roof tiles on the 9×10 house should give exactly 60, (91−3)/132 × 90, but "dark" needed 4 tiles. The author suspects float precision, noting that 88/132 in 32-bit float is 0.6666666865 — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Refuted / Unverified:** thegameswiki says interiors need walls at least 3 blocks high to block natural light, and that windows or gaps let light in. Game8 EN suggests adding windows for brightness. All of this conflicts with ccopedia's tests — [thegameswiki Brightness System](https://thegameswiki.com/pokopia/wiki/brightness-system); [Game8 EN Bright Habitat](https://game8.co/games/Pokemon-Pokopia/archives/585695)
+- **Community-tested:** to make a house dark, put a ceiling over the floor; which heights affect the dark check had not been verified. The 2026-10 ccopedia tests later settled this — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/)
 
 ### Inferences
-- The ccopedia formula fits the planner's model: daylight = 90 × floor tiles open to the sky ÷ every tile of the house. The "max 62 in a 9×10" and "45 in a 5×4" figures could not be checked from snippets, so I checked the arithmetic instead. Floor tiles alone in the numerator do not give them: 90 × 90/132 = 61.4 and 90 × 20/42 = 42.9 (interior plus a 1-wide wall ring with corners). Both figures come out exactly if the 1-tile door also counts as an open tile in the numerator: 90 × 91/132 = 62.05 → 62, and 90 × 21/42 = 45.0 → 45. So the planner's maxima fit: daylight = 90 × (open floor tiles + open door tiles) ÷ (interior + every wall tile, corners included). The planner should count the door tile as open sky when it has no roof above it.
-- In the ccopedia model, windows (side openings) add nothing; only open sky above floor tiles counts. The thegameswiki and Game8 window claims may be loose generalisation or may describe outdoor habitats. Treat "windows add daylight" as Unverified and against the community test.
-- The ccopedia snippet is about how much of the area light can reach. It does not mention roof height, so whether a roof 2 or 5 blocks up counts the same is open. The planner's rule (any block 2 or more above the floor is a roof) is not contradicted, but no snippet confirmed it.
+- The planner's figures match: max 62 for a 9×10 interior, and 45 for a 5×4 interior (90 × 21/42). The planner must count the door cell as lit when nothing is above it, and walls in the denominator only.
+- **Roof threshold, ambiguous.** The roof section seems to measure "2" from the ground block, given the one-empty-cell caption. The placement band uses the standing layer as 0. In standing-layer terms, a roof is probably any block at h ≥ 1 over a floor or door cell: a ceiling block one cell above the floor surface. This matches ぽこポケ学会's valid house with "only 1 cell between ceiling and floor".
+- The solid-stack result (3-high lit, 4-high not) does not fit a simple "block at height ≥2" rule. It looks like a separate case for solid columns that the planner can ignore for normal floor tiles.
+- A dark-preference check should use a strict threshold, or float32 arithmetic, because exact-60 daylight values can fail.
 
 ### Gaps
-- I found no source on glass, ice or other see-through blocks as roofing, or on fences, slabs or other partial blocks as a roof.
-- I found no source on roof height (2 vs 5 blocks) making a difference. thegameswiki's "at least 3 blocks high internally" has no test behind it and conflicts with the planner's "a block 2 or more above the floor is a roof"; it needs checking against ccopedia directly.
-- The exact denominator of the daylight formula (floor only, or floor plus walls) and the 62 / 45 maxima could not be checked without opening the ccopedia page.
+- Nothing found on glass, ice or other transparent blocks, fences, or slabs as roof material. ccopedia's roof tests used soil and sea rock (シマシマのつち, うみのいわ).
+- Whether a roof over the wall cells matters is moot, since walls are never lit.
 
 ## 6. Second storey of a block-built house
 
 ### Takeaway
-I found no source on whether items on an upper storey of a block house count toward the ground floor's environment. Under the −1..+3 band, anything on a second floor at Y ≥ 4 is out of range for a ground-floor house.
+Stacked block houses are allowed, and each is recognised as its own house. For the lower house, an upper storey's items at h ≥ 4 don't count, and the upper floor's blocks act as a roof that removes daylight. Nobody tested whether items of a low upper house that fall inside the lower house's band count for it.
 
 ### Cited Findings
-- **Community-tested:** valid height is floor −1 to +3, and anything above that (a wall light above floor +3, a ceiling light at floor +4) has no effect — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
-- **Unverified (snippet, source unclear):** a house is still recognised with uneven heights, but not if the height or the distance needed to reach it is too great: "高さ or アクセスするための距離が離れすぎると、認識されない". This came up alongside the KYU thread on house recognition — [X @kyuphd](https://x.com/kyuphd/status/2030234005325668475)
+- **Community-tested:** "上にもう一個家があっても、両方家判定される" (a house on top of another: both count as houses). The page's most efficient housing design is "積層可能" (stackable). Only 1 cell is needed between floor and ceiling, and no floor is needed — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/)
+- **Community-tested:** for furniture, items at ground level are recognised if there is a door within 5 cells of the ground surface: "地表から5マス目までに扉があれば、地表上のアイテムは認識される" — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/)
+- **Community-tested:** environment items at +4 or higher do not count, and roofs at any height above floor cells shade them — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested, habitats:** habitats count humidity across ±4 vertically, so layered habitats can pick up unintended humidity from other levels — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
 
 ### Inferences
-- A second-storey floor laid at Y=4 with items on it at Y=5 and up would be outside the ground-floor house's band. A planner should exclude upper-storey items from the ground-floor house unless the upper floor is low enough to put items at Y ≤ 3, which is physically unlikely.
-- The second-storey floor block also acts as a roof over the ground floor (it is at least 2 above the floor), so it would cut daylight for the tiles under it.
+- In the planner, each storey that has its own wall ring and door is a separate house. The upper storey's floor blocks are roof cells for the lower house's daylight. Items count for whichever house's floor-column band, −1 to +3, contains them.
+- An upper house's floor blocks are at its own h = −1. If they sit within the lower house's band, at lower h ≤ 3, they might count for both houses. That needs a test.
 
 ### Gaps
-- I found no test of a two-storey block house: whether the upper level can be a separate house, or whether the game merges or rejects stacked houses.
+- No test of overlapping bands between stacked houses, or of whether furniture shared across stacked houses counts twice.
 
 ## 7. Kit houses with their own interior
 
 ### Takeaway
-Players report that kit houses are bright with no electricity at all, which fits the planner's "kit = its own interior" model. I found nothing on the planner's specific kit rules (everything inside counts on both floors at any height; no daylight; windows, curtains, wallpaper and floors don't count).
+Confirmed by community test: everything indoors counts at any height, with no natural light. Windows, curtains, wallpaper and floor covering don't matter. Thresholds: light ≥40 bright and ≤40 dark, so both are met at exactly 40; humidity ≥40 moist and ≤60 dry; warmth ±60, the same as every other home type.
 
 ### Cited Findings
-- **Community report:** a player asking how to house a dark-loving Pokémon says kit houses are bright even without electricity, and wonders whether they are forced bright: "キットで建てる家は強制的に明るくなるから無理だと思っています". The answer suggests leaving out lights to make it darker — [Yahoo!知恵袋 q10328110095](https://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q10328110095)
-- **Community report:** a player says the inside of a block-built house is dark even with several lamps, compared with a kit house — [Yahoo!知恵袋 q11326284081](https://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q11326284081)
-- **Community (blog):** the りっぱなキット kit has 2 windows on the 1st floor and 4 on the 2nd, and the largest interior at 14×10. Wallpaper can only be changed for the whole house at once — [東方錆恋録 内装テンプレート考察](https://rusted-coil.hateblo.jp/entry/2026/04/04/151815)
-- **Unverified (guide):** the small kits "〇〇のこや" and "〇〇のおへや" cannot change wallpaper, and block houses cannot change wallpaper at all — [Altema 模様替え](https://altema.jp/pocoapokemon/moyougae)
-- **Unverified (guide, about Bulbapedia):** the larger the house, the more the comfort of the Pokémon living there increases — [Bulbapedia Comfort level](https://bulbapedia.bulbagarden.net/wiki/Comfort_level)
+- **Community-tested:** a kit house is one with a loading screen into a separate map. "屋内ならどこに置いても大丈夫です" (anywhere indoors is fine), with no height limit and no natural light — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** light 40+ gives "明るくなった" and 40 or below gives "暗くなった". At exactly 40 both are met, so Pokémon that like bright and dark homes can share. The default curtains, wallpaper and floor (neon floor tiles tested) have no effect — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** kit-house humidity is 40+ for moist and 60 or below for dry, with no height limit, so 40–60 suits both. Blocks and water cannot be placed inside kit houses — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** warmth is calculated the same way in kit houses (±60) with no height limit. Magma, hot springs and blocks cannot be used inside — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested:** さらさらいわ keeps working inside a kit house during rain, but it sometimes stops working when plants are placed nearby — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** small kit houses cannot take power from outside, so electric lights need a ミニはつでんマシン indoors. A few items give light with no fire or power: pumpkin lanterns and the Trevenant street lamp (20), ちょうちん (40), and the mushroom lamp, mushroom street lamp and pearl street lamp (80) — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community (blog):** the りっぱなキット has 2 windows on the 1st floor and 4 on the 2nd, and a 14×10 interior — [東方錆恋録](https://rusted-coil.hateblo.jp/entry/2026/04/04/151815)
+- **Unverified (snippet):** ぽこポケ学会 guesses that comfort ranks kit house > block house > habitat — [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/)
 
 ### Inferences
-- The "kit houses are bright with no lights" reports fit kit interiors having a fixed base brightness that does not come from daylight tiles. They do not show whether windows add to it.
+- "Anywhere indoors" with no height limit covers both floors of a two-storey kit. ccopedia did not single out the 2nd floor, so mark this as strongly implied, not explicitly tested.
 
 ### Gaps
-- No source I could reach confirms that both floors of a kit house count, that there is no height limit inside a kit, or that windows, curtains, wallpaper and floors are excluded. These rest on the ccopedia and ぽこポケ学会 pages that could not be opened.
+- No explicit test of 2nd-floor items in a two-storey kit.
 
-## 8. Thresholds and how warmth and humidity add up
+## 8. Thresholds and point values
 
 ### Takeaway
-The only threshold number found in a snippet is ccopedia's "total furniture brightness ≤ 60 keeps a house dark". It conflicts with the planner's kit-house "dark ≤ 40" unless the two apply to different house types. I found no warmth or humidity threshold numbers, and nothing on height for warmth or humidity specifically.
+Block house and habitat: light ≥100 bright, ≤60 dark; humidity ≥100 moist, ≤30 dry. Kit house: light ≥40 / ≤40; humidity ≥40 / ≤60. Warmth everywhere: total ≥ +60 warm, ≤ −60 cool. Light items are worth 20, 40 or 80 (beach parasol −40), with daylight adding up to 90 × the lit fraction.
 
 ### Cited Findings
-- **Community-tested:** total brightness of placed furniture ≤ 60 keeps the "became dark" state — [note.com/ccopedia (light)](https://note.com/ccopedia/n/ndadc82daf39f?hl=en)
-- **Unverified (guide):** lamps raise brightness but do nothing for temperature — [pokopia.center Comfort Level Guide](https://pokopia.center/posts/pokopia-comfort-level-furniture-guide-2026/)
-- **Unverified (fan wiki):** warmth comes mainly from fire items (campfires, candles). A roof stops them going out in the rain — [thegameswiki How to Make a Warm Habitat](https://thegameswiki.com/pokopia/wiki/how-to-make-a-warm-habitat)
-- **Unverified (guide):** light-giving furniture includes candles and torches, which need a Pokémon with the Burn specialty to light, and electric lights, which need the Generate specialty — [Game8 EN How to Make a Bright Habitat](https://game8.co/games/Pokemon-Pokopia/archives/585695)
-- **Unverified (guide):** humidity rises with water, hydrated plants, working fountains or sprinklers, a filled Water Basin, or Rain Dance — [thegameswiki Environment Level](https://thegameswiki.com/pokopia/wiki/environment-level); [Bulbapedia Comfort level](https://bulbapedia.bulbagarden.net/wiki/Comfort_level)
-- **Community (Q&A):** for habitats, lawn (しばふ) inside the habitat range makes it moist. Replace grass blocks with stone and keep ponds and rivers out to make it dry — [Yahoo!知恵袋 q10326340140](https://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q10326340140)
-- **Community (blog):** しめったいわ (damp rock) works for the moist condition, and さらさらいわ is suggested for dry — [piyo-piyo04 しめったいわ・つめたいいわの使い道](https://piyo-piyo04.com/2026/04/12/%E3%80%90%E3%81%BD%E3%81%93%E3%81%82%E3%83%9D%E3%82%B1%E3%83%A2%E3%83%B3%E3%80%91%E3%81%97%E3%82%81%E3%81%A3%E3%81%9F%E3%81%84%E3%82%8F%E3%83%BB%E3%81%A4%E3%82%81%E3%81%9F%E3%81%84%E3%81%84%E3%82%8F/)
-- **Community-tested:** the gamemos −1..+3 range is described for the "favourite environment" in general, not only light — [gamemos.net](https://gamemos.net/2026/04/10/post-140083/)
+- **Community-tested:** light thresholds are 100+ / ≤60 for habitats and block houses, and 40+ / ≤40 for kit houses — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** light values.
+  - 20: candles, gaming furniture, pumpkin lanterns.
+  - 40: ブロックライト, いしのだんろ, たきび, かべかけたいまつ, かがりび, ちょうちん, ひかるキノコ.
+  - 80: most lamps and street lights, けいこうとう, ネオンなゆか, キャンプファイヤー.
+  - −40: ビーチパラソル.
+  - No light: オイルランタン, テレビ, ほしぞらのカベ.
+
+  The values are the author's own scale, fitted to the results, not internal data — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
+- **Community-tested:** warmth thresholds are +60 / −60 for every home type and size.
+  - +10: candles, マグマいわ.
+  - +30: おんせん, アツアツいわ.
+  - +60: マグマ, たきび, かべかけたいまつ, いしのだんろ, エアコン on warm, あついいわ.
+  - −10: こおり, つらら, かきごおり, クリームソーダ.
+  - −60: refrigerators, せんぷうき, てんじょうせんぷうき, エアコン on cool, つめたいいわ.
+
+  Fire items must be lit, and appliances must be powered and switched on. Two typos in the post: マグマいわ is "(30)" in its quiz but 10 in the list and the arithmetic, and the cold items are written "+10" in one sentence — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df)
+- **Community-tested:** warmth for habitats uses the same −1 to +3 height band. Light and humidity for habitats count the whole ±4 range — [ccopedia warmth](https://note.com/ccopedia/n/n4b1e798887df); [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** humidity thresholds are 100+ / ≤30 for habitats and block houses, and 40+ / ≤60 for kit houses.
+  - 1: grass block.
+  - 2.5: grass, flowers, crops at sprout stage or later, potted trees, vases with flowers.
+  - 5: trees.
+  - 20: water, muddy water, hot springs, waterfalls (per cell), sink, toilet, washbasin, shower.
+  - 50: Castform charm, rain form.
+  - 100: bathtub, humidifier, みずおけ, sprinkler, しめったいわ (working or filled).
+  - −0.5: dead grass block.
+  - −50: Castform charm, sun form.
+  - −100: さらさらいわ, which becomes 0 in rain even under a roof.
+
+  Rain itself does not change humidity — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Community-tested:** a block house of 30 floor tiles or fewer stays dry even with an all-grass floor, because grass is 1 per tile and dry is ≤30 — [ccopedia humidity](https://note.com/ccopedia/n/n48ddc4e1afbd)
+- **Unverified, now refined:** GameWith says any light inside a roofed house breaks "dark" — [GameWith 暗くする方法](https://gamewith.jp/pocoapokemon/547918). Per ccopedia, a fully roofed block house stays dark up to 60 total, so three 20-point candles or one 40-point fireplace are fine — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
 
 ### Inferences
-- Nothing suggests warmth or humidity use a different vertical band from light. The planner can apply the same −1..+3 band to all three, labelled as inferred.
-- Grass or lawn blocks used as the floor (Y=0) may add humidity inside a block house, since Y=0 is in the band. This is untested for houses.
+- The planner's thresholds all match ccopedia. The block-house Bright threshold it left open is 100.
 
 ### Gaps
-- The block-house Bright threshold, the kit Bright 40+ / dark ≤ 40 split, humid 100+ / dry ≤ 30 (block), 40+ / 60− (kit), and warm +60 / cool −60 could not be checked. They come from the ccopedia warmth and humidity pages and ぽこポケ学会, which could not be opened.
+- None of the point values are official. ccopedia notes they are a fitted scale.
 
 ## 9. Patch changes
 
 ### Takeaway
-No patch found changes the vertical range or daylight rules. Ver. 1.1.0 (June 2026) changed comfort values for two items and fixed bugs that made light comments and comfort readings unreliable. That may affect tests published before June 2026.
+No patch is known to have changed the vertical rules. The ccopedia tests (Oct 2026) come after Ver. 1.1.0 (June) and 2.0.0 (Aug), agree with the April gamemos findings, and so reflect the current game.
 
 ### Cited Findings
-- **Confirmed (official notes, reported):** Ver. 1.1.0, released 9 June 2026 (some sources say 10 June), changed the comfort settings of the waterproof seat and stone fireplace "to feel more natural". It fixed comfort not rising after removing disliked items, made the Environment Level screen show which comfort requests were met that day, and fixed Pokémon commenting that it became darker or brighter when nothing changed — [Game8 EN 1.1.0 Patch Notes](https://game8.co/games/Pokemon-Pokopia/archives/605000); [Nintendo Life](https://www.nintendolife.com/news/2026/06/pokemon-pokopia-updated-to-version-1-1-0-includes-improvements-and-fixes); [Pokémon portal update notice](https://ph.portal-pokemon.com/topics/post-5960/)
-- **Confirmed (reported):** Ver. 2.0.0 (4 August 2026, with the Bubbly Basin expansion) was mostly new content. The only environment-related change found was that recipes can be bought after raising Palette Town's environment level — [Kotaku 2.0 patch](https://kotaku.com/pokemon-pokopia-2-0-patch-notes-bubbly-basin-expansion-dlc-2000721906)
-- **Unknown:** what Ver. 2.0.1 changed could not be pinned down from snippets — [PokeOS patch notes](https://www.pokeos.com/p/pokopia/patch-notes)
+- **Confirmed (patch notes, reported):** Ver. 1.1.0 (9–10 June 2026):
+  - changed the comfort settings of the waterproof seat and stone fireplace;
+  - fixed comfort not rising after disliked items were removed;
+  - fixed Pokémon saying it got darker or brighter when nothing changed;
+  - made the Environment Level screen show which requests were met.
+
+  — [Game8 EN 1.1.0](https://game8.co/games/Pokemon-Pokopia/archives/605000); [Nintendo Life](https://www.nintendolife.com/news/2026/06/pokemon-pokopia-updated-to-version-1-1-0-includes-improvements-and-fixes); [Pokémon portal notice](https://ph.portal-pokemon.com/topics/post-5960/)
+- **Confirmed (reported):** Ver. 2.0.0 (4 Aug 2026, Bubbly Basin expansion) had no range or daylight change found — [Kotaku](https://kotaku.com/pokemon-pokopia-2-0-patch-notes-bubbly-basin-expansion-dlc-2000721906). The content of 2.0.1 is unknown — [PokeOS](https://www.pokeos.com/p/pokopia/patch-notes)
+- **Community-tested:** the light post is a 「完全版」 (2026-10-09) that replaces an earlier, less certain version by the same author — [ccopedia light](https://note.com/ccopedia/n/ndadc82daf39f)
 
 ### Inferences
-- The gamemos test (April 2026) and the ccopedia tests are from before 1.1.0. The fix for false "darker/brighter" comments means in-game remarks used as evidence before June 2026 may have been noisy, but the fix says nothing about the range changing.
+- The gamemos result (April, before 1.1.0) and the ccopedia results (October, after 2.0.0) agree on −1 to +3. That suggests no patch changed the band.
 
 ### Gaps
-- I found no post-2.0 re-test of the −1..+3 range, daylight formula or thresholds.
-- I could not read the full official notes for 2.0.0 and 2.0.1.
+- Full official notes for 2.0.0 and 2.0.1 were not read, and nothing is known about later patches.
