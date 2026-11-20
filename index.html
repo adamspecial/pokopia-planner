@@ -154,6 +154,7 @@ h4{font-family:var(--font-display);font-weight:600;font-size:15px;margin:18px 0 
 .row:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .row[aria-pressed="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
 .row .swatch{width:30px;height:30px;border-radius:8px}
+img.swatch{display:block;object-fit:cover}
 .row .meta{min-width:0;flex:1}
 .row .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .ds{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2282,7 +2283,8 @@ function renderBuild(keepFocus) {
     root.append(h('h2', null, 'Build'), h('p', { class: 'sub' }, ITEMS.length.toLocaleString() + ' placeable things from the game: terrain, plants, furniture, blocks and kits. Pick one, then paint or tap on the map.'));
     root.append(h('div', { style: 'margin:-2px 0 10px' }, h('button', { class: 'btn sm', id: 'sizesBtn', onclick: () => sizesReview() }, icon('rect'), 'Check item sizes')));
     const inp = h('input', { id: 'itemSearch', type: 'search', placeholder: 'Search items or materials (e.g. "bed", "Lumber")', autocomplete: 'off' });
-    inp.oninput = () => { buildQuery = inp.value.trim().toLowerCase(); renderBuildList(); };
+    inp.oninput = () => { clearTimeout(buildTimer); buildTimer = setTimeout(() => { const q = inp.value.trim().toLowerCase(); if (q !== buildQuery) { buildQuery = q; renderBuildList(); } }, 120); };
+    inp.onkeydown = (e) => { if (e.key === 'Enter') { clearTimeout(buildTimer); const q = inp.value.trim().toLowerCase(); if (q !== buildQuery) { buildQuery = q; renderBuildList(); } inp.blur(); } };
     root.append(h('label', { class: 'search' }, icon('search'), inp));
     root.append(h('div', { class: 'cats', id: 'buildCats', role: 'group', 'aria-label': 'Categories' }));
     root.append(h('div', { class: 'list', id: 'buildList' }));
@@ -2292,23 +2294,46 @@ function renderBuild(keepFocus) {
   for (const c of CAT_ORDER) if (counts[c]) cats.append(h('button', { class: 'cat', 'aria-pressed': c === buildCat ? 'true' : 'false', onclick: () => { buildCat = c; renderBuild(); } }, CAT_META[c].label, h('span', { class: 'n' }, counts[c])));
   renderBuildList();
 }
+const BUILD_STEP = 40, BUILD_MAX = 400;
+let buildRows = { key: null, arr: [], shown: 0, lastSub: null }, buildTimer = 0, buildObs = null;
+function listSwatch(it) {
+  const u = picURL(it); if (!u) return swatchEl(it);
+  const im = h('img', { class: 'swatch', alt: '', loading: 'lazy', decoding: 'async', src: u });
+  im.style.backgroundColor = it.L === 'g' ? it.col : (it.c === 'Nature' ? '#d6dfcf' : '#e8ebe5');
+  im.onerror = () => { im.onerror = null; im.src = swatchURL(it); };
+  return im;
+}
 function renderBuildList() {
-  const list = $('#buildList'); list.textContent = '';
-  const q = buildQuery;
+  const list = $('#buildList'), q = buildQuery, key = q ? 'q:' + q : 'c:' + buildCat;
+  const keep = buildRows.key === key ? buildRows.shown : 0;
   let arr = ITEMS.filter(it => q ? (it.key.includes(q) || (it.sub || '').toLowerCase().includes(q) || (it.m || []).some(([m]) => m.toLowerCase().includes(q))) : it.c === buildCat);
   if (q) arr.sort((a, b) => (b.key.startsWith(q) - a.key.startsWith(q)) || a.n.localeCompare(b.n));
-  let lastSub = null; const MAX = 400;
-  for (const it of arr.slice(0, MAX)) {
-    if (!q && (it.c === 'Nature' || it.c === 'Kits') && it.sub && it.sub !== lastSub) { list.append(h('h4', { style: 'margin:12px 4px 4px' }, it.sub)); lastSub = it.sub; }
+  list.textContent = ''; buildRows = { key, arr, total: arr.length, shown: 0, lastSub: null };
+  if (!arr.length) { list.append(h('p', { class: 'empty' }, 'Nothing matches "' + q + '".')); return; }
+  moreBuildRows(Math.max(BUILD_STEP, keep));
+}
+function moreBuildRows(n = BUILD_STEP) {
+  const list = $('#buildList'), R = buildRows, q = buildQuery, end = Math.min(R.arr.length, BUILD_MAX, R.shown + n);
+  const old = $('#buildMore'); if (old) old.remove();
+  const frag = document.createDocumentFragment();
+  for (const it of R.arr.slice(R.shown, end)) {
+    if (!q && (it.c === 'Nature' || it.c === 'Kits') && it.sub && it.sub !== R.lastSub) { frag.append(h('h4', { style: 'margin:12px 4px 4px' }, it.sub)); R.lastSub = it.sub; }
     const ds = it.m && it.m.length ? it.m.map(([m, n]) => n + ' ' + m).join(' · ') : (it.d || (it.c === 'Special' ? 'Found or received, not crafted' : 'Gathered or planted'));
     const row = h('button', { class: 'row', 'data-item': it.n, 'aria-pressed': it.n === curItem ? 'true' : 'false', onclick: () => { selectItem(it.n); if (innerWidth < 900) setSheet('peek'); toast(it.w > 1 || it.h > 1 ? 'Tap the map to place ' + it.n : 'Paint ' + it.n + ' on the map'); } },
-      swatchEl(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n, it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : '', it.w > 1 || it.h > 1 ? h('span', { class: 'note', style: 'margin-left:6px' }, it.w + '×' + it.h) : ''), h('div', { class: 'ds' }, (q ? CAT_META[it.c].label + ' · ' : '') + ds)));
+      listSwatch(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n, it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : '', it.w > 1 || it.h > 1 ? h('span', { class: 'note', style: 'margin-left:6px' }, it.w + '×' + it.h) : ''), h('div', { class: 'ds' }, (q ? CAT_META[it.c].label + ' · ' : '') + ds)));
     row.style.flex = '1'; row.style.minWidth = '0';
-    const wrap = h('div', { style: 'display:flex;align-items:center;min-width:0' }, row, h('button', { class: 'info', 'aria-label': 'Details for ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
-    list.append(wrap);
+    frag.append(h('div', { style: 'display:flex;align-items:center;min-width:0' }, row, h('button', { class: 'info', 'aria-label': 'Details for ' + it.n, onclick: () => showItemInfo(it) }, icon('info'))));
   }
-  if (arr.length > MAX) list.append(h('p', { class: 'note' }, 'Showing ' + MAX + ' of ' + arr.length + '. Search to narrow it down.'));
-  if (!arr.length) list.append(h('p', { class: 'empty' }, 'Nothing matches "' + q + '".'));
+  R.shown = end;
+  if (end < Math.min(R.arr.length, BUILD_MAX)) {
+    const more = h('button', { class: 'btn sm', id: 'buildMore', style: 'margin:10px auto', onclick: () => moreBuildRows() }, 'Show more');
+    frag.append(more);
+    if ('IntersectionObserver' in window) {
+      if (!buildObs) buildObs = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) moreBuildRows(); }, { root: $('#tab-build'), rootMargin: '0px 0px 800px 0px' });
+      buildObs.disconnect(); buildObs.observe(more);
+    }
+  } else if (R.arr.length > BUILD_MAX) frag.append(h('p', { class: 'note' }, 'Showing ' + BUILD_MAX + ' of ' + R.arr.length + '. Search to narrow it down.'));
+  list.append(frag);
 }
 function showItemInfo(it) {
   modal(it.n, (box) => {
