@@ -1522,7 +1522,7 @@ function placeRug(it, x, y) { // one rug at x, y; a different rug under it goes,
   for (let yy = y; yy < y + hh; yy++) for (let xx = x; xx < x + w; xx++) setGround(yy * plan.w + xx, v);
 }
 function floorAround(r) { // the floor a rug lies on, as far as the plan knows (a rug takes its squares): the most common floor right around it
-  const n = new Map(), add = (xx, yy) => { if (!inB(plan, xx, yy)) return; const v = plan.ground[yy * plan.w + xx]; if (v && !isRug(ITEMS[v - 1])) n.set(v, (n.get(v) || 0) + 1); };
+  const n = new Map(), add = (xx, yy) => { if (!inB(plan, xx, yy)) return; const k = yy * plan.w + xx, v = plan.ground[k], o = plan.occ[k] && plan.objs.get(plan.occ[k]); if (o && structural(ITEMS[o.i])) return; if (v && !isRug(ITEMS[v - 1])) n.set(v, (n.get(v) || 0) + 1); }; // not what's under walls: a rug in a room's corner lies on the room's floor
   for (let xx = r.x - 1; xx <= r.x + r.w; xx++) { add(xx, r.y - 1); add(xx, r.y + r.h); }
   for (let yy = r.y; yy < r.y + r.h; yy++) { add(r.x - 1, yy); add(r.x + r.w, yy); }
   let best = 0, bv = 0; for (const [v, k] of n) if (k > best) { best = k; bv = v; } return bv ? ITEMS[bv - 1] : null;
