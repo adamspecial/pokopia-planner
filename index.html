@@ -277,20 +277,23 @@ button.res{cursor:pointer}
 @media (max-width: 899px){
   .main{grid-template-columns:1fr}
   .panel{position:absolute;left:0;right:0;bottom:0;height:var(--sheet-h);border-left:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.14);transition:height .22s ease;z-index:20}
-  .handle{display:block;height:16px;flex:none;position:relative;cursor:grab;border:0;background:none;width:100%}
-  .handle::after{content:"";position:absolute;left:50%;top:6px;width:40px;height:4px;border-radius:4px;background:var(--line);transform:translateX(-50%)}
+  .panel.dragging{transition:none}
+  .handle{display:block;height:16px;flex:none;position:relative;cursor:grab;border:0;background:none;width:100%;touch-action:none;user-select:none}
+  .handle::after{content:"";position:absolute;left:50%;top:6px;width:44px;height:5px;border-radius:5px;background:var(--muted);opacity:.5;transform:translateX(-50%)}
+  .tabs{touch-action:none;user-select:none}
   .tab{padding:6px 2px 8px;font-size:11.5px}
-  .status{bottom:calc(var(--sheet-h) + 8px)}
-  .zoomctl{bottom:calc(var(--sheet-h) + 8px)}
+  .status{bottom:calc(var(--sheet-h) + 8px);transition:bottom .22s ease}
+  .zoomctl{bottom:calc(var(--sheet-h) + 8px);transition:bottom .22s ease}
+  .sheetdrag .status,.sheetdrag .zoomctl{transition:none}
   .inspector{bottom:calc(var(--sheet-h) + 44px);width:calc(100% - 64px);max-height:calc(100% - var(--sheet-h) - 96px)}
   .top{padding:6px 12px}
   .brand h1{font-size:16px}
   .planname{max-width:34vw}
   .hide-sm{display:none}
 }
-@media (max-width: 899px){ .toast{bottom:calc(var(--sheet-h) + 64px)} }
+@media (max-width: 899px){ .toast{bottom:calc(var(--sheet-h) + 64px)} html[data-sheet="full"] .toast{bottom:28px} }
 @media (max-width: 599px){ .brand h1{display:none} .planname{max-width:46vw} }
-@media (prefers-reduced-motion: reduce){ .panel{transition:none} .toast{transition:none} }
+@media (prefers-reduced-motion: reduce){ .panel,.status,.zoomctl{transition:none} .toast{transition:none} }
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#eef1ec">
@@ -1693,7 +1696,7 @@ cv.addEventListener('wheel', e => {
   else { view.px -= e.deltaX; view.py -= e.deltaY; requestDraw(); }
 }, { passive: false });
 function zoomAt(z, sx, sy) { const k = z / view.zoom; view.px = sx - (sx - view.px) * k; view.py = sy - (sy - view.py) * k; view.zoom = z; requestDraw(); updateStatus(); }
-function fitView() { if (!plan) return; const pad = 30; const sheet = innerWidth < 900 ? (72) : 0; const avH = H - sheet - 30; const z = clamp(Math.min((W - (innerWidth < 600 ? 24 : pad * 2)) / (plan.w * view.cs), (avH - 70) / (plan.h * view.cs)), 0.15, 3); view.zoom = z; const s = cellSize(); const ob = ($('#optbar').getBoundingClientRect().height || 40) + 24; view.px = (W - plan.w * s) / 2; view.py = ob + Math.max(0, (avH - ob - plan.h * s) / 3); requestDraw(); updateStatus(); }
+function fitView() { if (!plan) return; const pad = 30; const sheet = innerWidth < 900 ? sheetStops().peek : 0; const avH = H - sheet - 30; const z = clamp(Math.min((W - (innerWidth < 600 ? 24 : pad * 2)) / (plan.w * view.cs), (avH - 70) / (plan.h * view.cs)), 0.15, 3); view.zoom = z; const s = cellSize(); const ob = ($('#optbar').getBoundingClientRect().height || 40) + 24; view.px = (W - plan.w * s) / 2; view.py = ob + Math.max(0, (avH - ob - plan.h * s) / 3); requestDraw(); updateStatus(); }
 $('#zin').onclick = () => zoomAt(clamp(view.zoom * 1.3, 0.15, 5), W / 2, H / 2);
 $('#zout').onclick = () => zoomAt(clamp(view.zoom / 1.3, 0.15, 5), W / 2, H / 2);
 $('#zfit').onclick = fitView;
@@ -2191,10 +2194,81 @@ function showTab(t, fromHash) {
 $$('.tab').forEach(b => b.onclick = () => { if (innerWidth < 900) { if (activeTab === b.dataset.tab && sheetState !== 'peek') setSheet('peek'); else if (sheetState === 'peek') setSheet('half'); } showTab(b.dataset.tab); });
 addEventListener('hashchange', () => showTab(location.hash.slice(1), true));
 let sheetState = 'peek';
-function setSheet(s) { sheetState = s; const hgt = s === 'peek' ? '72px' : s === 'half' ? '46%' : '86%'; document.documentElement.style.setProperty('--sheet-h', hgt); setTimeout(() => { requestDraw(); }, 250); }
-(() => { const hd = $('#handle'); let sy = null, sh = 0; hd.onclick = () => setSheet(sheetState === 'peek' ? 'half' : sheetState === 'half' ? 'full' : 'peek');
-  hd.addEventListener('pointerdown', e => { sy = e.clientY; sh = $('#panel').getBoundingClientRect().height; hd.setPointerCapture(e.pointerId); });
-  hd.addEventListener('pointerup', e => { if (sy == null) return; const dy = e.clientY - sy; sy = null; if (Math.abs(dy) < 8) return; const hh = sh - dy, H2 = innerHeight; setSheet(hh < H2 * 0.25 ? 'peek' : hh < H2 * 0.65 ? 'half' : 'full'); }); })();
+const SHEET_ORDER = ['peek', 'half', 'full'];
+function sheetStops() {
+  const panel = $('#panel'), main = $('.main').getBoundingClientRect(), top = $('.top').getBoundingClientRect().bottom;
+  const peek = Math.round($('.tabs').getBoundingClientRect().bottom - panel.getBoundingClientRect().top) || 72;
+  const full = Math.max(peek, Math.round(main.bottom - top));
+  return { peek, half: clamp(Math.round(main.height * 0.46), peek, full), full };
+}
+function setSheet(s) {
+  sheetState = s; const root = document.documentElement;
+  root.style.setProperty('--sheet-h', sheetStops()[s] + 'px'); root.dataset.sheet = s;
+  $('#handle').setAttribute('aria-label', s === 'full' ? 'Close panel' : 'Open panel further');
+  setTimeout(() => { requestDraw(); }, 250);
+}
+(() => {
+  const panel = $('#panel'), hd = $('#handle'), tabs = $('.tabs'), mw = $('#mapwrap');
+  const phone = () => innerWidth < 900;
+  let d = null, raf = 0, quietUntil = 0;
+  const begin = (y, t) => { d = { y0: y, h0: panel.getBoundingClientRect().height, from: sheetState, st: sheetStops(), pts: [[t, y]], h: 0, far: 0 }; d.h = d.h0; panel.classList.add('dragging'); mw.classList.add('sheetdrag'); };
+  const paint = () => { raf = 0; if (!d) return; panel.style.height = d.h + 'px'; mw.style.setProperty('--sheet-h', d.h + 'px'); };
+  const move = (y, t) => {
+    d.h = clamp(d.h0 - (y - d.y0), d.st.peek, d.st.full); d.far = Math.max(d.far, Math.abs(y - d.y0));
+    d.pts.push([t, y]); while (d.pts.length > 2 && t - d.pts[0][0] > 90) d.pts.shift();
+    if (!raf) raf = requestAnimationFrame(paint);
+  };
+  const end = (cancel, t) => {
+    if (!d) return; const { st, h0, h: hh, pts, from, far } = d; d = null;
+    if (raf) cancelAnimationFrame(raf); raf = 0;
+    const [ta, ya] = pts[0], [tb, yb] = pts[pts.length - 1];
+    const v = tb > ta && t - tb < 90 ? (ya - yb) / (tb - ta) : 0;
+    let target = from;
+    if (!cancel) {
+      if (Math.abs(v) > 0.5) target = v > 0 ? 'full' : 'peek';
+      else {
+        const proj = hh + v * 200;
+        target = SHEET_ORDER.reduce((a, b) => Math.abs(st[b] - proj) < Math.abs(st[a] - proj) ? b : a);
+        if (target === from && Math.abs(hh - h0) > 56) target = SHEET_ORDER[clamp(SHEET_ORDER.indexOf(from) + Math.sign(hh - h0), 0, 2)];
+      }
+    }
+    panel.classList.remove('dragging'); mw.classList.remove('sheetdrag');
+    panel.style.height = ''; mw.style.removeProperty('--sheet-h');
+    setSheet(target);
+    if (far >= 10) quietUntil = performance.now() + 400;
+  };
+  hd.onclick = () => setSheet(sheetState === 'peek' ? 'half' : sheetState === 'half' ? 'full' : 'peek');
+  panel.addEventListener('click', e => { if (performance.now() < quietUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+  const grab = (e) => {
+    if (!phone() || d || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const id = e.pointerId, y0 = e.clientY, el = e.currentTarget; let on = false;
+    const mv = (ev) => { if (ev.pointerId !== id) return; if (!on) { if (Math.abs(ev.clientY - y0) < 6) return; on = true; begin(y0, e.timeStamp); try { el.setPointerCapture(id); } catch (er) { } } move(ev.clientY, ev.timeStamp); };
+    const up = (ev) => { if (ev.pointerId !== id) return; removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); if (on) end(ev.type === 'pointercancel', ev.timeStamp); };
+    addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  };
+  hd.addEventListener('pointerdown', grab); tabs.addEventListener('pointerdown', grab);
+  let tc = null;
+  panel.addEventListener('touchstart', e => {
+    tc = null; if (!phone() || d || e.touches.length !== 1) return;
+    const body = e.target.closest('.tabbody'); if (!body || e.target.closest('input[type=range],textarea')) return;
+    tc = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: e.timeStamp, body, on: false };
+  }, { passive: true });
+  panel.addEventListener('touchmove', e => {
+    if (!tc) return; const t = e.touches[0];
+    if (!tc.on) {
+      const dx = t.clientX - tc.x, dy = t.clientY - tc.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 5) return;
+      const mine = e.cancelable && Math.abs(dy) > Math.abs(dx) && (dy < 0 ? sheetState !== 'full' : tc.body.scrollTop <= 0);
+      if (!mine) { tc = null; return; }
+      tc.on = true; begin(tc.y, tc.t);
+    }
+    e.preventDefault(); move(t.clientY, e.timeStamp);
+  }, { passive: false });
+  const lift = (e) => { if (tc && tc.on) end(e.type === 'touchcancel', e.timeStamp); tc = null; };
+  panel.addEventListener('touchend', lift); panel.addEventListener('touchcancel', lift);
+  addEventListener('resize', () => { if (phone() && !d) setSheet(sheetState); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (phone() && !d) setSheet(sheetState); });
+})();
 
 let renderQueued = false;
 function renderPanel() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; const f = { build: renderBuild, materials: renderMaterials, habitats: renderHabitats, pokemon: renderPokemon, plans: renderPlans }[activeTab]; if (f) f(); }); }
