@@ -13,13 +13,14 @@ Needs Pillow (pip install pillow). GitHub runs this for you: see .github/workflo
 2. Floor tiles. Floors, terrain and rugs cover the map one square at a time, so they need a flat,
    top-down picture rather than the game's 3D icon. Nearly all of their pictures are the same cube drawn
    from the same angle, so one calibrated set of corners (TOP_FACE) unwarps the top face of every one of
-   them in a single batch; water-like pictures and rugs are cropped instead. The tiles go in
+   them in a single batch; water-like pictures are cropped instead. Rugs are items drawn whole across their
+   footprint, not floor patterns, so they get no tile, only their colour. The tiles go in
    pics/top/<key>.webp. They are made from the pictures already here, without downloading anything, and
    only remade when their picture changes or TILE_V goes up.
 
 Everything is recorded in pics/index.json:
   { "v": 1, "pics": { key: short hash }, "missing": { key: reason },
-    "tv": TILE_V, "top": { key: [tile hash, "#rrggbb" average colour, picture hash] } }
+    "tv": TILE_V, "top": { key: [tile hash ("" for rugs, which have no tile), "#rrggbb" average colour, picture hash] } }
 """
 import concurrent.futures as cf
 import hashlib
@@ -67,10 +68,10 @@ def pic_key(remote):
 
 
 def wanted():
-    """{key: Serebii file name} for every picture, and the keys of ground items (which also get a floor tile)."""
+    """{key: Serebii file name} for every picture, the keys of ground items (which also get a floor tile) and of rugs."""
     with open(os.path.join(ROOT, 'data.json'), encoding='utf-8') as f:
         items = json.load(f)['items']
-    remote, ground = {}, set()
+    remote, ground, rugs = {}, set(), set()
     for it in items:
         im = it.get('im')
         if not im:
@@ -81,7 +82,9 @@ def wanted():
             raise SystemExit('Two pictures would both be saved as %s: %s and %s' % (k, remote[k], r))
         if it.get('L') == 'g':
             ground.add(k)
-    return remote, ground
+        if it.get('c') == 'Rug':
+            rugs.add(k)
+    return remote, ground, rugs
 
 
 def fetch(url):
@@ -195,7 +198,7 @@ def main():
     except (OSError, ValueError):
         index = {}
     have = index.get('pics', {})
-    remote, ground = wanted()
+    remote, ground, rugs = wanted()
 
     pics, missing, todo = {}, {}, []
     for k in sorted(remote):
@@ -218,36 +221,40 @@ def main():
             if n % 100 == 0:
                 print('  %d / %d' % (n, len(todo)))
 
-    # floor tiles, all in one batch, from the pictures now here
+    # floor tiles, all in one batch, from the pictures now here. A rug is one item drawn whole across its footprint,
+    # never repeated square by square, so it gets no tile file: only its colour (for squares too small to show it).
     old_top = index.get('top', {}) if index.get('tv') == TILE_V else {}
     top, made = {}, 0
     for k in sorted(ground & set(pics)):
         tpath = os.path.join(TOP, k + '.webp')
         o = old_top.get(k)
-        if o and o[2] == pics[k] and os.path.exists(tpath):
+        if o and o[2] == pics[k] and (o[0] == '' if k in rugs else o[0] and os.path.exists(tpath)):
             top[k] = o
             continue
         data, col = make_tile(k, os.path.join(PICS, k + '.webp'))
+        if k in rugs:
+            top[k] = ['', col, pics[k]]
+            continue
         with open(tpath, 'wb') as f:
             f.write(data)
         top[k] = [short_hash(data), col, pics[k]]
         made += 1
 
     # pictures and tiles no item uses any more
-    for folder, keep in ((PICS, pics), (TOP, top)):
+    for folder, keep in ((PICS, pics), (TOP, {k for k, t in top.items() if t[0]})):
         for name in os.listdir(folder):
             if name.endswith('.webp') and name[:-5] not in keep:
                 os.remove(os.path.join(folder, name))
 
     size = sum(os.path.getsize(os.path.join(PICS, k + '.webp')) for k in pics)
-    tsize = sum(os.path.getsize(os.path.join(TOP, k + '.webp')) for k in top)
+    tsize = sum(os.path.getsize(os.path.join(TOP, k + '.webp')) for k, t in top.items() if t[0])
     out = {'v': 1, 'source': SOURCE, 'bytes': size + tsize, 'pics': dict(sorted(pics.items())), 'missing': dict(sorted(missing.items())),
            'tv': TILE_V, 'top': dict(sorted(top.items()))}
     with open(index_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, separators=(',', ':'), ensure_ascii=False)
         f.write('\n')
     print('%d pictures in pics/ (%.1f MB), %d missing' % (len(pics), size / 1e6, len(missing)))
-    print('%d floor tiles in pics/top/ (%.2f MB), %d made this run' % (len(top), tsize / 1e6, made))
+    print('%d floor tiles in pics/top/ (%.2f MB), %d made this run' % (sum(1 for t in top.values() if t[0]), tsize / 1e6, made))
     reasons = {}
     for r in missing.values():
         reasons[r] = reasons.get(r, 0) + 1

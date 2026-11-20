@@ -1387,7 +1387,8 @@ function materialTotals(raw) {
     else { natural += mult; gather.set(it.n, (gather.get(it.n) || 0) + mult); }
   };
   for (const ob of plan.objs.values()) addItem(ITEMS[ob.i], 1);
-  const gc = new Map(); for (let k = 0; k < plan.ground.length; k++) { const g = plan.ground[k]; if (g) gc.set(g - 1, (gc.get(g - 1) || 0) + 1); }
+  const gc = new Map(); for (let k = 0; k < plan.ground.length; k++) { const g = plan.ground[k]; if (g && !isRug(ITEMS[g - 1])) gc.set(g - 1, (gc.get(g - 1) || 0) + 1); }
+  for (const r of rugsOf(plan)) gc.set(r.i, (gc.get(r.i) || 0) + 1); // a rug counts once, however many squares it covers
   for (const [i, n] of gc) addItem(ITEMS[i], n);
   let out = need;
   if (raw) {
@@ -1488,8 +1489,54 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = nu
   }
   c.restore();
 }
+/* rugs: one item with a footprint (Change sets it), lying on the floor layer so furniture can stand on it. The floor layer only
+   knows which rug covers each square, so where each rug lies is read back from it, top-left first, at the rug's own size
+   (turned if it only fits that way). Each rug is drawn once across its footprint, never repeated square by square. */
+const isRug = (it) => it.c === 'Rug';
+const painted = (it) => it.L === 'g' && !isRug(it); // floors and terrain: painted square by square
+let rugTaken = new Uint8Array(0);
+function rugsOf(p) { // [{ i, x, y, w, h }] for every rug on the plan
+  const out = [], W = p.w, g = p.ground; if (rugTaken.length < g.length) rugTaken = new Uint8Array(g.length); else rugTaken.fill(0, 0, g.length);
+  const taken = rugTaken;
+  for (let k = 0; k < g.length; k++) {
+    const v = g[k]; if (!v || taken[k] || !isRug(ITEMS[v - 1])) continue;
+    const it = ITEMS[v - 1], x = k % W, y = (k - x) / W, f = footOf(it);
+    const free = (w, h) => { if (x + w > W || y + h > p.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const q = yy * W + xx; if (g[q] !== v || taken[q]) return false; } return true; };
+    let w = f[0], h = f[1];
+    if (!free(w, h)) {
+      if (free(h, w)) [w, h] = [h, w];
+      else { w = 1; while (w < f[0] && x + w < W && g[k + w] === v && !taken[k + w]) w++; h = 1; while (h < f[1] && free(w, h + 1)) h++; } // a cut-off piece: what is left of it here
+    }
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) taken[yy * W + xx] = 1;
+    out.push({ i: v - 1, x, y, w, h });
+  }
+  return out;
+}
+function rugAt(x, y) { const k = y * plan.w + x, v = plan.ground[k]; if (!v || !isRug(ITEMS[v - 1])) return null; return rugsOf(plan).find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) || null; }
+function clearRug(r) { for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) setGround(yy * plan.w + xx, 0); }
+function placeRug(it, x, y) { // one rug at x, y; a different rug under it goes, the same rug already here stays (so dragging lays them side by side)
+  const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1], v = it.i + 1;
+  if (x + w > plan.w || y + hh > plan.h) { toast(it.n + ' is ' + w + '×' + hh + ' and doesn\'t fit here.'); return; }
+  for (let yy = y; yy < y + hh; yy++) for (let xx = x; xx < x + w; xx++) if (plan.ground[yy * plan.w + xx] === v) return;
+  for (let yy = y; yy < y + hh; yy++) for (let xx = x; xx < x + w; xx++) { const r = rugAt(xx, yy); if (r) clearRug(r); }
+  for (let yy = y; yy < y + hh; yy++) for (let xx = x; xx < x + w; xx++) setGround(yy * plan.w + xx, v);
+}
+function floorAround(r) { // the floor a rug lies on, as far as the plan knows (a rug takes its squares): the most common floor right around it
+  const n = new Map(), add = (xx, yy) => { if (!inB(plan, xx, yy)) return; const v = plan.ground[yy * plan.w + xx]; if (v && !isRug(ITEMS[v - 1])) n.set(v, (n.get(v) || 0) + 1); };
+  for (let xx = r.x - 1; xx <= r.x + r.w; xx++) { add(xx, r.y - 1); add(xx, r.y + r.h); }
+  for (let yy = r.y; yy < r.y + r.h; yy++) { add(r.x - 1, yy); add(r.x + r.w, yy); }
+  let best = 0, bv = 0; for (const [v, k] of n) if (k > best) { best = k; bv = v; } return bv ? ITEMS[bv - 1] : null;
+}
+function drawRug(c, it, x, y, s, w, h, under) { // its picture stretched across the footprint, on the floor it lies on (under: undefined = leave what's there); false until the picture is in
+  const u = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = u && mapPic(u); if (!p) return false;
+  const a = c.globalAlpha;
+  if (under) for (let j = 0; j < h; j++) drawGroundRun(c, under, x, y + j * s, s, w);
+  else if (under === null) { c.fillStyle = theme['map-empty'] || '#f4efe4'; c.fillRect(x, y, w * s + 0.6, h * s + 0.6); }
+  c.globalAlpha = a; const pad = Math.max(1, s * 0.06); drawPicIn(c, p, x + pad, y + pad, w * s - pad * 2, h * s - pad * 2, true); return true;
+}
 function drawGroundRun(c, it, x, y, s, n) { // n squares of the same floor side by side: its tile repeated as one fill, lined up with the grid
   const pp = picsFor(it), p = pp[1] && s * dpr >= TILE_PIC_MIN ? mapPic(pp[1]) : null;
+  if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, n * s + 0.6, s + 0.6); return; } // its colour; the rug itself is drawn whole later
   if (p) {
     const [src] = sizedPic(p, Math.ceil(s * dpr)), at = s + ',' + view.px + ',' + view.py;
     if (!p.pat || p.pat[0] !== src || p.pat[2] !== c) p.pat = [src, c.createPattern(src, 'repeat'), c, ''];
@@ -1501,6 +1548,7 @@ function drawGroundRun(c, it, x, y, s, n) { // n squares of the same floor side 
 }
 function drawGroundCell(c, it, x, y, s) {
   const pp = picsFor(it);
+  if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6); return; } // a rug isn't a pattern: one square of it is just its colour
   if (pp[1] && s * dpr >= TILE_PIC_MIN) { const p = mapPic(pp[1]); if (p) { drawPicIn(c, p, x, y, s + 0.6, s + 0.6, true); return; } }
   c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6);
   if (s < 9) return;
@@ -1570,6 +1618,8 @@ function draw(t, c = ctx) {
     if (!showAreas && !sel) continue;
     drawArea(c, r.area, s, sel);
   }
+  // rugs, each once across its footprint, under the items standing on them
+  if (s >= 6) for (const r of rugsOf(plan)) { if (r.x + r.w < x0 || r.x > x1 || r.y + r.h < y0 || r.y > y1) continue; drawRug(c, ITEMS[r.i], view.px + r.x * s, view.py + r.y * s, s, r.w, r.h, floorAround(r)); }
   // objects
   const drawn = new Set();
   const big = [];
@@ -1614,9 +1664,9 @@ function draw(t, c = ctx) {
   if (hover && !drag && plan) {
     const [hx, hy] = hover; const it = currentItem();
     if (tool === 'place' && it && inB(plan, hx, hy)) {
-      const ft = footOf(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = it.L === 'g' ? brush : tw, fh = it.L === 'g' ? brush : th;
-      const hq = plan.objs.get(plan.occ[hy * plan.w + hx]); const ok = it.L === 'g' || (mu ? !blocker(it, hx, hy, fw, fh) : brush > 1 || !hq || hq.i === it.i || replaces(it, hq));
-      c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawPicItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
+      const ft = footOf(it), rug = isRug(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = rug ? (rotated ? ft[1] : ft[0]) : it.L === 'g' ? brush : tw, fh = rug ? (rotated ? ft[0] : ft[1]) : it.L === 'g' ? brush : th;
+      const hq = plan.objs.get(plan.occ[hy * plan.w + hx]); const ok = rug ? hx + fw <= plan.w && hy + fh <= plan.h : it.L === 'g' || (mu ? !blocker(it, hx, hy, fw, fh) : brush > 1 || !hq || hq.i === it.i || replaces(it, hq));
+      c.globalAlpha = 0.55; if (rug) { if (!drawRug(c, it, view.px + hx * s, view.py + hy * s, s, fw, fh)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s); } } else if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawPicItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if ((tool === 'stamp' || tool === 'paste' || tool === 'move') && inB(plan, hx, hy)) {
       const fw = tool === 'paste' ? clip.w : tool === 'move' ? moving.w : 5, fh = tool === 'paste' ? clip.h : tool === 'move' ? moving.h : 5;
@@ -1686,7 +1736,8 @@ function selectItem(name, switchTool = true) {
 
 function placeCell(x, y) {
   const it = currentItem(); if (!it) return;
-  if (it.L === 'g') { for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) { const xx = x + dx, yy = y + dy; if (inB(plan, xx, yy)) setGround(yy * plan.w + xx, it.i + 1); } return; }
+  if (isRug(it)) { placeRug(it, x, y); return; }
+  if (it.L === 'g') { for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) { const xx = x + dx, yy = y + dy; if (inB(plan, xx, yy)) { const r = rugAt(xx, yy); if (r) clearRug(r); setGround(yy * plan.w + xx, it.i + 1); } } return; }
   if (multi(it)) { const ft = footOf(it), [w, hh] = wallTurn(it, x, y, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]); const r = putObj(it, x, y, w, hh); if (r.err) toast(whyNot(r.err, w, hh, it)); return; }
   let put = 0, stop = null;
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
@@ -1701,7 +1752,7 @@ function eraseCell(x, y) {
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; const oid = plan.occ[k];
     if (oid && eraseMode !== 'ground') { const ob = plan.objs.get(oid); delObj(ob); if (inWall(ITEMS[ob.i])) shut.push(ob); if (eraseMode === 'both') continue; }
-    if (!oid && eraseMode !== 'objects') setGround(k, 0); else if (eraseMode === 'ground') setGround(k, 0);
+    if ((!oid && eraseMode !== 'objects') || eraseMode === 'ground') { const r = rugAt(xx, yy); if (r) clearRug(r); else setGround(k, 0); } // a rug goes as a whole
   }
   for (const ob of shut) closeWall(ob);
 }
@@ -1714,6 +1765,11 @@ function heightCell(x, y, seen) {
 function lineCells(x0, y0, x1, y1, fn) { const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; for (; ;) { fn(x0, y0); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
 function fillRect(r) {
   const it = currentItem(); if (!it) return;
+  if (isRug(it)) { // whole rugs side by side, as many as fit inside the area
+    const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; let n = 0;
+    for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) if (x >= 0 && y >= 0 && x + w <= plan.w && y + hh <= plan.h) { placeRug(it, x, y); n++; }
+    if (!n) toast(it.n + ' is ' + w + '×' + hh + ': drag an area at least that big.'); return;
+  }
   if (it.L !== 'g' && multi(it)) { const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1]; if (r.w < w || r.h < hh) { const [tw, th] = wallTurn(it, r.x, r.y, w, hh), q = putObj(it, r.x, r.y, tw, th); if (q.err) toast(whyNot(q.err, tw, th, it)); return; } let n = 0, last = null; for (let y = r.y; y + hh <= r.y + r.h; y += hh) for (let x = r.x; x + w <= r.x + r.w; x += w) { const q = putObj(it, x, y, w, hh); if (q.ob) n++; else last = q.err; } if (!n && last) toast(whyNot(last, w, hh, it)); return; }
   const b = brush; brush = 1; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (fillMode === 'outline' && x > r.x && x < r.x + r.w - 1 && y > r.y && y < r.y + r.h - 1) continue; if (inB(plan, x, y)) placeCell(x, y); } brush = b;
 }
@@ -1849,7 +1905,7 @@ function swatchURL(it) {
 /* item pictures live inside the app (pics/, filled by tools/pictures.py) so they show offline; Serebii is only a fallback for any not copied yet */
 const PIC_WEB = 'https://www.serebii.net/pokemonpokopia/items/';
 const picSlug = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-let PICS = { pics: {}, missing: {}, top: {} }; // pics/index.json: key -> short content hash; top: key -> [floor tile hash, its colour]
+let PICS = { pics: {}, missing: {}, top: {} }; // pics/index.json: key -> short content hash; top: key -> [floor tile hash ('' for rugs), its colour]
 const picRemote = (it) => it && it.im ? (it.im === 1 ? picSlug(it.n) : String(it.im)) : null; // Serebii's file name
 const picKey = (it) => { const r = picRemote(it); return r && r.replace(/[^a-z0-9-]/g, ''); }; // the app's copy (same as pic_key() in tools/pictures.py)
 const localPic = (k) => PICS.pics[k] ? 'pics/' + k + '.webp?v=' + PICS.pics[k] : null;
@@ -1866,7 +1922,7 @@ const picQueue = []; let picBusy = 0, picRedraw = false, sizedCount = 0;
 const picOf = []; // item index -> [picture url, floor tile url, floor tile colour]
 function picsFor(it) {
   let p = picOf[it.i];
-  if (!p) { const k = picKey(it), t = k && PICS.top && PICS.top[k]; p = picOf[it.i] = [k ? localPic(k) : null, t ? 'pics/top/' + k + '.webp?v=' + t[0] : null, t ? t[1] : null]; }
+  if (!p) { const k = picKey(it), t = k && PICS.top && PICS.top[k]; p = picOf[it.i] = [k ? localPic(k) : null, t && t[0] ? 'pics/top/' + k + '.webp?v=' + t[0] : null, t ? t[1] : null]; }
   return p;
 }
 function mapPic(url) { // the picture, ready to draw, or null while it loads
@@ -1935,7 +1991,7 @@ function picsReady(urls, ms) { // wait (up to ms) until these pictures have load
 }
 addEventListener('online', () => { for (const [u, p] of mapPics) if (p.failed) mapPics.delete(u); requestDraw(); }); // try ones that failed offline again
 /* keeping every picture on the device: saved in the background into a cache the offline helper (sw.js) reads from */
-const allPicURLs = () => [...Object.keys(PICS.pics).map(localPic), ...Object.keys(PICS.top || {}).map(k => 'pics/top/' + k + '.webp?v=' + PICS.top[k][0])]; // pictures and floor tiles
+const allPicURLs = () => [...Object.keys(PICS.pics).map(localPic), ...Object.keys(PICS.top || {}).filter(k => PICS.top[k][0]).map(k => 'pics/top/' + k + '.webp?v=' + PICS.top[k][0])]; // pictures and floor tiles
 const PIC_CACHE = 'pokopia-pics';
 const picFill = { total: 0, done: 0, failed: 0, running: false, waiting: false, unsupported: false };
 async function fillPictures(force) {
@@ -1997,8 +2053,8 @@ function renderOptbar() {
       const p = h('span', { class: 'pill' }, swatchEl(it), h('b', null, it.n));
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
-      if (it.L !== 'g') { const ft = footOf(it); ob.append(h('span', { class: 'pill', title: sizeGuessed(it) ? 'Guessed size: tap Change if it differs in your game' : null }, h('span', { class: 'lbl' }, 'Size'), (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? ' (guess)' : ''), ft[0] !== ft[1] ? h('button', { class: 'btn sm', title: 'Rotate (Q)', onclick: () => { rotated = !rotated; renderOptbar(); requestDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change'))); }
-      if (it.L !== 'g' && multi(it)) { }
+      if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', title: sizeGuessed(it) ? 'Guessed size: tap Change if it differs in your game' : null }, h('span', { class: 'lbl' }, 'Size'), (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? ' (guess)' : ''), ft[0] !== ft[1] ? h('button', { class: 'btn sm', title: 'Rotate (Q)', onclick: () => { rotated = !rotated; renderOptbar(); requestDraw(); } }, icon('rotate'), 'Rotate') : '', h('button', { class: 'btn sm', onclick: () => itemSizeDialog(it) }, 'Change'))); }
+      if ((it.L !== 'g' && multi(it)) || isRug(it)) { } // one item per tap: no brush
       else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Fill'), segmented([['solid', 'Solid'], ['outline', 'Outline (walls)']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode')));
       else if (tool === 'place') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item in the Build panel'));
@@ -3117,7 +3173,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T11:30';
+const APP_BUILD = '2026-11-20T13:15';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
