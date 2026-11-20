@@ -14,15 +14,32 @@ The pictures live in `pics/` inside the app, so they show without internet. The 
 
 ## Light, warmth and humidity
 
-Every Pokémon has one ideal habitat: Bright or Dark, Warm or Cool, Humid or Dry. These are three separate scales, so one home can be warm and humid at once. Only opposites on the same scale (Bright and Dark, say) can't both be happy in one home. Each home's inspector shows where it sits on each scale, which residents it suits, and what to change.
+Every Pokémon has one ideal habitat: Bright or Dark, Warm or Cool, Humid or Dry. These are three separate scales, so one home can be warm and humid at once. Each home's inspector shows where it sits on each scale, which residents it suits, what to change, and what counts.
 
-- **Light.** These numbers come from players' tests. In a house built from blocks, daylight adds up to 90 for the share of the floor inside the walls that isn't roofed; set this with **Roof** in the house's inspector. Unset counts as open sky. Lights anywhere in the active area add 20, 40 or 80, from 1 level below the door to 3 above it, and that includes lights on the roof. Candles add 20, campfires, torches and paper lanterns 40, and electric lamps, streetlights and mushroom lamps 80. A house is bright at 100 or more and dark at 60 or less. A kit house has a roof and gets no daylight. It's bright at 40 or more and dark below that, and only what's inside counts, floor by floor.
-- **Warmth.** A lit campfire, firepit or stone fireplace or a Heat Rock adds 40, a bonfire 80, and lava 20 a tile. An Icy Rock or ice takes 40 off. Torches add 20, candles 10, and lamps nothing. A home is warm at 40 or more and cool at −40 or less. The air conditioner counts as set to hot or cold, whichever the residents want.
-- **Humidity.** A humidifier, a Damp Rock, or a fountain or sprinkler by water adds 40. A filled bathtub or basin, a shower or a sink adds 20, water nearby 10 a tile, trees 10, and potted plants 5. A Smooth Rock takes 40 off. A home is humid at 40 or more and dry at 10 or less.
+Every item, and every tile of water, lava, ice or grass, carries light, warmth and humidity points. A home adds up the ones that count for it. The points and rules come from one player's in-game tests: each value was checked against how the residents reacted ([あかるい・くらい](https://note.com/ccopedia/n/ndadc82daf39f), [あたたかい・すずしい](https://note.com/ccopedia/n/n4b1e798887df) and [うるおい・乾そう](https://note.com/ccopedia/n/n48ddc4e1afbd) on note.com, October 2026). The placement rules agree with [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/). Items those tests didn't cover are marked *untested* and are the planner's guess.
 
-The game doesn't show its warmth and humidity numbers, so those points are the planner's own estimate. They're based on the items' descriptions and on what players report. Fires, lamps and taps are counted as lit, powered and running.
+**What counts where**
 
-**Decorate** and **Decorate inside** use this. Each resident's ideal gets a **Make it …** list of items that help. Suggestions that would spoil someone's ideal are marked ⚠ and drop down the list. For example, a lamp is marked if a resident wants it dark, and a campfire if one wants it cool. Auto-place adds what's missing and leaves those items out. The resident picker shows who already suits the home as it is.
+- **A house you built from blocks**, or a kit built from blocks such as the cottages and the log cabin: only what's on the floor inside the walls or on a door tile counts, from 1 level below to 3 above the floor. The walls, anything on top of or under them, and anything outside never count. Lights hung higher than 3 don't count either. Daylight is 90 × floor tiles open to the sky ÷ every tile of the house, walls included. That's 62 at most even in the biggest house (9×10), and 45 in a 5×4. A roof is any block 2 or more above the floor. Set how much is roofed with **Roof**; unset counts as open sky. Kits built from blocks count as roofed, and only their ground floor counts.
+- **A kit house with its own interior**: everything inside counts, on both floors and at any height. There's no daylight, and windows, curtains, wallpaper and floors don't count.
+
+**When a home is bright, warm or humid**
+
+| | House from blocks | Kit house |
+|---|---|---|
+| Bright / Dark | 100 or more / 60 or less | 40 or more / 40 or less (exactly 40 suits both) |
+| Warm / Cool | +60 or more / −60 or less | the same |
+| Humid / Dry | 100 or more / 30 or less | 40 or more / 60 or less (40 to 60 suits both) |
+
+**Points**
+
+- **Light:** lamps, streetlights, mushroom lamps, the bonfire and neon flooring add 80. Campfires, firepits, wall torches, the stone fireplace, paper lanterns, cube lights, vending machines and small stages add 40. Candles, pumpkin lanterns, gaming furniture and cyber flooring add 20. A beach parasol takes 40 off. The oil lantern, TVs and computers give no light.
+- **Warmth:** a lit fire (campfire, firepit, wall torch, stone fireplace, bonfire), a cooking stove, the Fiery Magby statue, a Heat Rock, the furnace and an air conditioner on hot each add 60. So does each tile of lava. Molten rock and each hot-spring tile add 30; candles and each Lava rock block add 10. An Icy Rock, a refrigerator, a cooler, a fan, a ceiling fan and an air conditioner on cold each take 60 off. Ice, icicles, shaved ice and soda floats take 10 off. Lamps don't warm.
+- **Humidity:** a filled water basin or bathtub, a humidifier, a Damp Rock, the funky diffuser, a working fountain, sprinkler or bubble machine and the hot-spring spout each add 100. Each tile of water, muddy water, hot spring or waterfall adds 20, and so does a sink, shower or toilet, whether running or not. Trees and the Chansey plant add 5; grass, flowers, hedges, crops and potted plants add 2.5. Each grass ground tile adds 1. The Castform charm adds 50 when turned to rain and takes 50 off when turned to sun. A Smooth Rock takes 100 off, but stops working in rain unless it's in a kit house. Each dry grass tile takes 0.5 off. Rain itself adds nothing.
+
+Fires count only when lit by a Burn Pokémon; the cooking stove and the Magby statue need no lighting. Appliances count only when powered and switched on, and tubs, basins and fountains only when filled or working. The planner counts them all as working. The air conditioner counts as set to hot or cold, whichever the residents want. Slowpoke's Yawn score is something else: it covers the whole town area, not one home.
+
+**Decorate** and **Decorate inside** use all of this. Each resident's ideal gets a **Make it …** list of items that help. Suggestions that would spoil someone's ideal are marked ⚠ and drop down the list; for example, a lamp is marked if a resident wants it dark. Auto-place adds what's missing and leaves those out. The resident picker shows who already suits the home as it is.
 
 ## Sync between devices
 
