@@ -775,10 +775,11 @@ function compat(p, others) { let shared = 0; for (const o of others) for (const 
 function decorPlan(home, floor) {
   const res = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const present = presentFavs(home, floor);
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
-  const sugg = [];
-  for (const it of ITEMS) { if (!it.fv || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let sc = 0; const hits = []; for (const f of it.fv) if (need.has(f)) { sc += need.get(f); hits.push(f); } if (sc > 0) sugg.push({ it, sc: sc + (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), hits }); }
-  sugg.sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
-  return { res, present, need, sugg };
+  const lack = new Set(comfortTrio(home).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
+  for (const it of ITEMS) { if ((!it.fv && !it.tg) || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let fav = 0; const hits = []; for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); } const fill = !!(it.tg && lack.has(it.tg)), base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0); all.push({ it, hits, fav, fill, base, sc: fav + (fill ? fillW : 0) + base }); }
+  const sugg = all.filter(x => x.fav > 0 || x.fill).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
+  const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n));
+  return { res, present, need, sugg, lack, byTag };
 }
 const ENV_TIP = { Bright: 'Add lamps and lights, and leave some roof open for daylight.', Dark: 'Keep lights out and roof it over fully.', Humid: 'Add water and plants, and keep the plants watered.', Dry: 'Keep water and plants away; a Smooth rock dries the area.', Warm: 'Use real flames (campfire, candles, a fireplace); lamps don\'t warm a room.', Cool: 'Keep fires and heat sources away.' };
 function resChip(home, r, onChange) {
@@ -839,6 +840,8 @@ function residentPicker(home, floor) {
     inp.oninput = () => { q = inp.value.trim().toLowerCase(); render(); }; render();
   });
 }
+const trioLabel = (t) => (TRIO.find(x => x[0] === t) || [])[1] || t;
+function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length ? ' — none of their favourite kinds' : ''); }
 function decorModal(home) {
   const dp = decorPlan(home); let filt = null;
   modal('Decorate ' + home.label, (box) => {
@@ -850,17 +853,23 @@ function decorModal(home) {
     if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); box.append(h('h4', null, 'Environment')); box.append(h('p', { class: 'note', style: 'margin:0' }, top.map(([e, n]) => e + ' ×' + n).join(' · ') + '. ' + ENV_TIP[top[0][0]] + (top.length > 1 ? ' With mixed types, aim for the majority.' : ''))); }
     box.append(h('h4', null, 'Suggested items'));
     const needF = [...dp.need].filter(([f]) => !dp.present.has(f)).sort((a, b) => b[1] - a[1]).map(([f]) => f);
-    const chips = h('div', { class: 'cats' }), list = h('div', { class: 'list' }); box.append(chips, list);
+    const trio = comfortTrio(home), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : null;
+    const TAB = { Relaxation: 'Rest items', Toy: 'Toys', Decoration: 'Decorations' };
+    const chips = h('div', { class: 'cats', role: 'group', 'aria-label': 'Suggestions' }), info = h('p', { class: 'note', style: 'margin:0 0 6px' }), list = h('div', { class: 'list' }); box.append(chips, info, list);
     const render = () => {
-      chips.textContent = ''; chips.append(h('button', { class: 'cat', 'aria-pressed': filt == null ? 'true' : 'false', onclick: () => { filt = null; render(); } }, 'Best for everyone'));
-      for (const f of needF) chips.append(h('button', { class: 'cat', 'aria-pressed': filt === f ? 'true' : 'false', onclick: () => { filt = f; render(); } }, FAVS[f]));
-      list.textContent = '';
-      const arr = filt == null ? dp.sugg.slice(0, 14) : dp.sugg.filter(x => x.it.fv.includes(filt)).slice(0, 40);
+      chips.textContent = ''; const chip = (key, ...kids) => h('button', { class: 'cat', 'aria-pressed': filt === key ? 'true' : 'false', onclick: () => { filt = key; render(); } }, ...kids);
+      for (const [, ok, t] of trio) chips.append(chip('tg:' + t, (ok ? '✓ ' : '') + 'Best ' + TAB[t].toLowerCase(), ok ? '' : h('span', { class: 'n' }, 'needed')));
+      chips.append(chip(null, 'Best overall'));
+      for (const f of needF) chips.append(chip(f, FAVS[f]));
+      list.textContent = ''; let arr;
+      if (typeof filt === 'string') { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby. Best first for ' + (dp.res.length ? 'these residents\' favourites' : 'anyone') + '.'; }
+      else if (filt == null) { arr = dp.sugg.slice(0, 14); info.textContent = dp.lack.size ? 'Items that fill the missing ' + [...dp.lack].map(t => trioLabel(t).toLowerCase()).join(' and ') + ' item count extra here.' : ''; }
+      else { arr = dp.sugg.filter(x => (x.it.fv || []).includes(filt)).slice(0, 40); info.textContent = ''; }
+      info.hidden = !info.textContent;
       for (const sg of arr) {
-        const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n);
         const cost = sg.it.m && sg.it.m.length ? sg.it.m.map(([m, n]) => n + ' ' + m).join(' · ') : (sg.it.c === 'Special' ? 'Found or bought, not crafted' : '');
         list.append(h('button', { class: 'row', style: 'align-items:flex-start', onclick: () => { closeModal(); selectItem(sg.it.n); if (innerWidth < 900) setSheet('peek'); toast(home.kind === 'house' ? 'Place ' + sg.it.n + ' inside the house' : 'Selected ' + sg.it.n); } },
-          swatchEl(sg.it), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, sg.it.n, sg.it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : ''), h('div', { class: 'ds', style: 'white-space:normal;color:var(--ink)' }, sg.hits.map(f => FAVS[f]).join(' · ') + ' — pleases ' + who.join(', ')), cost ? h('div', { class: 'ds', style: 'white-space:normal' }, cost) : '')));
+          swatchEl(sg.it), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, sg.it.n, sg.it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : ''), h('div', { class: 'ds', style: 'white-space:normal;color:var(--ink)' }, suggLine(dp, sg)), cost ? h('div', { class: 'ds', style: 'white-space:normal' }, cost) : '')));
       }
       if (!arr.length) list.append(h('p', { class: 'empty' }, 'Nothing to suggest.'));
     };
@@ -1018,7 +1027,7 @@ function iedFoot() {
   el.append(h('span', { class: 'note' }, IED.tool === 'erase' ? 'Click or drag over items to remove them.' : 'Click an item to pick it up, then click where it goes' + (ki.fl > 1 ? ' (you can switch floors while holding it)' : '') + '.'));
 }
 /* ---- side: residents, favourites, suggestions ---- */
-function iedSuggest(home, f) { const dp = decorPlan(home, f); dp.sugg = dp.sugg.filter(x => decorOK(x.it)); return dp; }
+function iedSuggest(home, f) { const dp = decorPlan(home, f), bt = dp.byTag; dp.sugg = dp.sugg.filter(x => decorOK(x.it)); dp.byTag = (t) => bt(t, decorOK); return dp; }
 function iedSide() {
   const el = $('#iedRes'); if (!el) return; const sc = el.parentElement.scrollTop; el.textContent = '';
   const ob = IED.ob, ki = kitInfo(ob), home = iedHome(), f = ki.fl > 1 ? IED.floor : null; const list = residentsOf(home, f);
@@ -1031,17 +1040,18 @@ function iedSide() {
   if (ki.fl > 1) { const other = residentsOf(home, 1 - IED.floor); if (other.length) el.append(h('div', { class: 'note' }, floorName(1 - IED.floor) + ': ' + other.map(r => r.p).join(', '))); }
   const n = kitFurniture(ob), dp = iedSuggest(home, f), cv = favCoverage(home);
   el.append(h('div', { class: 'reqs' }, h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss') }, n >= 3 ? '✓' : '✗', n + ' furniture inside (needs 3)'), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : '') }, cv.have + '/' + cv.total + ' favourites') : ''));
-  if (!dp.res.length) { el.append(h('p', { class: 'hint' }, (ki.fl > 1 ? 'Add who sleeps on this floor' : 'Add who lives here') + ' to see their favourites and get suggestions. You can still place anything from the list below.')); return; }
+  el.append(h('div', { class: 'reqs', title: 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby. Tap one to see items of that kind.' }, comfortTrio(home).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, ok ? '✓' : '·', lb + ' item'))));
+  if (!dp.res.length && typeof IED.filt !== 'string') { el.append(h('p', { class: 'hint' }, (ki.fl > 1 ? 'Add who sleeps on this floor' : 'Add who lives here') + ' to see their favourites and get suggestions. You can still place anything from the list below.')); return; }
   for (const p of dp.res) el.append(h('div', { class: 'card', style: 'margin:6px 0' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
     h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', title: 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', title: 'Show items for this', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv])))));
   const envCount = new Map(); for (const p of dp.res) if (p.ideal) envCount.set(p.ideal, (envCount.get(p.ideal) || 0) + 1);
   if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); el.append(h('p', { class: 'note', style: 'margin:4px 0 0' }, h('b', null, top.map(([e, k]) => e + (k > 1 ? ' ×' + k : '')).join(' · ') + ': '), ENV_TIP[top[0][0]])); }
-  const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv);
-  el.append(h('div', { style: 'display:flex;align-items:center;gap:8px;margin:14px 0 4px' }, h('h4', { style: 'margin:0' }, IED.filt != null ? 'Items for ' + FAVS[IED.filt] : 'Suggested for ' + (ki.fl > 1 ? 'this floor' : 'them')),
-    missing.size ? h('button', { class: 'btn sm primary', style: 'margin-left:auto', title: 'Places one item for each missing favourite along the walls', onclick: iedAutoPlace }, icon('leaf'), 'Auto-place') : h('span', { class: 'note', style: 'margin-left:auto' }, 'All favourites covered ✓')));
-  const arr = IED.filt == null ? dp.sugg.slice(0, 10) : dp.sugg.filter(x => x.it.fv.includes(IED.filt)).slice(0, 30);
+  const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv); const tagF = typeof IED.filt === 'string' ? IED.filt.slice(3) : null;
+  el.append(h('div', { style: 'display:flex;align-items:center;gap:8px;margin:14px 0 4px' }, h('h4', { style: 'margin:0' }, tagF ? trioLabel(tagF) + ' items' : IED.filt != null ? 'Items for ' + FAVS[IED.filt] : 'Suggested for ' + (ki.fl > 1 ? 'this floor' : 'them')),
+    missing.size || dp.lack.size ? h('button', { class: 'btn sm primary', style: 'margin-left:auto', title: 'Places one item for each missing favourite, plus a rest, toy or decoration item if one is missing, along the walls', onclick: iedAutoPlace }, icon('leaf'), 'Auto-place') : h('span', { class: 'note', style: 'margin-left:auto' }, 'All favourites covered ✓')));
+  const arr = tagF ? dp.byTag(tagF).slice(0, 30) : IED.filt == null ? dp.sugg.slice(0, 10) : dp.sugg.filter(x => (x.it.fv || []).includes(IED.filt)).slice(0, 30);
   const l = h('div', { class: 'list' });
-  for (const sg of arr) { const who = dp.res.filter(p => (p.fv || []).some(v => sg.hits.includes(v))).map(p => p.n); l.append(iedItemRow(sg.it, sg.hits.map(v => (dp.present.has(v) ? '✓ ' : '') + FAVS[v]).join(' · ') + ' — ' + who.join(', '))); }
+  for (const sg of arr) l.append(iedItemRow(sg.it, suggLine(dp, sg)));
   if (!arr.length) l.append(h('p', { class: 'empty' }, 'No indoor item matches.'));
   el.append(l);
   el.parentElement.scrollTop = sc; iedMarkPicked();
@@ -1085,7 +1095,8 @@ function iedAutoPlace() {
   const ob = IED.ob, ki = kitInfo(ob), home = iedHome(), f = ki.fl > 1 ? IED.floor : null; const dp = iedSuggest(home, f); if (!dp.res.length) return;
   const want = new Set(); for (const p of dp.res) for (const v of p.fv || []) if (!dp.present.has(v)) want.add(v);
   const pick = [];
-  for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (sg.it.sub === 'Event item') continue; if (sg.it.fv.some(v => want.has(v))) { pick.push(sg.it); for (const v of sg.it.fv) want.delete(v); } }
+  for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (sg.it.sub === 'Event item') continue; if ((sg.it.fv || []).some(v => want.has(v))) { pick.push(sg.it); for (const v of sg.it.fv || []) want.delete(v); } }
+  for (const t of dp.lack) { if (pick.some(it => it.tg === t)) continue; const best = dp.byTag(t).find(x => x.it.sub !== 'Event item' && !pick.includes(x.it)); if (best) pick.push(best.it); }
   for (const sg of dp.sugg) { if (kitFurniture(ob) + pick.length >= 3) break; if (!pick.includes(sg.it) && sg.it.sub !== 'Event item') pick.push(sg.it); }
   const spots = iedRing(ki, IED.floor); let n = 0;
   for (const it of pick) { const size = footOf(it); for (let k = 0; k < spots.length; k++) { const [x, y] = spots[k]; let sz = size; if (!iedFree(x, y, sz[0], sz[1])) { sz = [size[1], size[0]]; if (!iedFree(x, y, sz[0], sz[1])) continue; } iedPut(x, y, it.i, sz); spots.splice(k, 1); n++; break; } }
@@ -1226,7 +1237,7 @@ function comfortTrio(home) { // players find comfort is best with a rest, a toy 
   const tags = new Set();
   if (home.kind === 'kit') { for (const pc of kitPieces(home.ob)) if (pc.it.tg) tags.add(pc.it.tg); }
   else for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; if (it.tg && !tags.has(it.tg) && objInArea(ob, home.hs.area)) tags.add(it.tg); }
-  return TRIO.map(([t, lb]) => [lb, tags.has(t)]);
+  return TRIO.map(([t, lb]) => [lb, tags.has(t), t]);
 }
 function trioChips(home) { return h('div', { class: 'reqs', title: 'Players find Pokémon are most comfortable with a rest, a toy and a decoration item in range' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : '') }, ok ? '✓' : '·', lb + ' item'))); }
 /* ---------- community box: Gather Pokémon fill it when the whole box is within 4 tiles of their home's dotted line (player-tested) ---------- */
@@ -2961,7 +2972,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T07:07';
+const APP_BUILD = '2026-11-20T07:24';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
