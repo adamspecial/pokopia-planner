@@ -1012,14 +1012,14 @@ function iedDraw() {
   c.font = `700 ${Math.max(9, Math.min(12, cs * 0.3))}px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
   if (IED.floor === 0) { const dx = Math.floor((ki.w - 1) / 2); c.fillStyle = '#6b4a2b'; c.fillRect(ox + dx * cs + 2, oy + ki.h * cs + 1, cs - 4, oy - 2); c.fillStyle = '#fff'; if (cs >= 22) c.fillText('Door', ox + dx * cs + cs / 2, oy + ki.h * cs + oy / 2 + 1); }
   else { c.fillStyle = 'rgba(255,255,255,.9)'; c.fillText('Upstairs', Wc / 2, oy / 2 + 1); }
-  for (const a of F.o) { const [i, x, y] = a; if (x < ki.w && y < ki.h && ITEMS[i]) drawItem(c, ITEMS[i], ox + x * cs, oy + y * cs, cs, Math.min(aw(a), ki.w - x), Math.min(ah(a), ki.h - y), cs >= 30); }
+  for (const a of F.o) { const [i, x, y] = a; if (x < ki.w && y < ki.h && ITEMS[i]) drawPicItem(c, ITEMS[i], ox + x * cs, oy + y * cs, cs, Math.min(aw(a), ki.w - x), Math.min(ah(a), ki.h - y), cs >= 30); }
   if (IED.sel) { const k = iedAt(IED.sel[0], IED.sel[1]); if (k >= 0) { const a = F.o[k]; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(ox + a[1] * cs + 1.5, oy + a[2] * cs + 1.5, aw(a) * cs - 3, ah(a) * cs - 3); } }
   if (IED.hover) {
     const [hx, hy] = IED.hover, px = ox + hx * cs, py = oy + hy * cs, k = iedAt(hx, hy), occ = k >= 0;
     const ghost = IED.tool === 'move' && IED.picked ? ITEMS[IED.picked[0]] : IED.tool === 'place' && !occ ? IED.item : null;
     const [gw, gh] = IED.tool === 'move' && IED.picked ? [aw(IED.picked), ah(IED.picked)] : ghost ? iedPlaceSize(ghost.i) : occ ? [aw(F.o[k]), ah(F.o[k])] : [1, 1];
     const gx = occ && !ghost ? F.o[k][1] : hx, gy = occ && !ghost ? F.o[k][2] : hy, fitsHere = ghost ? iedFree(hx, hy, gw, gh, IED.picked) : true;
-    if (ghost && fitsHere) { c.globalAlpha = 0.55; drawItem(c, ghost, px, py, cs, gw, gh, false); c.globalAlpha = 1; }
+    if (ghost && fitsHere) { c.globalAlpha = 0.55; drawPicItem(c, ghost, px, py, cs, gw, gh, false); c.globalAlpha = 1; }
     c.strokeStyle = IED.tool === 'erase' ? theme.bad : (ghost && !fitsHere) ? theme.bad : theme.accent; c.lineWidth = 2; c.strokeRect(ox + gx * cs + 1, oy + gy * cs + 1, gw * cs - 2, gh * cs - 2);
   }
 }
@@ -1412,7 +1412,7 @@ function requestDraw() { needDraw = true; }
 function loop(t) { if (needDraw || sparkles.length) { needDraw = false; draw(t); } requestAnimationFrame(loop); }
 
 function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true) {
+function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = null) { // pic(x, y, w, h): draws the item's picture (kits only)
   const w = s * wcells, hh = s * hcells, cx = x + w / 2, cy = y + hh / 2, col = it.col;
   c.save();
   switch (it.sh) {
@@ -1461,12 +1461,19 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true) {
       c.fillStyle = 'rgba(0,0,0,.18)'; roundRect(c, x + 3, y + 5, w - 4, hh - 4, Math.min(10, s * 0.4)); c.fill();
       const base = it.sub === 'Pokémon Center' ? '#d9535f' : it.sub === 'Power' ? '#c99a2e' : it.sub === 'Legendary' ? '#5e5a8c' : it.sub === 'Public' || it.sub === 'Decoration' ? '#4f8f9a' : col;
       c.fillStyle = shade(base, 0.55); roundRect(c, x + 1, y + 1, w - 3, hh - 3, Math.min(10, s * 0.4)); c.fill();
-      c.fillStyle = base; roundRect(c, x + 1, y + 1, w - 3, Math.max(s * 0.45, hh * 0.38), Math.min(10, s * 0.4)); c.fill();
+      if (!pic) { c.fillStyle = base; roundRect(c, x + 1, y + 1, w - 3, Math.max(s * 0.45, hh * 0.38), Math.min(10, s * 0.4)); c.fill(); }
       c.strokeStyle = shade(base, -0.3); c.lineWidth = 1.5; roundRect(c, x + 1, y + 1, w - 3, hh - 3, Math.min(10, s * 0.4)); c.stroke();
-      if (label && s * Math.min(wcells, hcells) > 40) {
-        const fs = clamp(s * 0.42, 9, 15); c.fillStyle = '#1c2a23'; c.font = `700 ${fs}px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
-        const txt = it.n.replace(/ kit$/, ''); c.fillText(txt.length > 22 ? txt.slice(0, 21) + '…' : txt, cx, y + hh * 0.66, w - 8);
-        if (it.cap) { c.font = `700 ${fs * 0.85}px sans-serif`; c.fillStyle = shade(base, -0.4); c.fillText('houses ' + it.cap, cx, y + hh * 0.66 + fs * 1.15, w - 8); }
+      const named = label && s * Math.min(wcells, hcells) > 40, fs = clamp(s * 0.42, 9, 15), text = fs * (it.cap ? 2.4 : 1.3);
+      let ty = y + hh * 0.66;
+      if (pic) { // the kit's picture above its name
+        const pad = Math.max(3, Math.min(w, hh) * 0.06), ph = named ? hh - text - pad * 2 : hh - pad * 2;
+        if (ph > 8) pic(x + pad, y + pad, w - pad * 2 - 2, ph); else if (!named) pic(x + 2, y + 2, w - 5, hh - 5);
+        ty = named && ph > 8 ? y + hh - pad - text + fs * 0.6 : ty;
+      }
+      if (named) {
+        c.fillStyle = '#1c2a23'; c.font = `700 ${fs}px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        const txt = it.n.replace(/ kit$/, ''); c.fillText(txt.length > 22 ? txt.slice(0, 21) + '…' : txt, cx, ty, w - 8);
+        if (it.cap) { c.font = `700 ${fs * 0.85}px sans-serif`; c.fillStyle = shade(base, -0.4); c.fillText('houses ' + it.cap, cx, ty + fs * 1.15, w - 8); }
       }
       break;
     }
@@ -1481,8 +1488,21 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true) {
   }
   c.restore();
 }
+function drawGroundRun(c, it, x, y, s, n) { // n squares of the same floor side by side: its tile repeated as one fill, lined up with the grid
+  const pp = picsFor(it), p = pp[1] && s * dpr >= TILE_PIC_MIN ? mapPic(pp[1]) : null;
+  if (p) {
+    const [src] = sizedPic(p, Math.ceil(s * dpr)), at = s + ',' + view.px + ',' + view.py;
+    if (!p.pat || p.pat[0] !== src || p.pat[2] !== c) p.pat = [src, c.createPattern(src, 'repeat'), c, ''];
+    if (p.pat[3] !== at) { p.pat[3] = at; p.pat[1].setTransform(new DOMMatrix([s / (src.naturalWidth || src.width), 0, 0, s / (src.naturalHeight || src.height), view.px, view.py])); }
+    c.fillStyle = p.pat[1]; c.fillRect(x, y, n * s + 0.6, s + 0.6); return;
+  }
+  if (s < 9) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, n * s + 0.6, s + 0.6); return; }
+  for (let i = 0; i < n; i++) drawGroundCell(c, it, x + i * s, y, s);
+}
 function drawGroundCell(c, it, x, y, s) {
-  c.fillStyle = it.col; c.fillRect(x, y, s + 0.6, s + 0.6);
+  const pp = picsFor(it);
+  if (pp[1] && s * dpr >= TILE_PIC_MIN) { const p = mapPic(pp[1]); if (p) { drawPicIn(c, p, x, y, s + 0.6, s + 0.6, true); return; } }
+  c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6);
   if (s < 9) return;
   const n = it.n;
   if (LIQUID.has(n)) { c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x + s * 0.2, y + s * 0.4); c.quadraticCurveTo(x + s * 0.35, y + s * 0.3, x + s * 0.5, y + s * 0.4); c.moveTo(x + s * 0.45, y + s * 0.7); c.quadraticCurveTo(x + s * 0.6, y + s * 0.6, x + s * 0.75, y + s * 0.7); c.stroke(); if (n === 'Waterfall') { c.strokeStyle = 'rgba(255,255,255,.6)'; c.beginPath(); for (let i = 1; i < 4; i++) { c.moveTo(x + s * i / 4, y); c.lineTo(x + s * i / 4, y + s); } c.stroke(); } }
@@ -1512,10 +1532,14 @@ function draw(t, c = ctx) {
   // plan backdrop
   c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(view.px + 4, view.py + 6, plan.w * s, plan.h * s);
   c.fillStyle = theme['map-empty']; c.fillRect(view.px, view.py, plan.w * s, plan.h * s);
-  // ground + elevation
+  // ground (a row's run of the same floor in one go) + elevation
+  for (let y = y0; y < y1; y++) for (let x = x0, k = y * plan.w + x; x < x1;) {
+    const g = plan.ground[k]; let e = x + 1; while (e < x1 && plan.ground[k + e - x] === g) e++;
+    if (g) drawGroundRun(c, ITEMS[g - 1], view.px + x * s, view.py + y * s, s, e - x);
+    k += e - x; x = e;
+  }
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-    const k = y * plan.w + x, g = plan.ground[k], px = view.px + x * s, py = view.py + y * s;
-    if (g) drawGroundCell(c, ITEMS[g - 1], px, py, s);
+    const k = y * plan.w + x, px = view.px + x * s, py = view.py + y * s;
     const e = plan.elev[k];
     if (e) {
       c.fillStyle = `rgba(255,255,255,${Math.min(0.32, e * 0.05)})`; c.fillRect(px, py, s + 0.6, s + 0.6);
@@ -1554,9 +1578,9 @@ function draw(t, c = ctx) {
     const ob = plan.objs.get(oid); if (!ob) continue; const it = ITEMS[ob.i];
     if (ob.w > 1 || ob.h > 1) { big.push(ob); continue; }
     const px = view.px + ob.x * s, py = view.py + ob.y * s;
-    if (s < 6) { c.fillStyle = it.col; c.fillRect(px, py, s + 0.5, s + 0.5); } else drawItem(c, it, px, py, s);
+    if (s < 6) { c.fillStyle = it.col; c.fillRect(px, py, s + 0.5, s + 0.5); } else drawPicItem(c, it, px, py, s);
   }
-  for (const ob of big) { drawItem(c, ITEMS[ob.i], view.px + ob.x * s, view.py + ob.y * s, s, ob.w, ob.h); const it = ITEMS[ob.i]; if (it.cap && s >= 8) { const e = residentsIndex().homes.get('kit:' + ob.id); if (e) { const t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = view.px + (ob.x + ob.w) * s - tw - 3, by = view.py + ob.y * s + 3; c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8); } } }
+  for (const ob of big) { drawPicItem(c, ITEMS[ob.i], view.px + ob.x * s, view.py + ob.y * s, s, ob.w, ob.h); const it = ITEMS[ob.i]; if (it.cap && s >= 8) { const e = residentsIndex().homes.get('kit:' + ob.id); if (e) { const t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = view.px + (ob.x + ob.w) * s - tw - 3, by = view.py + ob.y * s + 3; c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8); } } }
   // elevation numbers
   if (s >= 30) { c.font = '700 10px sans-serif'; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillStyle = 'rgba(0,0,0,.55)'; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const e = plan.elev[y * plan.w + x]; if (e) c.fillText('▲' + e, view.px + (x + 1) * s - 2, view.py + y * s + 2); } }
   // houses built from blocks
@@ -1592,7 +1616,7 @@ function draw(t, c = ctx) {
     if (tool === 'place' && it && inB(plan, hx, hy)) {
       const ft = footOf(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = it.L === 'g' ? brush : tw, fh = it.L === 'g' ? brush : th;
       const hq = plan.objs.get(plan.occ[hy * plan.w + hx]); const ok = it.L === 'g' || (mu ? !blocker(it, hx, hy, fw, fh) : brush > 1 || !hq || hq.i === it.i || replaces(it, hq));
-      c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
+      c.globalAlpha = 0.55; if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else drawPicItem(c, it, view.px + hx * s, view.py + hy * s, s, mu ? fw : 1, mu ? fh : 1, false); c.globalAlpha = 1;
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if ((tool === 'stamp' || tool === 'paste' || tool === 'move') && inB(plan, hx, hy)) {
       const fw = tool === 'paste' ? clip.w : tool === 'move' ? moving.w : 5, fh = tool === 'paste' ? clip.h : tool === 'move' ? moving.h : 5;
@@ -1825,21 +1849,103 @@ function swatchURL(it) {
 /* item pictures live inside the app (pics/, filled by tools/pictures.py) so they show offline; Serebii is only a fallback for any not copied yet */
 const PIC_WEB = 'https://www.serebii.net/pokemonpokopia/items/';
 const picSlug = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-let PICS = { pics: {}, missing: {} }; // pics/index.json: slug -> short content hash
-const picKey = (it) => it && it.im ? (it.im === 1 ? picSlug(it.n) : String(it.im)) : null;
+let PICS = { pics: {}, missing: {}, top: {} }; // pics/index.json: key -> short content hash; top: key -> [floor tile hash, its colour]
+const picRemote = (it) => it && it.im ? (it.im === 1 ? picSlug(it.n) : String(it.im)) : null; // Serebii's file name
+const picKey = (it) => { const r = picRemote(it); return r && r.replace(/[^a-z0-9-]/g, ''); }; // the app's copy (same as pic_key() in tools/pictures.py)
 const localPic = (k) => PICS.pics[k] ? 'pics/' + k + '.webp?v=' + PICS.pics[k] : null;
-const picURL = (it) => { const k = picKey(it); if (!k) return null; return localPic(k) || (/^HTTP 404/.test(PICS.missing[k] || '') ? null : PIC_WEB + k + '.png'); };
+const picURL = (it) => { const k = picKey(it); if (!k) return null; return localPic(k) || (/^HTTP 404/.test(PICS.missing[k] || '') ? null : PIC_WEB + encodeURIComponent(picRemote(it)) + '.png'); };
+/* ---------- item pictures on the map ----------
+   Items show on the map, and in kit rooms, as their own pictures; floors, terrain and rugs as flat tiles that tools/pictures.py
+   makes from their pictures (pics/top/). Only pictures in view are loaded, six at a time, and the map redraws once a frame
+   however many arrive. Each is kept ready-shrunk to the size it is drawn at (in steps, so zooming doesn't redo them every
+   frame), which keeps panning fast on phones. Only the app's own copies are drawn, never Serebii's, so the map can still be
+   saved as an image. Until a picture is in, or if it can't load, the drawn shape shows instead. */
+const MAP_PIC_MIN = 9, TILE_PIC_MIN = 16; // device pixels: smaller items keep their drawn shape, smaller floor squares just the tile's colour
+const mapPics = new Map(); // url -> { img, box: [x, y, w, h] of the visible part, sized: Map(step -> canvas), failed }
+const picQueue = []; let picBusy = 0, picRedraw = false, sizedCount = 0;
+const picOf = []; // item index -> [picture url, floor tile url, floor tile colour]
+function picsFor(it) {
+  let p = picOf[it.i];
+  if (!p) { const k = picKey(it), t = k && PICS.top && PICS.top[k]; p = picOf[it.i] = [k ? localPic(k) : null, t ? 'pics/top/' + k + '.webp?v=' + t[0] : null, t ? t[1] : null]; }
+  return p;
+}
+function mapPic(url) { // the picture, ready to draw, or null while it loads
+  let p = mapPics.get(url);
+  if (!p) { p = { img: null, box: null, sized: new Map(), failed: false, memo: 0, memoR: null }; mapPics.set(url, p); picQueue.push(url); pumpPics(); }
+  return p.img ? p : null;
+}
+function pumpPics() {
+  while (picBusy < 6 && picQueue.length) {
+    const url = picQueue.shift(), p = mapPics.get(url), im = new Image(); picBusy++;
+    const done = (ok) => { picBusy--; if (ok && im.naturalWidth) { p.box = /\/top\//.test(url) ? [0, 0, im.naturalWidth, im.naturalHeight] : opaqueBox(im); p.img = im; picsArrived(); } else p.failed = true; pumpPics(); };
+    im.src = url;
+    (im.decode ? im.decode() : new Promise((ok, no) => { im.onload = ok; im.onerror = no; })).then(() => done(true), () => done(false));
+  }
+}
+function picsArrived() { if (picRedraw) return; picRedraw = true; requestAnimationFrame(() => { picRedraw = false; requestDraw(); if (IED.ob) iedDraw(); }); }
+function opaqueBox(im) { // the part of a picture that isn't see-through, so every item fills its squares the same way
+  const w = im.naturalWidth, h = im.naturalHeight;
+  try {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0);
+    const a = x.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let i = y * w * 4 + 3, xx = 0; xx < w; xx++, i += 4) if (a[i] > 24) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; y1 = y; }
+    if (x1 >= x0) return [x0, y0, x1 - x0 + 1, y1 - y0 + 1];
+  } catch (e) { }
+  return [0, 0, w, h];
+}
+function sizedPic(p, px) { // [source, sx, sy, sw, sh] for drawing the picture about px device pixels across
+  if (p.memo === px) return p.memoR;
+  const [bx, by, bw, bh] = p.box, big = Math.max(bw, bh); let r;
+  if (px >= big * 0.75) r = [p.img, bx, by, bw, bh];
+  else {
+    const step = Math.max(8, Math.round(Math.SQRT2 ** Math.ceil(Math.log2(px) * 2)));
+    let cv = p.sized.get(step);
+    if (!cv) {
+      if (++sizedCount > 1500) { for (const q of mapPics.values()) { q.sized.clear(); q.memo = 0; } sizedCount = 1; }
+      const tw = Math.max(1, Math.round(bw * step / big)), th = Math.max(1, Math.round(bh * step / big));
+      let src = p.img, sx = bx, sy = by, w = bw, h = bh;
+      do { // halve in steps so small sizes stay crisp instead of grainy
+        const nw = Math.max(tw, Math.ceil(w / 2)), nh = Math.max(th, Math.ceil(h / 2)), t = document.createElement('canvas'); t.width = nw; t.height = nh;
+        const tx = t.getContext('2d'); tx.imageSmoothingQuality = 'high'; tx.drawImage(src, sx, sy, w, h, 0, 0, nw, nh);
+        src = t; sx = sy = 0; w = nw; h = nh;
+      } while (w > tw || h > th);
+      cv = src; p.sized.set(step, cv);
+    }
+    r = [cv, 0, 0, cv.width, cv.height];
+  }
+  p.memo = px; p.memoR = r; return r;
+}
+function drawPicIn(c, p, x, y, w, h, fill) { // the picture fitted inside the box, centred (fill: stretched to it, for floor tiles)
+  let dw = w, dh = h; if (!fill) { const k = Math.min(w / p.box[2], h / p.box[3]); dw = p.box[2] * k; dh = p.box[3] * k; }
+  const [src, sx, sy, sw, sh] = sizedPic(p, Math.ceil(Math.max(dw, dh) * dpr));
+  c.drawImage(src, sx, sy, sw, sh, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true) { // an item on the map as its picture, or its drawn shape until that loads
+  const url = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = url && mapPic(url);
+  if (!p) { drawItem(c, it, x, y, s, wc, hc, label); return; }
+  const w = s * wc, hh = s * hc;
+  if (it.sh === 'kit') { drawItem(c, it, x, y, s, wc, hc, label, (bx, by, bw, bh) => drawPicIn(c, p, bx, by, bw, bh)); return; }
+  if (it.sh === 'block') { drawPicIn(c, p, x, y, w, hh); return; } // walls and blocks: the block fills its square, so a wall reads as one
+  if (it.c !== 'Nature') { const a = c.globalAlpha; c.globalAlpha = a * 0.22; c.fillStyle = it.col; roundRect(c, x + 1, y + 1, w - 2, hh - 2, Math.min(8, s * 0.2)); c.fill(); c.globalAlpha = a; } // the squares it takes up
+  const pad = Math.max(1, s * 0.05); drawPicIn(c, p, x + pad, y + pad, w - pad * 2, hh - pad * 2);
+}
+function picsReady(urls, ms) { // wait (up to ms) until these pictures have loaded or failed
+  urls = [...new Set(urls.filter(Boolean))]; urls.forEach(mapPic); const t0 = performance.now();
+  return new Promise(res => { const tick = () => { if (performance.now() - t0 > ms || urls.every(u => { const p = mapPics.get(u); return p.img || p.failed; })) res(); else setTimeout(tick, 60); }; tick(); });
+}
+addEventListener('online', () => { for (const [u, p] of mapPics) if (p.failed) mapPics.delete(u); requestDraw(); }); // try ones that failed offline again
 /* keeping every picture on the device: saved in the background into a cache the offline helper (sw.js) reads from */
+const allPicURLs = () => [...Object.keys(PICS.pics).map(localPic), ...Object.keys(PICS.top || {}).map(k => 'pics/top/' + k + '.webp?v=' + PICS.top[k][0])]; // pictures and floor tiles
 const PIC_CACHE = 'pokopia-pics';
 const picFill = { total: 0, done: 0, failed: 0, running: false, waiting: false, unsupported: false };
 async function fillPictures(force) {
-  const keys = Object.keys(PICS.pics); if (picFill.running || !keys.length) return;
+  const urls = allPicURLs(); if (picFill.running || !urls.length) return;
   if (!('caches' in window) || !window.isSecureContext) { picFill.unsupported = true; picUI(); return; }
   if (!force && navigator.connection && navigator.connection.saveData) { picFill.waiting = true; picUI(); return; }
   picFill.running = true; picFill.waiting = false; picFill.failed = 0;
   try {
     const c = await caches.open(PIC_CACHE);
-    const want = new Set(keys.map(k => new URL(localPic(k), location.href).href)), have = new Set();
+    const want = new Set(urls.map(u => new URL(u, location.href).href)), have = new Set();
     for (const r of await c.keys()) { if (want.has(r.url)) have.add(r.url); else await c.delete(r); } // drop old versions
     const todo = [...want].filter(u => !have.has(u));
     picFill.total = want.size; picFill.done = have.size; picUI();
@@ -1858,7 +1964,7 @@ async function fillPictures(force) {
   picFill.running = false; picUI();
 }
 function picText() {
-  const n = Object.keys(PICS.pics).length;
+  const n = allPicURLs().length;
   if (!n) return 'Item pictures load from the internet.';
   if (picFill.unsupported) return 'This browser can\'t keep item pictures offline; they show while you\'re online.';
   if (picFill.waiting) return 'Data saver is on, so the ' + fmt(n) + ' item pictures (about ' + picMB() + ' MB) aren\'t saved for offline use yet.';
@@ -2775,6 +2881,8 @@ async function initCapabilities() {
 async function exportJSON() { try { await downloads.save({ filename: (plan.name.replace(/[^\w\- ]+/g, '').trim() || 'pokopia-plan') + '.json', data: JSON.stringify(serialize(plan), null, 1) }); toast('Plan file saved'); } catch (e) { if (e && e.code !== 'declined') toast('Could not save the file (' + (e.code || 'error') + ')'); } }
 async function exportPNG() {
   const S = clamp(Math.floor(2400 / Math.max(plan.w, plan.h)), 8, 32);
+  const urls = [], grounds = new Set(plan.ground); for (const ob of plan.objs.values()) urls.push(picsFor(ITEMS[ob.i])[0]); for (const g of grounds) if (g) urls.push(picsFor(ITEMS[g - 1])[1]);
+  await picsReady(urls, 6000); // the saved image shows item pictures too
   const c = document.createElement('canvas'); c.width = plan.w * S; c.height = plan.h * S + 40; const x = c.getContext('2d');
   const saved = { ...view }; view.px = 0; view.py = 40; view.zoom = S / view.cs;
   const keep = { hover, selection, drag, sp: sparkles.splice(0) }; hover = null; selection = null; drag = null;
@@ -3009,7 +3117,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T07:56';
+const APP_BUILD = '2026-11-20T11:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
@@ -3041,7 +3149,7 @@ async function boot() {
   try { const emb = document.getElementById('pokopiaData'); if (emb) d = JSON.parse(emb.textContent); else { const r = await fetch('data.json'); if (!r.ok) throw new Error(r.status); d = await r.json(); } }
   catch (e) { $('#hdrPlan').textContent = 'Could not load game data'; toast('Game data failed to load. Reload the page to try again.', 6000); return; }
   buildIndex(d);
-  const pj = await picsReq; if (pj && pj.pics) PICS = { pics: pj.pics, missing: pj.missing || {}, bytes: pj.bytes || 0 };
+  const pj = await picsReq; if (pj && pj.pics) { PICS = { pics: pj.pics, missing: pj.missing || {}, top: pj.top || {}, bytes: pj.bytes || 0 }; picOf.length = 0; }
   loadLocalPlans();
   const cur = LS.get(LSK + 'current'); let p = cur ? readLocalPlan(cur) : null;
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);

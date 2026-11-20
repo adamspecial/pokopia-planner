@@ -6,9 +6,11 @@ Open it at **https://adamspecial.github.io/pokopia-planner/** and, on a phone or
 
 ## Item pictures
 
-The pictures live in `pics/` inside the app, so they show without internet. The first time the planner opens it saves all of them on the device in the background (about 6 MB); the Plans tab shows how far it has got.
+Every item shows on the map, and in kit rooms, as its own picture: furniture, walls, kits, trees and everything else. Floors, terrain and rugs cover the ground as flat, top-down tiles made from their pictures. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
 
-`tools/pictures.py` copies them from Serebii. GitHub runs it for you (`.github/workflows/pictures.yml`) whenever `data.json` changes, once a week to retry any that failed, or from **Actions → Item pictures → Run workflow**.
+The pictures live in `pics/` inside the app, so they show without internet. The first time the planner opens, it saves all of them on the device in the background (about 7 MB); the Plans tab shows how far it has got.
+
+`tools/pictures.py` copies them from Serebii and makes the floor tiles (`pics/top/`) from them in one batch. Most floor pictures are the same 3D cube drawn from the same angle, so one calibration unwarps the top face of all of them; water and rugs are cropped instead. In `data.json`, an item's `im` is `1` when Serebii names the picture after the item, or Serebii's own file name when that differs, such as `stylishwall(upper)`. GitHub runs the tool for you (`.github/workflows/pictures.yml`) whenever `data.json` changes, once a week to retry any that failed, or from **Actions → Item pictures → Run workflow**.
 
 ## Sync between devices
 
