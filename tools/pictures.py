@@ -135,11 +135,11 @@ def main():
         if name.endswith('.webp') and name[:-5] not in wanted:
             os.remove(os.path.join(PICS, name))
 
-    out = {'v': 1, 'source': SOURCE, 'pics': dict(sorted(pics.items())), 'missing': dict(sorted(missing.items()))}
+    size = sum(os.path.getsize(os.path.join(PICS, s + '.webp')) for s in pics)
+    out = {'v': 1, 'source': SOURCE, 'bytes': size, 'pics': dict(sorted(pics.items())), 'missing': dict(sorted(missing.items()))}
     with open(index_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, separators=(',', ':'), ensure_ascii=False)
         f.write('\n')
-    size = sum(os.path.getsize(os.path.join(PICS, s + '.webp')) for s in pics)
     print('%d pictures in pics/ (%.1f MB), %d missing' % (len(pics), size / 1e6, len(missing)))
     reasons = {}
     for r in missing.values():

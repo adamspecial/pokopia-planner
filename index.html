@@ -1740,9 +1740,56 @@ function swatchURL(it) {
   else drawItem(x, it, 0, 0, S);
   const url = c.toDataURL(); swatchCache.set(it.i, url); return url;
 }
-const PIC_BASE = 'https://www.serebii.net/pokemonpokopia/items/';
+/* item pictures live inside the app (pics/, filled by tools/pictures.py) so they show offline; Serebii is only a fallback for any not copied yet */
+const PIC_WEB = 'https://www.serebii.net/pokemonpokopia/items/';
 const picSlug = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const picURL = (it) => it && it.im ? PIC_BASE + (it.im === 1 ? picSlug(it.n) : it.im) + '.png' : null;
+let PICS = { pics: {}, missing: {} }; // pics/index.json: slug -> short content hash
+const picKey = (it) => it && it.im ? (it.im === 1 ? picSlug(it.n) : String(it.im)) : null;
+const localPic = (k) => PICS.pics[k] ? 'pics/' + k + '.webp?v=' + PICS.pics[k] : null;
+const picURL = (it) => { const k = picKey(it); if (!k) return null; return localPic(k) || (/^HTTP 404/.test(PICS.missing[k] || '') ? null : PIC_WEB + k + '.png'); };
+/* keeping every picture on the device: saved in the background into a cache the offline helper (sw.js) reads from */
+const PIC_CACHE = 'pokopia-pics';
+const picFill = { total: 0, done: 0, failed: 0, running: false, waiting: false, unsupported: false };
+async function fillPictures(force) {
+  const keys = Object.keys(PICS.pics); if (picFill.running || !keys.length) return;
+  if (!('caches' in window) || !window.isSecureContext) { picFill.unsupported = true; picUI(); return; }
+  if (!force && navigator.connection && navigator.connection.saveData) { picFill.waiting = true; picUI(); return; }
+  picFill.running = true; picFill.waiting = false; picFill.failed = 0;
+  try {
+    const c = await caches.open(PIC_CACHE);
+    const want = new Set(keys.map(k => new URL(localPic(k), location.href).href)), have = new Set();
+    for (const r of await c.keys()) { if (want.has(r.url)) have.add(r.url); else await c.delete(r); } // drop old versions
+    const todo = [...want].filter(u => !have.has(u));
+    picFill.total = want.size; picFill.done = have.size; picUI();
+    let next = 0, shown = 0;
+    const worker = async () => {
+      while (next < todo.length) {
+        const u = todo[next++];
+        try { const r = await fetch(u, { headers: { 'x-pokopia-fill': '1' } }); if (!r.ok) throw new Error(r.status); await c.put(u, r); picFill.done++; }
+        catch (e) { picFill.failed++; if (!navigator.onLine) { next = todo.length; } }
+        if (picFill.done - shown >= 25) { shown = picFill.done; picUI(); }
+      }
+    };
+    await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+    if (todo.length && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => { });
+  } catch (e) { picFill.failed = picFill.failed || 1; }
+  picFill.running = false; picUI();
+}
+function picText() {
+  const n = Object.keys(PICS.pics).length;
+  if (!n) return 'Item pictures load from the internet.';
+  if (picFill.unsupported) return 'This browser can\'t keep item pictures offline; they show while you\'re online.';
+  if (picFill.waiting) return 'Data saver is on, so the ' + fmt(n) + ' item pictures (about ' + picMB() + ' MB) aren\'t saved for offline use yet.';
+  if (picFill.running) return 'Saving item pictures for offline use\u2026 ' + fmt(picFill.done) + ' of ' + fmt(picFill.total);
+  if (!picFill.total) return 'Checking the ' + fmt(n) + ' item pictures saved for offline use…';
+  if (picFill.done >= picFill.total) return 'All ' + fmt(picFill.total) + ' item pictures are saved on this device, so they show offline too.';
+  return fmt(picFill.done) + ' of ' + fmt(picFill.total) + ' item pictures are saved for offline use. The rest are saved next time you\'re online.';
+}
+const picMB = () => Math.max(1, Math.round((PICS.bytes || Object.keys(PICS.pics).length * 5000) / 1e6));
+function picUI() {
+  const el = document.getElementById('picLine'); if (!el) return; el.textContent = picText();
+  if (!picFill.running && (picFill.waiting || (picFill.total && picFill.done < picFill.total && navigator.onLine))) el.append(' ', h('button', { class: 'btn sm', onclick: () => fillPictures(true) }, picFill.waiting ? 'Save them now' : 'Try again'));
+}
 function swatchEl(it, cls = 'swatch') { const s = h('span', { class: cls }); const u = picURL(it); s.style.backgroundImage = (u ? `url("${u}"), ` : '') + `url(${swatchURL(it)})`; return s; }
 function picEl(it, cls = 'pic') { // a large picture of the item; falls back to the drawn tile
   const u = picURL(it), im = h('img', { class: cls, alt: '', loading: 'lazy', decoding: 'async', src: u || swatchURL(it) });
@@ -2413,7 +2460,8 @@ function renderPlans() {
     downloads ? h('button', { class: 'btn', onclick: exportPNG }, icon('down'), 'Save image') : '',
     downloads ? h('button', { class: 'btn', onclick: exportJSON }, icon('down'), 'Export file') : h('button', { class: 'btn', onclick: () => copyText(JSON.stringify(serialize(plan))) }, icon('copy'), 'Copy plan data'),
     h('label', { class: 'btn', for: 'importFile' }, icon('up'), 'Import file'), h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON })));
-  root.append(h('p', { class: 'note' }, storageNote()));
+  root.append(h('p', { class: 'note', style: 'margin:4px 0' }, storageNote()));
+  root.append(h('p', { class: 'note', id: 'picLine', style: 'margin:4px 0' })); picUI();
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
   for (const p of [...plansIndex].sort((a, b) => b.updated - a.updated)) {
     const cur = p.id === plan.id;
@@ -2600,10 +2648,12 @@ async function boot() {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
   new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   new ResizeObserver(() => { resize(); }).observe($('#mapwrap'));
+  const picsReq = fetch('pics/index.json').then(r => r.ok ? r.json() : null).catch(() => null);
   let d;
   try { const emb = document.getElementById('pokopiaData'); if (emb) d = JSON.parse(emb.textContent); else { const r = await fetch('data.json'); if (!r.ok) throw new Error(r.status); d = await r.json(); } }
   catch (e) { $('#hdrPlan').textContent = 'Could not load game data'; toast('Game data failed to load. Reload the page to try again.', 6000); return; }
   buildIndex(d);
+  const pj = await picsReq; if (pj && pj.pics) PICS = { pics: pj.pics, missing: pj.missing || {}, bytes: pj.bytes || 0 };
   loadLocalPlans();
   const cur = LS.get(LSK + 'current'); let p = cur ? readLocalPlan(cur) : null;
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);
@@ -2613,6 +2663,8 @@ async function boot() {
   showTab(VALID_TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'build', true);
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
+  setTimeout(() => fillPictures(), 1500);
+  addEventListener('online', () => { if (picFill.done < picFill.total) fillPictures(); });
   addEventListener('pagehide', () => { if (dirty) persistNow(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && dirty) persistNow(); });
 }
