@@ -776,10 +776,11 @@ function decorPlan(home, floor) {
   const res = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const present = presentFavs(home, floor);
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
   const lack = new Set(comfortTrio(home).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
-  for (const it of ITEMS) { if ((!it.fv && !it.tg) || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let fav = 0; const hits = []; for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); } const fill = !!(it.tg && lack.has(it.tg)), base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0); all.push({ it, hits, fav, fill, base, sc: fav + (fill ? fillW : 0) + base }); }
+  const bb = bigBeds(home, floor), big = bb ? bb.big : [], needBig = !!bb && !bb.has;
+  for (const it of ITEMS) { if ((!it.fv && !it.tg) || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let fav = 0; const hits = []; for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); } const fill = !!(it.tg && lack.has(it.tg)), fits = big.length && isBed(it) ? (it.bb ? 1 : it.sb ? -1 : 0) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig ? (fits > 0 ? fillW : fits < 0 ? -fillW / 2 : 0) : 0; all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : fits < 0 ? 2 : 1) : 1, sc: fav + (fill ? fillW : 0) + base + size }); }
   const sugg = all.filter(x => x.fav > 0 || x.fill).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
-  const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n));
-  return { res, present, need, sugg, lack, byTag };
+  const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => a.rank - b.rank || (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n));
+  return { res, present, need, sugg, lack, byTag, big, needBig };
 }
 const ENV_TIP = { Bright: 'Add lamps and lights, and leave some roof open for daylight.', Dark: 'Keep lights out and roof it over fully.', Humid: 'Add water and plants, and keep the plants watered.', Dry: 'Keep water and plants away; a Smooth rock dries the area.', Warm: 'Use real flames (campfire, candles, a fireplace); lamps don\'t warm a room.', Cool: 'Keep fires and heat sources away.' };
 function resChip(home, r, onChange) {
@@ -841,7 +842,7 @@ function residentPicker(home, floor) {
   });
 }
 const trioLabel = (t) => (TRIO.find(x => x[0] === t) || [])[1] || t;
-function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length ? ' — none of their favourite kinds' : ''); }
+function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); if (sg.fits > 0) bits.push(dp.needBig ? 'big bed: needed for ' + listNames(dp.big) : 'fits large Pokémon (' + listNames(dp.big) + ')'); else if (sg.fits < 0) bits.push('small for ' + listNames(dp.big)); for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length ? ' — none of their favourite kinds' : ''); }
 function decorModal(home) {
   const dp = decorPlan(home); let filt = null;
   modal('Decorate ' + home.label, (box) => {
@@ -853,16 +854,16 @@ function decorModal(home) {
     if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); box.append(h('h4', null, 'Environment')); box.append(h('p', { class: 'note', style: 'margin:0' }, top.map(([e, n]) => e + ' ×' + n).join(' · ') + '. ' + ENV_TIP[top[0][0]] + (top.length > 1 ? ' With mixed types, aim for the majority.' : ''))); }
     box.append(h('h4', null, 'Suggested items'));
     const needF = [...dp.need].filter(([f]) => !dp.present.has(f)).sort((a, b) => b[1] - a[1]).map(([f]) => f);
-    const trio = comfortTrio(home), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : null;
+    const trio = comfortTrio(home).map(t => t[2] === 'Relaxation' && dp.needBig ? [t[0], false, t[2], 'big bed needed'] : t), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : null;
     const TAB = { Relaxation: 'Rest items', Toy: 'Toys', Decoration: 'Decorations' };
     const chips = h('div', { class: 'cats', role: 'group', 'aria-label': 'Suggestions' }), info = h('p', { class: 'note', style: 'margin:0 0 6px' }), list = h('div', { class: 'list' }); box.append(chips, info, list);
     const render = () => {
       chips.textContent = ''; const chip = (key, ...kids) => h('button', { class: 'cat', 'aria-pressed': filt === key ? 'true' : 'false', onclick: () => { filt = key; render(); } }, ...kids);
-      for (const [, ok, t] of trio) chips.append(chip('tg:' + t, (ok ? '✓ ' : '') + 'Best ' + TAB[t].toLowerCase(), ok ? '' : h('span', { class: 'n' }, 'needed')));
+      for (const [, ok, t, why] of trio) chips.append(chip('tg:' + t, (ok ? '✓ ' : '') + 'Best ' + TAB[t].toLowerCase(), ok ? '' : h('span', { class: 'n' }, why || 'needed')));
       chips.append(chip(null, 'Best overall'));
       for (const f of needF) chips.append(chip(f, FAVS[f]));
       list.textContent = ''; let arr;
-      if (typeof filt === 'string') { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby. Best first for ' + (dp.res.length ? 'these residents\' favourites' : 'anyone') + '.'; }
+      if (typeof filt === 'string') { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = t === 'Relaxation' && dp.big.length ? listNames(dp.big) + (dp.big.length > 1 ? ' are large Pokémon' : ' is a large Pokémon') + ': a small bed lowers comfort. ' + (dp.needBig ? 'Beds the game says fit large Pokémon come first.' : 'A bed that fits is in range already.') : (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby.'; }
       else if (filt == null) { arr = dp.sugg.slice(0, 14); info.textContent = dp.lack.size ? 'Items that fill the missing ' + [...dp.lack].map(t => trioLabel(t).toLowerCase()).join(' and ') + ' item count extra here.' : ''; }
       else { arr = dp.sugg.filter(x => (x.it.fv || []).includes(filt)).slice(0, 40); info.textContent = ''; }
       info.hidden = !info.textContent;
@@ -1040,7 +1041,7 @@ function iedSide() {
   if (ki.fl > 1) { const other = residentsOf(home, 1 - IED.floor); if (other.length) el.append(h('div', { class: 'note' }, floorName(1 - IED.floor) + ': ' + other.map(r => r.p).join(', '))); }
   const n = kitFurniture(ob), dp = iedSuggest(home, f), cv = favCoverage(home);
   el.append(h('div', { class: 'reqs' }, h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss') }, n >= 3 ? '✓' : '✗', n + ' furniture inside (needs 3)'), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : '') }, cv.have + '/' + cv.total + ' favourites') : ''));
-  el.append(h('div', { class: 'reqs', title: 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby. Tap one to see items of that kind.' }, comfortTrio(home).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, ok ? '✓' : '·', lb + ' item'))));
+  el.append(h('div', { class: 'reqs', title: 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby. Tap one to see items of that kind.' }, bigBedChip(home, f), comfortTrio(home).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, ok ? '✓' : '·', lb + ' item'))));
   if (!dp.res.length && typeof IED.filt !== 'string') { el.append(h('p', { class: 'hint' }, (ki.fl > 1 ? 'Add who sleeps on this floor' : 'Add who lives here') + ' to see their favourites and get suggestions. You can still place anything from the list below.')); return; }
   for (const p of dp.res) el.append(h('div', { class: 'card', style: 'margin:6px 0' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
     h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', title: 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', title: 'Show items for this', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv])))));
@@ -1048,7 +1049,7 @@ function iedSide() {
   if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); el.append(h('p', { class: 'note', style: 'margin:4px 0 0' }, h('b', null, top.map(([e, k]) => e + (k > 1 ? ' ×' + k : '')).join(' · ') + ': '), ENV_TIP[top[0][0]])); }
   const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv); const tagF = typeof IED.filt === 'string' ? IED.filt.slice(3) : null;
   el.append(h('div', { style: 'display:flex;align-items:center;gap:8px;margin:14px 0 4px' }, h('h4', { style: 'margin:0' }, tagF ? trioLabel(tagF) + ' items' : IED.filt != null ? 'Items for ' + FAVS[IED.filt] : 'Suggested for ' + (ki.fl > 1 ? 'this floor' : 'them')),
-    missing.size || dp.lack.size ? h('button', { class: 'btn sm primary', style: 'margin-left:auto', title: 'Places one item for each missing favourite, plus a rest, toy or decoration item if one is missing, along the walls', onclick: iedAutoPlace }, icon('leaf'), 'Auto-place') : h('span', { class: 'note', style: 'margin-left:auto' }, 'All favourites covered ✓')));
+    missing.size || dp.lack.size || dp.needBig ? h('button', { class: 'btn sm primary', style: 'margin-left:auto', title: 'Places one item for each missing favourite, plus a rest, toy or decoration item if one is missing, along the walls', onclick: iedAutoPlace }, icon('leaf'), 'Auto-place') : h('span', { class: 'note', style: 'margin-left:auto' }, 'All favourites covered ✓')));
   const arr = tagF ? dp.byTag(tagF).slice(0, 30) : IED.filt == null ? dp.sugg.slice(0, 10) : dp.sugg.filter(x => (x.it.fv || []).includes(IED.filt)).slice(0, 30);
   const l = h('div', { class: 'list' });
   for (const sg of arr) l.append(iedItemRow(sg.it, suggLine(dp, sg)));
@@ -1096,6 +1097,7 @@ function iedAutoPlace() {
   const want = new Set(); for (const p of dp.res) for (const v of p.fv || []) if (!dp.present.has(v)) want.add(v);
   const pick = [];
   for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (sg.it.sub === 'Event item') continue; if ((sg.it.fv || []).some(v => want.has(v))) { pick.push(sg.it); for (const v of sg.it.fv || []) want.delete(v); } }
+  if (dp.needBig) { const bed = dp.byTag('Relaxation').find(x => x.fits > 0 && x.it.sub !== 'Event item'); if (bed && !pick.includes(bed.it)) pick.unshift(bed.it); }
   for (const t of dp.lack) { if (pick.some(it => it.tg === t)) continue; const best = dp.byTag(t).find(x => x.it.sub !== 'Event item' && !pick.includes(x.it)); if (best) pick.push(best.it); }
   for (const sg of dp.sugg) { if (kitFurniture(ob) + pick.length >= 3) break; if (!pick.includes(sg.it) && sg.it.sub !== 'Event item') pick.push(sg.it); }
   const spots = iedRing(ki, IED.floor); let n = 0;
@@ -1239,7 +1241,16 @@ function comfortTrio(home) { // players find comfort is best with a rest, a toy 
   else for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; if (it.tg && !tags.has(it.tg) && objInArea(ob, home.hs.area)) tags.add(it.tg); }
   return TRIO.map(([t, lb]) => [lb, tags.has(t), t]);
 }
-function trioChips(home) { return h('div', { class: 'reqs', title: 'Players find Pokémon are most comfortable with a rest, a toy and a decoration item in range' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : '') }, ok ? '✓' : '·', lb + ' item'))); }
+/* bed size: a small bed lowers a large Pokémon's comfort (players); the game's descriptions say which beds fit large Pokémon (bb) and which are small (sb) */
+const isBed = (it) => !!it && it.tg === 'Relaxation' && /\bbed\b/i.test(it.n);
+function bigBeds(home, floor) { // large residents and whether a bed that fits them is in range
+  const big = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(tooBig); if (!big.length) return null;
+  const beds = home.kind === 'kit' ? kitPieces(home.ob).map(pc => pc.it).filter(isBed) : [...plan.objs.values()].filter(ob => isBed(ITEMS[ob.i]) && objInArea(ob, home.hs.area)).map(ob => ITEMS[ob.i]);
+  return { big: big.map(p => p.n), has: beds.some(it => it.bb), small: beds.filter(it => it.sb).map(it => it.n) };
+}
+const bigBedNames = () => ITEMS.filter(it => it.bb).map(it => it.n);
+function bigBedChip(home, floor) { const b = bigBeds(home, floor); if (!b) return ''; return h('span', { class: 'req ' + (b.has ? 'ok' : ''), title: 'A small bed lowers a large Pokémon\'s comfort. Beds the game says fit large Pokémon: ' + bigBedNames().join(', ') + '.' }, b.has ? '✓' : '·', 'Big bed for ' + listNames(b.big)); }
+function trioChips(home) { return h('div', { class: 'reqs', title: 'Players find Pokémon are most comfortable with a rest, a toy and a decoration item in range' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : '') }, ok ? '✓' : '·', lb + ' item')), bigBedChip(home)); }
 /* ---------- community box: Gather Pokémon fill it when the whole box is within 4 tiles of their home's dotted line (player-tested) ---------- */
 const CBOX = 'Community box', BOX_R = 4;
 const isBox = (it) => it && it.n === CBOX;
@@ -2972,7 +2983,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T07:24';
+const APP_BUILD = '2026-11-20T07:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
