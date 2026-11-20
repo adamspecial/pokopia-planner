@@ -222,6 +222,19 @@ kbd{font-family:inherit;font-size:12px;border:1px solid var(--line);border-botto
 .res button{border:0;background:none;padding:2px;border-radius:50%;color:var(--muted);display:grid;place-items:center}
 .res button svg{width:14px;height:14px}
 .env{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--ink);white-space:nowrap}
+.envbox{margin:4px 0 2px}
+.envrow{display:grid;grid-template-columns:64px minmax(60px,1fr) 74px 34px;align-items:center;gap:8px;font-size:12.5px;margin:4px 0}
+.envlb{color:var(--muted)}
+.envst.mid{color:var(--muted);font-weight:600}
+.envv{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+.envbar{position:relative;display:block;height:8px;border-radius:4px;--mid:color-mix(in srgb,var(--ink) 10%,transparent);background:linear-gradient(90deg,var(--lo) 0 var(--a),var(--mid) var(--a) var(--b),var(--hi) var(--b) 100%)}
+.envbar.b{--lo:color-mix(in srgb,#4b4fa8 60%,transparent);--hi:color-mix(in srgb,#f0c23b 80%,transparent)}
+.envbar.t{--lo:color-mix(in srgb,#3d93d6 60%,transparent);--hi:color-mix(in srgb,#e2682f 65%,transparent)}
+.envbar.u{--lo:color-mix(in srgb,#c9a15a 65%,transparent);--hi:color-mix(in srgb,#2aa79b 65%,transparent)}
+.envbar i{position:absolute;top:-3px;width:4px;height:14px;margin-left:-2px;border-radius:2px;background:var(--ink);box-shadow:0 0 0 1.5px var(--paper)}
+.envwhat summary{cursor:pointer;font-size:12.5px;color:var(--muted);margin:4px 0 2px}
+.envwhat .note{margin:2px 0}
+.roofline{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
 .fav{display:inline-flex;align-items:center;gap:4px;font-size:12px;border-radius:7px;padding:2px 7px;border:1px solid var(--line);margin:2px 3px 2px 0;background:var(--paper)}
 .fav.have{border-color:color-mix(in srgb,var(--good) 50%,var(--line));background:color-mix(in srgb,var(--good) 12%,var(--paper))}
 .fav.want{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
@@ -529,7 +542,7 @@ const LSK = 'pokopia-planner:';
 function newPlan({ name, area, w, h, fill }) {
   const p = { id: uid(), name: name || 'New area', area: area || 'Withered Wasteland', w, h,
     ground: new Uint16Array(w * h), elev: new Uint8Array(w * h), objs: new Map(), occ: new Int32Array(w * h), rugs: new Map(),
-    zones: [], inv: {}, res: [], pool: [], nextId: 1, updated: Date.now() };
+    zones: [], inv: {}, res: [], roofs: [], pool: [], nextId: 1, updated: Date.now() };
   if (fill) { const it = BY_NAME.get(fill); if (it) p.ground.fill(it.i + 1); }
   return p;
 }
@@ -544,11 +557,11 @@ function serialize(p) {
   const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h].map(v => v.toString(36)).join('.'));
   return { v: 1, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: rle(g), e: rle(p.elev), o: o.join(';'), u: u.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
-    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), updated: p.updated || Date.now() };
+    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), updated: p.updated || Date.now() };
 }
 function deserialize(s) {
   const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= 256 && h <= 256)) throw new Error('Bad plan size');
-  const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; } try { p.isz = s.isz ? JSON.parse(s.isz) : {}; } catch (e) { p.isz = {}; }
+  const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.roofs = s.rf ? JSON.parse(s.rf) : []; } catch (e) { p.roofs = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; } try { p.isz = s.isz ? JSON.parse(s.isz) : {}; } catch (e) { p.isz = {}; }
   const map = (s.dict || []).map(n => BY_NAME.get(n));
   const g = unrle(s.g, w * h, Uint16Array);
   for (let k = 0; k < g.length; k++) { const it = g[k] ? map[g[k] - 1] : null; p.ground[k] = it ? it.i + 1 : 0; }
@@ -795,18 +808,172 @@ function favCoverage(home) { // per resident, counting what's on their own floor
   for (const r of residentsOf(home)) { const p = PK_BY_NAME.get(r.p); if (!p) continue; const f = home.floors > 1 ? (r.f || 0) : null; if (!cache.has(f)) cache.set(f, presentFavs(home, f)); const pr = cache.get(f); for (const fv of p.fv || []) { total++; if (pr.has(fv)) have++; } }
   return { have, total };
 }
-function compat(p, others) { let shared = 0; for (const o of others) for (const f of p.fv || []) if ((o.fv || []).includes(f)) shared++; const sameEnv = others.every(o => !o.ideal || o.ideal === p.ideal); return { shared, sameEnv, score: shared + (sameEnv ? 3 : 0) }; }
+/* ---------- environment: brightness, warmth and humidity ----------
+   A Pokémon's ideal habitat is one of six: Bright or Dark, Warm or Cool, Humid or Dry. They sit on three separate scales, so one home
+   can be warm and humid at once; only opposites on the same scale clash.
+   Brightness follows players' tests (the "Bright and Dark" specs on note.com/ccopedia): in a house built from blocks, daylight adds up
+   to 90 by the share of the floor inside the walls open to the sky, and lights in the active area add 20, 40 or 80 (electric fixtures
+   80), counted from 1 level below to 3 above the door, even on the roof; 100 or more is bright, 60 or less dark. A kit house is roofed
+   and gets no daylight: 40 or more is bright, less is dark. Only what's inside a kit house counts for it.
+   Warmth and humidity use points of the same size, worked out from the items' own descriptions and players' reports (the game doesn't
+   show them): a lit fire, a Heat Rock or an air conditioner on hot makes it warm (40 or more); an Icy Rock, ice or the air conditioner on
+   cold makes it cool (-40 or less); a humidifier, a Damp Rock, a pond or a fountain by water makes it humid (40 or more); with next to
+   nothing wet in range (10 or less) it's dry, and a Smooth Rock takes 40 off. Lamps don't warm; candles barely do.
+   The air conditioner is set to hot or cold to suit the residents. Fires, lamps and taps are counted as lit, powered and running. */
+const ENV_AX = { Bright: ['b', 1], Dark: ['b', -1], Warm: ['t', 1], Cool: ['t', -1], Humid: ['u', 1], Dry: ['u', -1] };
+const ENV_ROWS = [['b', 'Light', 'Dark', 'Bright', 'In between'], ['t', 'Warmth', 'Cool', 'Warm', 'Mild'], ['u', 'Humidity', 'Dry', 'Humid', 'In between']];
+const ENV_WORD = { b: 'light', t: 'warmth', u: 'humidity' };
+const ENV_NEED = { p: 'needs power', f: 'a Burn Pokémon lights it', w: 'fill it with water', o: 'switch it on', n: 'place it by water' };
+const ENV_FX = { // [light, warmth, humidity, what it needs to work]
+  'Slender candle': [20, 10, 0, 'f'], 'Eerie candle': [20, 10, 0, 'f'], 'Torch': [40, 20, 0, 'f'], 'Wall torch': [40, 20, 0, 'f'],
+  'Campfire': [40, 40, 0, 'f'], 'Firepit': [40, 40, 0, 'f'], 'Stone fireplace': [40, 40, 0, 'f'], 'Bonfire': [80, 80, 0, 'f'],
+  'Mushroom lamp': [80], 'Mushroom streetlight': [80], 'Pearl streetlight': [80], 'Cube light': [80], 'Lampion': [40], 'Floating lantern': [40],
+  'Oil lantern': [20], 'Trevenant streetlight': [20], 'Pumpkin lantern': [20], 'Pumpkin lantern tower': [40],
+  'Heat Rock': [0, 40], 'Icy Rock': [0, -40], 'Molten rock': [20, 40], 'Icicle': [0, -20], 'Air conditioner': [0, 0, 0, 'p'],
+  'Fan': [0, -10, 0, 'p'], 'Ceiling fan': [0, -10], 'Large ventilation fan': [0, -20], 'Refrigerator': [0, -10, 0, 'p'], 'Gaming fridge': [0, -10, 0, 'p'], 'Shop fridge': [0, -10], 'Cooler': [0, -10],
+  'Humidifier': [0, 0, 40, 'o'], 'Damp Rock': [0, 0, 40], 'Smooth rock': [0, 0, -40], 'Horsea fountain': [0, 0, 40, 'n'], 'Gyarados fountain': [0, 0, 40, 'n'], 'Sprinkler': [0, 0, 40, 'n'],
+  'Bathtub': [0, 0, 20, 'w'], 'Water basin': [0, 0, 20, 'w'], 'Shower': [0, 0, 20, 'o'], 'Sink': [0, 0, 20, 'o'], 'Modern sink': [0, 0, 20, 'o'], 'Hot-spring spout': [0, 10, 10, 'n'], 'Water pillar quarter': [0, 0, 10], 'Damp hedge': [0, 0, 10],
+  // ground, per tile in the active area (each kind counts up to 80)
+  'Water': [0, 0, 10], 'Ocean water': [0, 0, 10], 'Muddy water': [0, 0, 10], 'Waterfall': [0, 0, 10], 'Hot-spring water': [0, 10, 10], 'Lava': [0, 20, 0], 'Ice': [0, -20, 0]
+};
+const ENV_POWERED_LIGHTS = ['Town streetlight', 'Harbor streetlight', 'Chic streetlight', 'Double streetlight', 'Dangling streetlight', 'Plain lamp', 'Desk light', 'Poké Ball light', 'Berry table lamp', 'Cute lamp', 'Poké Ball lamp', 'Red meteor lamp', 'Orange meteor lamp', 'Yellow meteor lamp', 'Green meteor lamp', 'Blue meteor lamp', 'Indigo meteor lamp', 'Violet meteor lamp', 'Luxury lamp', 'Garden light', 'Lantern', 'Seedot lamp', 'Wall light', 'Shell lamp', 'Fluorescent light', 'Gaming light', 'Resort light', 'String lights', 'Pop art lamp', 'Berry hanging lamp', 'Surface light', 'Spotlight', 'Antique chandelier', 'Jirachi lamp', 'Cursola light', 'Chain lamp', 'Pathway light (line)', 'Pathway light (single)', 'Pathway light (corner)'];
+const ENV_POTTED = ['Small vase', 'Extravagant flowers', 'Decorative plant shelf', 'Wall-mounted flowers', 'Chansey plant', 'Planter', 'Garden flowers', 'Wavy-pattern planter', 'Pitcher-plant pot', 'Leafy plant', 'Tall potted plant', 'Flat-leaf plant', 'Twisted potted plant', 'Wall plant', 'Flower garland'];
+let envFxMap = null;
+function envFx(it) { // what one item does to light (b), warmth (t) and humidity (u); null if nothing
+  if (!it) return null;
+  if (!envFxMap) {
+    envFxMap = new Map(); const lights = new Set(ENV_POWERED_LIGHTS), potted = new Set(ENV_POTTED);
+    for (const x of ITEMS) {
+      let a = ENV_FX[x.n] || (lights.has(x.n) ? [80, 0, 0, 'p'] : potted.has(x.n) ? [0, 0, 5] : null);
+      if (!a && x.c === 'Nature' && !/^(dry|seabed)/i.test(x.n)) { const s = x.sub; a = s === 'Trees' && x.sh !== 'stump' ? [0, 0, 10] : s === 'Hedges' || s === 'Ground cover' || s === 'Crops' ? [0, 0, 5] : s === 'Flowers' || s === 'Tall grass' ? [0, 0, 2] : null; }
+      if (a && (x.c !== 'Terrain' || ENV_FX[x.n])) envFxMap.set(x.i, { b: a[0] || 0, t: a[1] || 0, u: a[2] || 0, need: a[3] || '', ac: x.n === 'Air conditioner' });
+    }
+  }
+  return envFxMap.get(it.i) || null;
+}
+const envT = (fx, ac) => fx.ac ? ac * 40 : fx.t; // the air conditioner: +40 on hot, -40 on cold, 0 when nobody minds
+function envGap(ideal, v, indoor) { // how far the home is from what this ideal wants (0: it's met)
+  switch (ideal) {
+    case 'Bright': return Math.max(0, (indoor ? 40 : 100) - v); case 'Dark': return Math.max(0, v - (indoor ? 39 : 60));
+    case 'Warm': return Math.max(0, 40 - v); case 'Cool': return Math.max(0, v + 40);
+    case 'Humid': return Math.max(0, 40 - v); case 'Dry': return Math.max(0, v - 10);
+  }
+  return 0;
+}
+function envState(k, v, indoor) { const [, , lo, hi] = ENV_ROWS.find(r => r[0] === k); return !envGap(hi, v, indoor) ? hi : !envGap(lo, v, indoor) ? lo : null; }
+const envAxisOf = (ideal) => ENV_AX[ideal] ? ENV_AX[ideal][0] : null;
+const envClash = (a, b) => !!a && !!b && a !== b && envAxisOf(a) === envAxisOf(b);
+/* roofs on houses built from blocks: plan.roofs = [{ x, y, q }], a tile inside the house and how much of its floor is roofed in quarters
+   (0 none ... 4 all). Like residents it's kept by a tile inside, so the house can change shape. Not set: counted as no roof. */
+const ROOF_WORD = ['no roof', 'a quarter roofed', 'half roofed', 'three quarters roofed', 'roofed over'];
+function roofOf(hs) { const r = (plan.roofs || []).find(r => hs.cells.has(r.y * plan.w + r.x)); return r ? r.q : null; }
+function setRoof(hs, q) { plan.roofs = (plan.roofs || []).filter(r => !hs.cells.has(r.y * plan.w + r.x)); if (q != null) plan.roofs.push({ x: hs.anchor % plan.w, y: (hs.anchor / plan.w) | 0, q }); markDirty(); }
+function envOf(home, floor) { // { indoor, roof, ac, pks, ax: { b|t|u: { v, state, parts: Map(label -> { v, n, need }) } } }
+  const pks = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
+  let warm = 0, cool = 0; for (const p of pks) { if (p.ideal === 'Warm') warm++; else if (p.ideal === 'Cool') cool++; }
+  const ac = warm > cool ? 1 : cool ? -1 : 0;
+  const E = { indoor: home.kind === 'kit', roof: null, ac, pks, ax: { b: { v: 0, parts: new Map() }, t: { v: 0, parts: new Map() }, u: { v: 0, parts: new Map() } } };
+  const add = (k, label, v, need, n) => { if (!v) return; const A = E.ax[k]; A.v += v; const e = A.parts.get(label); if (e) { e.v += v; e.n += n || 1; } else A.parts.set(label, { v, n: n || 1, need: need || '' }); };
+  const addIt = (it, light) => { const fx = envFx(it); if (!fx) return; const nm = fx.ac ? it.n + (ac > 0 ? ' (on hot)' : ac < 0 ? ' (on cold)' : ' (off)') : it.n; if (light) add('b', nm, fx.b, fx.need); add('t', nm, envT(fx, ac), fx.need); add('u', nm, fx.u, fx.need); };
+  if (E.indoor) { for (const pc of kitPieces(home.ob, floor)) addIt(pc.it, true); }
+  else {
+    const hs = home.hs, a = hs.area, q = roofOf(hs); E.roof = q;
+    add('b', q == null ? 'Daylight (roof not set: counted as open)' : 'Daylight (' + ROOF_WORD[q] + ')', Math.round(90 * (1 - (q || 0) / 4)));
+    for (const ob of plan.objs.values()) {
+      const it = ITEMS[ob.i]; if (!envFx(it)) continue; let inside = false, lit = false;
+      for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) if (inB(plan, x, y) && inArea(a, x, y)) { inside = true; if (plan.elev[y * plan.w + x] - a.base >= -1) lit = true; }
+      if (inside) addIt(it, lit);
+    }
+    const tiles = new Map(), R = a.rect;
+    for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inArea(a, x, y)) continue; const g = plan.ground[y * plan.w + x]; if (g && envFx(ITEMS[g - 1])) tiles.set(g - 1, (tiles.get(g - 1) || 0) + 1); }
+    for (const [i, n] of tiles) { const it = ITEMS[i], fx = envFx(it), lb = it.n + ' (' + n + ' tile' + (n > 1 ? 's' : '') + ')'; for (const k of ['b', 't', 'u']) if (fx[k]) add(k, lb, clamp(fx[k] * n, -80, 80), '', n); }
+  }
+  for (const k in E.ax) E.ax[k].state = envState(k, E.ax[k].v, E.indoor);
+  return E;
+}
+function envMet(p, E) { const k = envAxisOf(p.ideal); return !k || !envGap(p.ideal, E.ax[k].v, E.indoor); }
+function envNeeds(E) { // the ideals not met yet, most wanted first: [{ ideal, who: [names], gap }]
+  const m = new Map(); for (const p of E.pks) { if (!p.ideal || envMet(p, E)) continue; if (!m.has(p.ideal)) m.set(p.ideal, []); m.get(p.ideal).push(p.n); }
+  return [...m].map(([ideal, who]) => ({ ideal, who, gap: envGap(ideal, E.ax[envAxisOf(ideal)].v, E.indoor) })).sort((a, b) => b.who.length - a.who.length);
+}
+function envGain(it, E) { // how much placing one more of this item helps the residents' ideals (negative: it works against them)
+  const fx = envFx(it); if (!fx || !E.pks.length) return { g: 0, good: [], bad: [] };
+  let g = 0; const good = [], bad = [];
+  for (const p of E.pks) {
+    const k = envAxisOf(p.ideal); if (!k) continue; const d = k === 't' ? envT(fx, E.ac) : fx[k]; if (!d) continue;
+    const v = E.ax[k].v, before = envGap(p.ideal, v, E.indoor), after = envGap(p.ideal, v + d, E.indoor); if (before === after) continue;
+    if (before && !after) { g += 3; good.push(p.n); } else if (!before && after) { g -= 4; bad.push(p.n); }
+    else { const r = clamp((before - after) / Math.max(before, 20), -1, 1); g += 1.5 * r; (r > 0 ? good : bad).push(p.n); }
+  }
+  return { g, good, bad };
+}
+const envPts = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+function envFxText(it, E) { const fx = envFx(it); if (!fx) return ''; const b = []; const t = envT(fx, E ? E.ac : 0); if (fx.b) b.push(envPts(fx.b) + ' light'); if (t) b.push(envPts(t) + ' warmth'); if (fx.u) b.push(envPts(fx.u) + ' humidity'); if (fx.ac && !t) b.push('cools or warms'); return b.join(', ') + (b.length && fx.need ? ' (' + ENV_NEED[fx.need] + ')' : ''); }
+function envAdvice(ideal, E) { // what to do about one ideal that isn't met
+  const k = envAxisOf(ideal), A = E.ax[k], g = envGap(ideal, A.v, E.indoor); if (!g) return '';
+  const top = (sign) => [...A.parts].filter(([lb, e]) => e.v * sign > 0 && !lb.startsWith('Daylight')).sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)).slice(0, 3).map(([lb, e]) => lb + (e.n > 1 && !/tile/.test(lb) ? ' ×' + e.n : '') + ' (' + envPts(e.v) + ')').join(', ');
+  const day = !E.indoor && E.roof !== 4 ? Math.round(90 * (1 - (E.roof || 0) / 4)) : 0;
+  switch (ideal) {
+    case 'Bright': return 'Needs ' + g + ' more light: ' + (g <= 20 ? 'a candle (20) or any lamp' : g <= 40 ? 'a campfire, torch or paper lantern (40), or a lamp (80)' : Math.ceil(g / 80) + ' lamp' + (g > 80 ? 's' : '') + ' or streetlight' + (g > 80 ? 's' : '') + ' (80 each; mushroom lamps need no power)') + (!E.indoor && E.roof ? ', or open up the roof' : '') + '.';
+    case 'Dark': { const lit = top(1), todo = [day ? 'roof it over (daylight now ' + day + ')' : '', lit ? 'take out ' + lit : ''].filter(Boolean).join(' and '); return 'Too bright (' + A.v + ' light; dark is ' + (E.indoor ? 'under 40' : '60 or less') + '): ' + todo + '.' + (!E.indoor && lit ? ' Lights count anywhere in the active area, even on the roof.' : ''); }
+    case 'Warm': return 'Needs ' + g + ' more warmth: light a campfire, firepit or stone fireplace (40), or place a Heat Rock (40)' + (top(-1) ? '. Cooling it now: ' + top(-1) : '') + '. Lamps don\'t warm.';
+    case 'Cool': return 'Needs ' + g + ' less warmth: place an Icy Rock or an air conditioner on cold (−40 each)' + (top(1) ? '. Warming it now: ' + top(1) : '') + '.';
+    case 'Humid': return 'Needs ' + g + ' more humidity: a humidifier or Damp Rock (40), ' + (E.indoor ? 'a filled bathtub or water basin, a shower or sink (20), potted plants (5)' : 'a pond (10 a tile), a fountain or sprinkler by water (40), trees (10)') + (top(-1) ? '. Drying it now: ' + top(-1) : '') + '.';
+    case 'Dry': return 'Too humid (' + A.v + '; dry is 10 or less): take out ' + top(1) + ', or place a Smooth Rock (−40).';
+  }
+  return '';
+}
+function envBar(k, v, indoor) { // a scale: low state | in between | high state, with a mark at the home's value
+  const [lo, hi] = k === 'b' ? [0, indoor ? 160 : 200] : k === 't' ? [-120, 120] : [-40, 120];
+  const cut = k === 'b' ? (indoor ? [40, 40] : [60, 100]) : k === 't' ? [-40, 40] : [10, 40], pc = (x) => clamp((x - lo) / (hi - lo) * 100, 0, 100);
+  return h('span', { class: 'envbar ' + k, 'aria-hidden': 'true', style: '--a:' + pc(cut[0]) + '%;--b:' + pc(cut[1]) + '%' }, h('i', { style: 'left:' + pc(v) + '%' }));
+}
+function envBlock(home, floor) { // the home's light, warmth and humidity, who it suits, and what to change
+  const E = envOf(home, floor), box = h('div', { class: 'envbox' });
+  for (const [k, lb, lo, hi, mid] of ENV_ROWS) { const A = E.ax[k]; box.append(h('div', { class: 'envrow', title: lo + ' ' + (k === 'b' ? (E.indoor ? 'below 40' : '60 or less') : k === 't' ? '−40 or less' : '10 or less') + ' · ' + hi + ' ' + (k === 'b' ? (E.indoor ? '40 or more' : '100 or more') : '40 or more') }, h('span', { class: 'envlb' }, lb), envBar(k, A.v, E.indoor), h('b', { class: 'envst' + (A.state ? '' : ' mid') }, A.state || mid), h('span', { class: 'envv' }, envPts(A.v)))); }
+  const chips = h('div', { class: 'reqs' });
+  for (const p of E.pks) if (p.ideal) { const ok = envMet(p, E); chips.append(h('span', { class: 'req ' + (ok ? 'ok' : 'miss') }, ok ? '✓' : '✗', p.n + (ok ? ' · ' + p.ideal : ' wants ' + p.ideal))); }
+  if (chips.childNodes.length) box.append(chips);
+  for (const n of envNeeds(E)) box.append(h('div', { class: 'note', style: 'margin:2px 0' }, h('b', null, n.ideal + ': '), envAdvice(n.ideal, E)));
+  const det = h('details', { class: 'envwhat' }, h('summary', null, 'What counts'));
+  for (const [k, lb] of ENV_ROWS) { const A = E.ax[k]; const parts = [...A.parts].sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)); det.append(h('div', { class: 'note' }, h('b', null, lb + ': '), parts.length ? parts.map(([l, e]) => l + (e.n > 1 && !/tile/.test(l) ? ' ×' + e.n : '') + ' ' + envPts(e.v) + (e.need ? ' (' + ENV_NEED[e.need] + ')' : '')).join(' · ') : 'nothing')); }
+  det.append(h('div', { class: 'note', style: 'margin-top:4px' }, E.indoor ? 'Inside a kit house only what\'s indoors' + (home.floors > 1 ? ' on this floor' : '') + ' counts. No daylight: 40 light or more is bright, less is dark.' : 'Daylight counts the floor inside the walls; lights count anywhere in the active area from 1 level below to 3 above the door, even on the roof. 100 light or more is bright, 60 or less dark.', ' Warm or humid at 40 or more, cool at −40 or less, dry at 10 or less. Light points are from players\' tests; warmth and humidity points are the planner\'s estimate.'));
+  box.append(det);
+  return box;
+}
+function envSection(home, noHead) { // per floor in a two-floor kit house
+  const wrap = h('div', { class: 'envsec' }), multi = home.floors > 1;
+  if (!noHead) wrap.append(h('div', { style: 'display:flex;align-items:center;gap:8px;margin-top:8px' }, h('b', null, 'Environment'), h('span', { class: 'note' }, multi ? 'each floor on its own' : 'light, warmth and humidity')));
+  for (const f of multi ? [0, 1] : [null]) {
+    if (multi) wrap.append(h('div', { class: 'note', style: 'margin-top:6px;font-weight:700;color:var(--ink)' }, floorName(f)));
+    wrap.append(envBlock(home, f));
+    const pks = residentsOf(home, f).map(r => PK_BY_NAME.get(r.p)).filter(Boolean), clash = [];
+    for (let i = 0; i < pks.length; i++) for (let j = i + 1; j < pks.length; j++) if (envClash(pks[i].ideal, pks[j].ideal)) clash.push(pks[i].n + ' (' + pks[i].ideal + ') and ' + pks[j].n + ' (' + pks[j].ideal + ')');
+    if (clash.length) wrap.append(h('div', { class: 'note', style: 'color:var(--warn)' }, clash.join('; ') + ' want opposites, so one of them can\'t be comfortable here' + (multi ? ' on the same floor' : '') + '. Different scales (say Warm and Humid) are fine together.'));
+  }
+  return wrap;
+}
+function compat(p, others) { let shared = 0; for (const o of others) for (const f of p.fv || []) if ((o.fv || []).includes(f)) shared++; const clash = others.filter(o => envClash(o.ideal, p.ideal)).map(o => o.n), same = others.every(o => !o.ideal || o.ideal === p.ideal), sameEnv = !clash.length; return { shared, sameEnv, same, clash, score: shared + (same ? 3 : sameEnv ? 1 : 0) }; }
 function decorPlan(home, floor) {
   const res = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const present = presentFavs(home, floor);
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
   const lack = new Set(comfortTrio(home).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
   const rf = restFit(home, floor), big = rf ? rf.short : [], needR = rf && rf.short.length ? rf.need : 0, needBig = needR > 0;
-  for (const it of ITEMS) { if ((!it.fv && !it.tg) || it.c === 'Terrain' || it.c === 'Kits' || it.c === 'Nature') continue; let fav = 0; const hits = []; for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); } const fill = !!(it.tg && lack.has(it.tg)), fits = needBig && isRest(it) ? (SIZE_RANK[restClass(...footOf(it))[0]] >= needR ? 1 : -1) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig && fits > 0 ? fillW : 0; all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, sc: fav + (fill ? fillW : 0) + base + size }); }
-  const sugg = all.filter(x => x.fav > 0 || x.fill).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
-  const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => a.rank - b.rank || (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n));
-  return { res, present, need, sugg, lack, byTag, big, needBig, needR };
+  const env = envOf(home, floor), envN = envNeeds(env);
+  for (const it of ITEMS) {
+    const fx = envFx(it); if ((!it.fv && !it.tg && !fx) || it.c === 'Terrain' || it.c === 'Kits') continue;
+    const nature = it.c === 'Nature'; if (nature && (it.n === 'Molten rock' || !(fx && (fx.b || fx.t || Math.abs(fx.u) >= 10)))) continue; // trees and rocks only for what they do to the air
+    let fav = 0; const hits = []; if (!nature) for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); }
+    const fill = !nature && !!(it.tg && lack.has(it.tg)), fits = needBig && isRest(it) ? (SIZE_RANK[restClass(...footOf(it))[0]] >= needR ? 1 : -1) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig && fits > 0 ? fillW : 0;
+    const eg = envGain(it, env);
+    all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, env: eg.g, envGood: eg.good, envBad: eg.bad, sc: fav + (fill ? fillW : 0) + base + size + 2 * eg.g }); // an ideal habitat met counts like a few favourites
+  }
+  const sugg = all.filter(x => x.fav > 0 || x.fill || x.env > 0).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
+  const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => a.rank - b.rank || (b.fav + b.base + b.env) - (a.fav + a.base + a.env) || a.it.n.localeCompare(b.it.n));
+  const envFor = (ideal, ok) => { const [k, dir] = ENV_AX[ideal]; return all.filter(x => { const fx = envFx(x.it); return fx && (k === 't' ? envT(fx, env.ac) : fx[k]) * dir > 0 && x.env > 0 && (!ok || ok(x.it)); }).sort((a, b) => b.env - a.env || (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n)); };
+  return { res, present, need, sugg, lack, byTag, big, needBig, needR, env, envN, envFor };
 }
-const ENV_TIP = { Bright: 'Add lamps and lights, and leave some roof open for daylight.', Dark: 'Keep lights out and roof it over fully.', Humid: 'Add water and plants, and keep the plants watered.', Dry: 'Keep water and plants away; a Smooth rock dries the area.', Warm: 'Use real flames (campfire, candles, a fireplace); lamps don\'t warm a room.', Cool: 'Keep fires and heat sources away.' };
+const ENV_TIP = { Bright: 'Add lights: electric lamps and streetlights give 80 each, mushroom lamps 80 with no power, campfires and torches 40, candles 20. Open sky adds up to 90.', Dark: 'Roof it over and keep lights out of range, the roof included.', Humid: 'Add a humidifier or a Damp Rock, water (a pond, a filled bathtub or basin, a fountain by water) and plants or trees.', Dry: 'Keep water and plants out of range; a Smooth Rock dries the area.', Warm: 'Light a campfire, firepit or stone fireplace, or place a Heat Rock; lamps don\'t warm a room.', Cool: 'Place an Icy Rock or an air conditioner on cold, and keep fires out of range.' };
 function resChip(home, r, onChange) {
   const p = PK_BY_NAME.get(r.p); const f = r.f || 0;
   const flBtn = home.floors > 1 ? h('button', { class: 'flr', title: 'Move to ' + floorName(1 - f).toLowerCase(), 'aria-label': 'Move ' + r.p + ' to ' + floorName(1 - f).toLowerCase(), onclick: () => { if (!floorHasRoomFor(home, 1 - f, r.p)) { toast(floorName(1 - f) + ' is full (' + home.pf + ' per floor)'); return; } setResidentFloor(r.p, 1 - f); onChange(); } }, f ? '2F' : '1F') : '';
@@ -824,13 +991,12 @@ function residentsSection(home) {
   wrap.append(chips);
   if (home.floors > 1 && list.length) wrap.append(h('div', { class: 'note' }, '1F / 2F shows which floor each one sleeps on; tap it to swap floors.'));
   if (smallOnly(home)) { const big = pks.filter(tooBig); wrap.append(h('div', { class: 'note', style: big.length ? 'color:var(--bad)' : '' }, big.length ? big.map(p => p.n).join(', ') + (big.length > 1 ? ' are' : ' is') + ' too big for a den. Move ' + (big.length > 1 ? 'them' : 'it') + ' to a hut or bigger.' : 'Medium-sized Pokémon or smaller only.')); }
-  const envs = [...new Set(pks.map(p => p.ideal).filter(Boolean))];
-  if (envs.length > 1) wrap.append(h('div', { class: 'note', style: 'color:var(--warn)' }, 'Mixed ideal habitats (' + envs.join(', ') + '). A home has one environment, so housemates who share one are easier to keep comfortable.'));
   wrap.append(trioChips(home));
   if (home.kind === 'kit') {
     const n = kitFurniture(home.ob), cv = favCoverage(home);
     wrap.append(h('div', { class: 'reqs' }, h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss') }, n >= 3 ? '✓' : '✗', n + ' furniture inside (needs 3)'), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : '') }, cv.have + '/' + cv.total + ' favourites inside') : ''));
   } else if (pks.length) { const cv = favCoverage(home); wrap.append(h('div', { class: 'note', style: 'margin-top:4px' }, 'Their favourite kinds of things already in the active area: ' + cv.have + ' of ' + cv.total + '.')); }
+  wrap.append(envSection(home));
   return wrap; // its buttons (Add resident, Decorate) sit in the inspector's pinned bar
 }
 function afterResChange(home) { refreshHomeInspector(home); if (IED.ob) iedRender(); }
@@ -843,7 +1009,7 @@ function pkRow(p, extra, onPick) {
 function residentPicker(home, floor) {
   const current = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const att = planPokemon(); let q = '';
   if (home.floors > 1 && floor != null && !floorHasRoom(home, floor)) { toast(floorName(floor) + ' is full'); return; }
-  const it = home.kind === 'kit' ? ITEMS[home.ob.i] : null;
+  const it = home.kind === 'kit' ? ITEMS[home.ob.i] : null, E = envOf(home, home.floors > 1 ? floor : undefined);
   modal('Add a resident' + (home.floors > 1 && floor != null ? ' · ' + floorName(floor).toLowerCase() : ''), (box) => {
     box.classList.add('wide');
     box.append(h('p', { class: 'sub' }, home.label + ' · ' + current.length + '/' + home.cap + ' living here. Pokémon from your finished habitats come first, then the best housemates.' + (it && it.sm ? ' Small and medium Pokémon only.' : '')));
@@ -853,10 +1019,10 @@ function residentPicker(home, floor) {
       list.textContent = '';
       let cands = PK.filter(p => p.fv && p.fv.length && !current.includes(p)); const hidden = cands.filter(p => !fitsHome(p, home)).length; cands = cands.filter(p => fitsHome(p, home));
       if (q) cands = cands.filter(p => p.n.toLowerCase().includes(q) || (p.ideal || '').toLowerCase().includes(q) || (p.fv || []).some(f => FAVS[f].toLowerCase().includes(q)));
-      const scored = cands.map(p => { const hm = homeOfPokemon(p.n); return { p, c: compat(p, current), inPlan: att.has(p.n), hm }; });
-      scored.sort((a, b) => (!!a.hm - !!b.hm) || (b.inPlan - a.inPlan) || (b.c.score - a.c.score) || a.p.n.localeCompare(b.p.n));
+      const scored = cands.map(p => { const hm = homeOfPokemon(p.n), k = envAxisOf(p.ideal); return { p, c: compat(p, current), inPlan: att.has(p.n), hm, suits: !!k && !envGap(p.ideal, E.ax[k].v, E.indoor) }; });
+      scored.sort((a, b) => (!!a.hm - !!b.hm) || (b.inPlan - a.inPlan) || (b.c.score + 2 * b.suits) - (a.c.score + 2 * a.suits) || a.p.n.localeCompare(b.p.n));
       for (const sc of scored.slice(0, 60)) {
-        const bits = []; if (sc.inPlan) bits.push('From your habitats'); if (smallOnly(home) && sizeUnsure(sc.p)) bits.push('not tested in a den yet'); if (current.length) bits.push(sc.c.shared + ' shared like' + (sc.c.shared === 1 ? '' : 's') + (sc.c.sameEnv ? ', same habitat type' : ', different habitat type')); if (sc.hm) bits.push('now in ' + sc.hm.label);
+        const bits = []; if (sc.inPlan) bits.push('From your habitats'); if (smallOnly(home) && sizeUnsure(sc.p)) bits.push('not tested in a den yet'); if (sc.suits) bits.push('✓ it\'s ' + sc.p.ideal.toLowerCase() + ' here now'); if (current.length) bits.push(sc.c.shared + ' shared like' + (sc.c.shared === 1 ? '' : 's') + (!sc.c.sameEnv ? ', ⚠ opposite habitat to ' + listNames(sc.c.clash) : sc.c.same ? ', same habitat type' : ', habitat types get along')); if (sc.hm) bits.push('now in ' + sc.hm.label);
         list.append(pkRow(sc.p, bits.join(' · '), () => { assignResident(sc.p.n, home, floor); closeModal(); toast(sc.p.n + ' moved in'); afterResChange(home); }));
       }
       if (!scored.length) list.append(h('p', { class: 'empty' }, 'No Pokémon match.'));
@@ -866,7 +1032,8 @@ function residentPicker(home, floor) {
   });
 }
 const trioLabel = (t) => (TRIO.find(x => x[0] === t) || [])[1] || t;
-function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it), sz = fw + '×' + fh + (sizeGuessed(sg.it) ? ' (guess)' : ''); bits.push(sz + ', ' + restClass(fw, fh) + (sg.fits > 0 ? ': big enough for ' + listNames(dp.big) : sg.fits < 0 ? ': too small for ' + listNames(dp.big) : '')); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length ? ' — none of their favourite kinds' : ''); }
+function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + ' item' + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it), sz = fw + '×' + fh + (sizeGuessed(sg.it) ? ' (guess)' : ''); bits.push(sz + ', ' + restClass(fw, fh) + (sg.fits > 0 ? ': big enough for ' + listNames(dp.big) : sg.fits < 0 ? ': too small for ' + listNames(dp.big) : '')); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); if (sg.envGood.length || sg.envBad.length) { const fx = envFxText(sg.it, dp.env); if (sg.envGood.length) bits.push(fx + ': helps ' + listNames(sg.envGood)); if (sg.envBad.length) bits.push('⚠ ' + (sg.envGood.length ? '' : fx + ': ') + 'wrong for ' + sg.envBad.map(n => n + ' (' + PK_BY_NAME.get(n).ideal + ')').join(', ')); } return bits.join(' · ') + (who.length ? ' — pleases ' + who.join(', ') : dp.res.length && !sg.envGood.length ? ' — none of their favourite kinds' : ''); }
+const isEnvFilt = (f) => typeof f === 'string' && f.startsWith('env:'), isTagFilt = (f) => typeof f === 'string' && f.startsWith('tg:');
 function decorModal(home) {
   const dp = decorPlan(home); let filt = null;
   modal('Decorate ' + home.label, (box) => {
@@ -874,20 +1041,21 @@ function decorModal(home) {
     box.append(h('p', { class: 'sub' }, home.kind === 'house' ? 'Green ticks are favourite kinds already inside the house\'s active area.' : 'Kit interiors aren\'t on this map, so nothing is ticked. Put these inside the house in game.'));
     for (const p of dp.res) box.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, 'Ideal: ' + p.ideal) : '', sizeBadge(p, () => { closeModal(); afterResChange(home); decorModal(home); }), p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
       h('div', null, (p.fv || []).map(f => h('span', { class: 'fav ' + (dp.present.has(f) ? 'have' : 'want'), title: dp.present.has(f) ? 'Inside: ' + dp.present.get(f).join(', ') : 'Missing' }, dp.present.has(f) ? '✓' : '', FAVS[f])))));
-    const envCount = new Map(); for (const p of dp.res) if (p.ideal) envCount.set(p.ideal, (envCount.get(p.ideal) || 0) + 1);
-    if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); box.append(h('h4', null, 'Environment')); box.append(h('p', { class: 'note', style: 'margin:0' }, top.map(([e, n]) => e + ' ×' + n).join(' · ') + '. ' + ENV_TIP[top[0][0]] + (top.length > 1 ? ' With mixed types, aim for the majority.' : ''))); }
+    if (dp.res.some(p => p.ideal)) { box.append(h('h4', null, 'Environment')); box.append(envSection(home, true)); }
     box.append(h('h4', null, 'Suggested items'));
     const needF = [...dp.need].filter(([f]) => !dp.present.has(f)).sort((a, b) => b[1] - a[1]).map(([f]) => f);
-    const trio = comfortTrio(home).map(t => t[2] === 'Relaxation' && dp.needBig ? [t[0], false, t[2], RANK_WORD[dp.needR] + ' one needed'] : t), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : null;
+    const trio = comfortTrio(home).map(t => t[2] === 'Relaxation' && dp.needBig ? [t[0], false, t[2], RANK_WORD[dp.needR] + ' one needed'] : t), firstLack = trio.find(t => !t[1]); filt = firstLack ? 'tg:' + firstLack[2] : dp.envN.length ? 'env:' + dp.envN[0].ideal : null;
     const TAB = { Relaxation: 'Rest items', Toy: 'Toys', Decoration: 'Decorations' };
     const chips = h('div', { class: 'cats', role: 'group', 'aria-label': 'Suggestions' }), info = h('p', { class: 'note', style: 'margin:0 0 6px' }), list = h('div', { class: 'list' }); box.append(chips, info, list);
     const render = () => {
       chips.textContent = ''; const chip = (key, ...kids) => h('button', { class: 'cat', 'aria-pressed': filt === key ? 'true' : 'false', onclick: () => { filt = key; render(); } }, ...kids);
       for (const [, ok, t, why] of trio) chips.append(chip('tg:' + t, (ok ? '✓ ' : '') + 'Best ' + TAB[t].toLowerCase(), ok ? '' : h('span', { class: 'n' }, why || 'needed')));
+      for (const n of dp.envN) chips.append(chip('env:' + n.ideal, 'Make it ' + n.ideal.toLowerCase(), h('span', { class: 'n' }, 'for ' + listNames(n.who))));
       chips.append(chip(null, 'Best overall'));
       for (const f of needF) chips.append(chip(f, FAVS[f]));
       list.textContent = ''; let arr;
-      if (typeof filt === 'string') { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = t === 'Relaxation' && dp.needBig ? listNames(dp.big) + (dp.big.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[dp.needR] + ' rest item (' + RANK_FOOT[dp.needR] + (dp.needR < 2 ? ' or bigger' : '') + '); those come first. Sizes with ? are guesses: tap a Pokémon\'s size above, or an item\'s size after you pick it, to change it.' : (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby.'; }
+      if (isEnvFilt(filt)) { const ideal = filt.slice(4); arr = dp.envFor(ideal).slice(0, 30); info.textContent = envAdvice(ideal, dp.env) + (arr.length ? '' : ' There\'s nothing to place for this; it\'s what to take out or roof over.'); }
+      else if (isTagFilt(filt)) { const t = filt.slice(3), lb = trioLabel(t).toLowerCase(); arr = dp.byTag(t).slice(0, 30); info.textContent = t === 'Relaxation' && dp.needBig ? listNames(dp.big) + (dp.big.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[dp.needR] + ' rest item (' + RANK_FOOT[dp.needR] + (dp.needR < 2 ? ' or bigger' : '') + '); those come first. Sizes with ? are guesses: tap a Pokémon\'s size above, or an item\'s size after you pick it, to change it.' : (dp.lack.has(t) ? 'No ' + lb + ' item in the active area yet. ' : 'There\'s already a ' + lb + ' item in the active area. ') + 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby.'; }
       else if (filt == null) { arr = dp.sugg.slice(0, 14); info.textContent = dp.lack.size ? 'Items that fill the missing ' + [...dp.lack].map(t => trioLabel(t).toLowerCase()).join(' and ') + ' item count extra here.' : ''; }
       else { arr = dp.sugg.filter(x => (x.it.fv || []).includes(filt)).slice(0, 40); info.textContent = ''; }
       info.hidden = !info.textContent;
@@ -909,7 +1077,7 @@ function decorModal(home) {
 /* ============================== inside a kit house: decorating popup ============================== */
 const IED = { rot: false, ob: null, floor: 0, tool: 'place', item: null, picked: null, hover: null, stroke: null, drag: null, sel: null, filt: null, q: '', cat: 'Furniture', cs: 32, ox: 0, oy: 0 };
 const indoorOK = (it) => !!it && it.L === 'o' && it.c !== 'Kits';
-const decorOK = (it) => indoorOK(it) && !isWall(it) && !isDoor(it) && it.c !== 'Buildings' && it.c !== 'Blocks' && it.c !== 'Nature';
+const decorOK = (it) => indoorOK(it) && !isWall(it) && !isDoor(it) && it.c !== 'Buildings' && it.c !== 'Blocks' && (it.c !== 'Nature' || it.n === 'Smooth rock');
 function iedHome() { return kitHome(IED.ob); }
 function interiorEditor(ob) {
   if (!ob || !plan.objs.has(ob.id) || !ITEMS[ob.i].cap) return;
@@ -1052,7 +1220,7 @@ function iedFoot() {
   el.append(h('span', { class: 'note' }, IED.tool === 'erase' ? 'Click or drag over items to remove them.' : 'Click an item to pick it up, then click where it goes' + (ki.fl > 1 ? ' (you can switch floors while holding it)' : '') + '.'));
 }
 /* ---- side: residents, favourites, suggestions ---- */
-function iedSuggest(home, f) { const dp = decorPlan(home, f), bt = dp.byTag; dp.sugg = dp.sugg.filter(x => decorOK(x.it)); dp.byTag = (t) => bt(t, decorOK); return dp; }
+function iedSuggest(home, f) { const dp = decorPlan(home, f), bt = dp.byTag, ef = dp.envFor; dp.sugg = dp.sugg.filter(x => decorOK(x.it)); dp.byTag = (t) => bt(t, decorOK); dp.envFor = (e) => ef(e, decorOK); return dp; }
 function iedSide() {
   const el = $('#iedRes'); if (!el) return; const sc = el.parentElement.scrollTop; el.textContent = '';
   const ob = IED.ob, ki = kitInfo(ob), home = iedHome(), f = ki.fl > 1 ? IED.floor : null; const list = residentsOf(home, f);
@@ -1066,15 +1234,17 @@ function iedSide() {
   const n = kitFurniture(ob), dp = iedSuggest(home, f), cv = favCoverage(home);
   el.append(h('div', { class: 'reqs' }, h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss') }, n >= 3 ? '✓' : '✗', n + ' furniture inside (needs 3)'), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : '') }, cv.have + '/' + cv.total + ' favourites') : ''));
   el.append(h('div', { class: 'reqs', title: 'Pokémon are most comfortable with a rest, a toy and a decoration item nearby. Tap one to see items of that kind.' }, largeRestChip(home, f), comfortTrio(home).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, ok ? '✓' : '·', lb + ' item'))));
-  if (!dp.res.length && typeof IED.filt !== 'string') { el.append(h('p', { class: 'hint' }, (ki.fl > 1 ? 'Add who sleeps on this floor' : 'Add who lives here') + ' to see their favourites and get suggestions. You can still place anything from the list below.')); return; }
+  if (!dp.res.length && !isTagFilt(IED.filt)) { el.append(h('p', { class: 'hint' }, (ki.fl > 1 ? 'Add who sleeps on this floor' : 'Add who lives here') + ' to see their favourites and get suggestions. You can still place anything from the list below.')); return; }
   for (const p of dp.res) el.append(h('div', { class: 'card', style: 'margin:6px 0' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
     h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', title: 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', title: 'Show items for this', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv])))));
-  const envCount = new Map(); for (const p of dp.res) if (p.ideal) envCount.set(p.ideal, (envCount.get(p.ideal) || 0) + 1);
-  if (envCount.size) { const top = [...envCount].sort((a, b) => b[1] - a[1]); el.append(h('p', { class: 'note', style: 'margin:4px 0 0' }, h('b', null, top.map(([e, k]) => e + (k > 1 ? ' ×' + k : '')).join(' · ') + ': '), ENV_TIP[top[0][0]])); }
-  const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv); const tagF = typeof IED.filt === 'string' ? IED.filt.slice(3) : null;
-  el.append(h('div', { style: 'display:flex;align-items:center;gap:8px;margin:14px 0 4px' }, h('h4', { style: 'margin:0' }, tagF ? trioLabel(tagF) + ' items' : IED.filt != null ? 'Items for ' + FAVS[IED.filt] : 'Suggested for ' + (ki.fl > 1 ? 'this floor' : 'them')),
-    missing.size || dp.lack.size || dp.needBig ? h('button', { class: 'btn sm primary', style: 'margin-left:auto', title: 'Places one item for each missing favourite, plus a rest, toy or decoration item if one is missing, along the walls', onclick: iedAutoPlace }, icon('leaf'), 'Auto-place') : h('span', { class: 'note', style: 'margin-left:auto' }, 'All favourites covered ✓')));
-  const arr = tagF ? dp.byTag(tagF).slice(0, 30) : IED.filt == null ? dp.sugg.slice(0, 10) : dp.sugg.filter(x => (x.it.fv || []).includes(IED.filt)).slice(0, 30);
+  el.append(h('h4', { style: 'margin:12px 0 0' }, 'Environment' + (ki.fl > 1 ? ' on this floor' : '')), envBlock(home, f));
+  if (dp.envN.length) el.append(h('div', { class: 'reqs' }, dp.envN.map(n => h('button', { class: 'req', 'aria-pressed': IED.filt === 'env:' + n.ideal ? 'true' : 'false', title: 'Show items that help', onclick: () => { IED.filt = IED.filt === 'env:' + n.ideal ? null : 'env:' + n.ideal; iedSide(); } }, 'Make it ' + n.ideal.toLowerCase()))));
+  const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv); const tagF = isTagFilt(IED.filt) ? IED.filt.slice(3) : null, envF = isEnvFilt(IED.filt) ? IED.filt.slice(4) : null;
+  const envFix = dp.envN.some(n => dp.envFor(n.ideal).length);
+  el.append(h('div', { style: 'display:flex;align-items:center;gap:8px;margin:14px 0 4px' }, h('h4', { style: 'margin:0' }, tagF ? trioLabel(tagF) + ' items' : envF ? 'Make it ' + envF.toLowerCase() : IED.filt != null ? 'Items for ' + FAVS[IED.filt] : 'Suggested for ' + (ki.fl > 1 ? 'this floor' : 'them')),
+    missing.size || dp.lack.size || dp.needBig || envFix ? h('button', { class: 'btn sm primary', style: 'margin-left:auto', title: 'Places one item for each missing favourite, plus a rest, toy or decoration item if one is missing, and items that bring the light, warmth or humidity to what they like, along the walls. It leaves out items that would spoil it for them.', onclick: iedAutoPlace }, icon('leaf'), 'Auto-place') : h('span', { class: 'note', style: 'margin-left:auto' }, 'All favourites covered ✓')));
+  if (envF) el.append(h('p', { class: 'note', style: 'margin:0 0 6px' }, envAdvice(envF, dp.env)));
+  const arr = tagF ? dp.byTag(tagF).slice(0, 30) : envF ? dp.envFor(envF).slice(0, 30) : IED.filt == null ? dp.sugg.slice(0, 10) : dp.sugg.filter(x => (x.it.fv || []).includes(IED.filt)).slice(0, 30);
   const l = h('div', { class: 'list' });
   for (const sg of arr) l.append(iedItemRow(sg.it, suggLine(dp, sg)));
   if (!arr.length) l.append(h('p', { class: 'empty' }, 'No indoor item matches.'));
@@ -1119,15 +1289,23 @@ function iedRing(ki, f) { // free tiles along the walls (clockwise), then the mi
 function iedAutoPlace() {
   const ob = IED.ob, ki = kitInfo(ob), home = iedHome(), f = ki.fl > 1 ? IED.floor : null; const dp = iedSuggest(home, f); if (!dp.res.length) return;
   const want = new Set(); for (const p of dp.res) for (const v of p.fv || []) if (!dp.present.has(v)) want.add(v);
-  const pick = [];
-  for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (sg.it.sub === 'Event item') continue; if ((sg.it.fv || []).some(v => want.has(v))) { pick.push(sg.it); for (const v of sg.it.fv || []) want.delete(v); } }
-  if (dp.needBig) { const bed = dp.byTag('Relaxation').find(x => x.fits > 0 && x.it.sub !== 'Event item'); if (bed && !pick.includes(bed.it)) pick.unshift(bed.it); }
-  for (const t of dp.lack) { if (pick.some(it => it.tg === t)) continue; const best = dp.byTag(t).find(x => x.it.sub !== 'Event item' && !pick.includes(x.it)); if (best) pick.push(best.it); }
-  for (const sg of dp.sugg) { if (kitFurniture(ob) + pick.length >= 3) break; if (!pick.includes(sg.it) && sg.it.sub !== 'Event item') pick.push(sg.it); }
+  // keeps a running total of light, warmth and humidity as items are picked, so nothing picked spoils a resident's ideal habitat
+  const pick = [], E = dp.env, sim = { b: E.ax.b.v, t: E.ax.t.v, u: E.ax.u.v };
+  const delta = (it, k) => { const fx = envFx(it); return !fx ? 0 : k === 't' ? envT(fx, E.ac) : fx[k]; };
+  const spoils = (it) => dp.res.some(p => { const k = envAxisOf(p.ideal), d = k ? delta(it, k) : 0; return d && envGap(p.ideal, sim[k] + d, E.indoor) > envGap(p.ideal, sim[k], E.indoor); });
+  const ok = (it) => it.sub !== 'Event item' && !pick.includes(it) && !spoils(it);
+  const take = (it, first) => { if (first) pick.unshift(it); else pick.push(it); for (const k of ['b', 't', 'u']) sim[k] += delta(it, k); };
+  for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (!ok(sg.it)) continue; if ((sg.it.fv || []).some(v => want.has(v))) { take(sg.it); for (const v of sg.it.fv || []) want.delete(v); } }
+  if (dp.needBig) { const bed = dp.byTag('Relaxation').find(x => x.fits > 0 && ok(x.it)); if (bed) take(bed.it, true); }
+  for (const n of dp.envN) { const k = envAxisOf(n.ideal); for (const x of dp.envFor(n.ideal)) { if (!envGap(n.ideal, sim[k], E.indoor) || pick.length >= 12) break; if (ok(x.it) && delta(x.it, k)) take(x.it); } }
+  for (const t of dp.lack) { if (pick.some(it => it.tg === t)) continue; const best = dp.byTag(t).find(x => ok(x.it)); if (best) take(best.it); }
+  for (const sg of dp.sugg) { if (kitFurniture(ob) + pick.length >= 3) break; if (ok(sg.it)) take(sg.it); }
+  const left = dp.envN.filter(n => envGap(n.ideal, sim[envAxisOf(n.ideal)], E.indoor));
   const spots = iedRing(ki, IED.floor); let n = 0;
   for (const it of pick) { const size = footOf(it); for (let k = 0; k < spots.length; k++) { const [x, y] = spots[k]; let sz = size; if (!iedFree(x, y, sz[0], sz[1])) { sz = [size[1], size[0]]; if (!iedFree(x, y, sz[0], sz[1])) continue; } iedPut(x, y, it.i, sz); spots.splice(k, 1); n++; break; } }
   iedEnd();
-  toast(n ? 'Placed ' + n + ' item' + (n > 1 ? 's' : '') + (want.size ? '. Some favourites have no indoor item.' : '. Move them wherever you like.') : 'No free space left');
+  const still = left.length ? ' Still not ' + left.map(x => x.ideal.toLowerCase() + ' for ' + listNames(x.who)).join(', ') + (left.some(x => x.ideal === 'Dark' || x.ideal === 'Dry') ? ': take something out (see Environment).' : '.') : '';
+  toast((n ? 'Placed ' + n + ' item' + (n > 1 ? 's' : '') + (want.size ? '. Some favourites have no indoor item.' : '. Move them wherever you like.') : pick.length ? 'No free space left.' : 'Nothing to add.') + still);
 }
 function iedClearFloor() {
   const ki = kitInfo(IED.ob), F = iedFloorData(); if (!F.o.length && F.wp == null && F.fc == null) { toast('Already empty'); return; }
@@ -1367,7 +1545,7 @@ function areaContents(a) { // items inside the active area that are not the habi
 }
 function areaSummary(a) {
   if (!a) return '';
-  if (a.kind === 'house') return a.outer ? 'Active area (the dotted line): ' + a.rect.w + '×' + a.rect.h + ' tiles, reaching 4 tiles past the walls on every side, from 4 levels below to 3 above the door. Favourite items and furniture count anywhere in it, even outside the walls, as long as the Pokémon can walk to them. Brightness only counts the floor inside the walls (the lighter tiles).' : 'Active area: the floor inside the walls (' + a.cells.size + ' tiles, door included).';
+  if (a.kind === 'house') return a.outer ? 'Active area (the dotted line): ' + a.rect.w + '×' + a.rect.h + ' tiles, reaching 4 tiles past the walls on every side, from 4 levels below to 3 above the door. Favourite items and furniture count anywhere in it, even outside the walls, as long as the Pokémon can walk to them. Daylight only counts the floor inside the walls (the lighter tiles); lights, fires, water and the rest count anywhere in the area, lights from 1 level below to 3 above the door.' : 'Active area: the floor inside the walls (' + a.cells.size + ' tiles, door included).';
   return 'Active area: ' + a.rect.w + '×' + a.rect.h + ' tiles, reaching ' + AREA_R + ' tiles past the habitat (' + a.foot.w + '×' + a.foot.h + ') on every side and ' + AREA_R + ' levels up or down.';
 }
 let firstEval = true;
@@ -2509,6 +2687,9 @@ function selectHouse(hs) {
   const ct = areaContents(hs.area), inside = floorItems(hs);
   box.append(h('div', { class: 'arealine' }, icon('area'), h('div', null, areaSummary(hs.area), h('div', { class: 'note', style: 'margin-top:4px' }, ct.n ? ct.n + ' item' + (ct.n > 1 ? 's' : '') + ' in the active area (' + inside + ' inside the walls): ' + [...ct.out].map(([c, n]) => n + ' ' + c).join(', ') + '.' : 'Nothing in the active area yet.'))));
   if (hs.kitHomes.length) { box.append(h('div', { class: 'section' }, h('b', null, 'Kit homes inside'), h('div', { class: 'note' }, 'They are homes of their own and don\'t count as this house\'s furniture.'), kitHomesList(hs))); }
+  { const q = roofOf(hs), seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'How much of the house is roofed' });
+    for (const [v, lb] of [[0, 'None'], [1, '¼'], [2, '½'], [3, '¾'], [4, 'Full']]) seg.append(h('button', { 'aria-pressed': q === v ? 'true' : 'false', title: ROOF_WORD[v][0].toUpperCase() + ROOF_WORD[v].slice(1), onclick: () => { setRoof(hs, v); selectHouse(houseById.get(hs.id) || hs); } }, lb));
+    box.append(h('div', { class: 'roofline' }, h('b', null, 'Roof'), seg, h('span', { class: 'note' }, (q == null ? 'Not set, so counted as open sky. ' : '') + 'Daylight ' + Math.round(90 * (1 - (q || 0) / 4)) + ' of 90: it shines on the floor that isn\'t roofed.'))); }
   box.append(residentsSection(houseHome(hs)));
   box.append(boxLine('house:' + hs.id));
   box.append(h('p', { class: 'note', style: 'margin:8px 0 0' }, 'Walls can be 1 block high; make them 3 or more if you want to walk inside. Keep the tile just outside each door free of blocks.'));
@@ -3010,7 +3191,7 @@ function resizePlanDialog() {
     for (let y = 0; y < Math.min(hh, old.h); y++) for (let x = 0; x < Math.min(w, old.w); x++) { p.ground[y * w + x] = old.ground[y * old.w + x]; p.elev[y * w + x] = old.elev[y * old.w + x]; }
     for (const ob of old.objs.values()) if (ob.x + ob.w <= w && ob.y + ob.h <= hh) { const n = { ...ob, id: p.nextId++ }; p.objs.set(n.id, n); stampOcc(p, n, n.id); }
     for (const r of old.rugs.values()) if (r.x + r.w <= w && r.y + r.h <= hh) { const n = { ...r, id: p.nextId++ }; p.rugs.set(n.id, n); }
-    p.res = (old.res || []).filter(r => r.x < w && r.y < hh);
+    p.res = (old.res || []).filter(r => r.x < w && r.y < hh); p.roofs = (old.roofs || []).filter(r => r.x < w && r.y < hh);
     p.zones = old.zones.filter(z => z.x < w && z.y < hh).map(z => ({ ...z, w: Math.min(z.w, w - z.x), h: Math.min(z.h, hh - z.y) }));
     installPlan(p); markDirty(); toast('Resized to ' + w + ' × ' + hh);
   });
@@ -3342,7 +3523,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-20T18:45';
+const APP_BUILD = '2026-11-20T19:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
