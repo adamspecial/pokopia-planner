@@ -107,6 +107,9 @@ button{cursor:pointer}
 .row[aria-pressed="true"] .lvl{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .lyrfoot{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 4px 0}
 .lyrfoot .pill{box-shadow:none}
+.lyrgap{font-size:12px;color:var(--muted);padding:3px 0 3px 22px;border-left:2px dotted var(--line);margin-left:61px}
+.lvgo{display:flex;gap:6px;align-items:center}
+.lvgo input{flex:1;text-align:center;font-weight:700;font-size:16px}
 .arealine{display:flex;gap:7px;align-items:flex-start;margin-top:6px;padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--ink) 5%,transparent);font-size:12.5px}
 .arealine svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--accent)}
 
@@ -642,9 +645,9 @@ const LSK = 'pokopia-planner:';
 
 function newPlan({ name, area, w, h, fill }) {
   const p = { id: uid(), name: name || 'New area', area: area || 'Withered Wasteland', w, h,
-    ground: new Uint16Array(w * h), elev: new Uint8Array(w * h), objs: new Map(), occ: new Int32Array(w * h), up: [], rugs: new Map(),
+    ground: new Uint16Array(w * h), elev: new Uint8Array(w * h), objs: new Map(), occ: new Int32Array(w * h), up: new Map(), zs: [0], ls: [], rugs: new Map(),
     zones: [], inv: {}, res: [], roofs: [], pool: [], nextId: 1, updated: Date.now() };
-  if (fill) { const it = BY_NAME.get(fill); if (it) p.ground.fill(it.i + 1); }
+  p.ls = [p.occ]; if (fill) { const it = BY_NAME.get(fill); if (it) p.ground.fill(it.i + 1); }
   return p;
 }
 function rle(arr) { const out = []; let prev = arr[0], n = 0; for (let i = 0; i < arr.length; i++) { const v = arr[i]; if (v === prev) n++; else { out.push(prev.toString(36) + (n > 1 ? '*' + n.toString(36) : '')); prev = v; n = 1; } } out.push(prev.toString(36) + (n > 1 ? '*' + n.toString(36) : '')); return out.join(','); }
@@ -670,7 +673,7 @@ function deserialize(s) {
   let ints = {}; try { ints = s.ints ? JSON.parse(s.ints) : {}; } catch (e) { ints = {}; }
   if (s.o) s.o.split(';').forEach((tok, oi) => {
     const [d, x, y, ow, oh, oz] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (!it) return;
-    const ob = { id: p.nextId++, i: it.i, x, y, w: ow || it.w, h: oh || it.h }; if (oz > 0) ob.z = Math.min(oz, ZMAX); if (ints[oi]) ob.int = intIn(ints[oi]);
+    const ob = { id: p.nextId++, i: it.i, x, y, w: ow || it.w, h: oh || it.h }; if (oz) ob.z = clamp(oz, ZMIN, ZMAX); if (ints[oi]) ob.int = intIn(ints[oi]);
     if (fits(p, ob.x, ob.y, ob.w, ob.h, 0, zOf(ob))) { p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
   });
   if (s.u) for (const tok of s.u.split(';')) { const [d, x, y, rw, rh] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (it && x >= 0 && y >= 0 && x + rw <= w && y + rh <= h) { const r = { id: p.nextId++, rug: 1, i: it.i, x, y, w: rw, h: rh }; p.rugs.set(r.id, r); } }
@@ -685,10 +688,11 @@ function cloneInt(I) { return I ? { w: I.w || 0, h: I.h || 0, fl: I.fl || 0, f: 
 function inB(p, x, y) { return x >= 0 && y >= 0 && x < p.w && y < p.h; }
 function fits(p, x, y, w, h, ignoreId, z = 0) { if (x < 0 || y < 0 || x + w > p.w || y + h > p.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = occAt(p, yy * p.w + xx, z); if (o && o !== ignoreId) return false; } return true; }
 function stampOcc(p, ob, val) { const L = layer(p, zOf(ob)); for (let yy = ob.y; yy < ob.y + ob.h; yy++) for (let xx = ob.x; xx < ob.x + ob.w; xx++) L[yy * p.w + xx] = val; }
-const ZMAX = 9, zOf = (ob) => ob.z || 0;
-function layer(p, z) { if (!z) return p.occ; if (!p.up) p.up = []; return p.up[z] || (p.up[z] = new Int32Array(p.w * p.h)); }
-const occAt = (p, k, z) => z ? (p.up && p.up[z] ? p.up[z][k] : 0) : p.occ[k];
-function stackAt(k, p = plan) { const out = [], o = p.occ[k]; if (o) out.push(p.objs.get(o)); if (p.up) for (let z = 1; z < p.up.length; z++) { const L = p.up[z], q = L && L[k]; if (q) out.push(p.objs.get(q)); } return out; }
+const ZMIN = -99, ZMAX = 99, zOf = (ob) => ob.z || 0;
+const lvTxt = (z) => z > 0 ? '+' + z : z < 0 ? '−' + -z : '0', lvNum = (z) => z < 0 ? '−' + -z : String(z);
+function layer(p, z) { if (!z) return p.occ; let L = p.up.get(z); if (!L) { L = new Int32Array(p.w * p.h); p.up.set(z, L); p.zs = [0, ...p.up.keys()].sort((a, b) => a - b); p.ls = p.zs.map(v => v ? p.up.get(v) : p.occ); } return L; }
+const occAt = (p, k, z) => { if (!z) return p.occ[k]; const L = p.up.get(z); return L ? L[k] : 0; };
+function stackAt(k, p = plan) { const out = []; for (const L of p.ls) { const q = L[k]; if (q) out.push(p.objs.get(q)); } return out; }
 const topAt = (k) => { const s = stackAt(k); return s.length ? s[s.length - 1] : null; };
 const objAtLv = (k, z) => { const o = occAt(plan, k, z); return o ? plan.objs.get(o) : null; };
 let layerZ = null, layerReplace = false, hidden = new Set();
@@ -696,9 +700,9 @@ const lvShown = (key) => !hidden.has(key), obShown = (ob) => !!ob && !hidden.has
 const shownStack = (k) => stackAt(k).filter(obShown);
 const topShown = (k) => { const s = shownStack(k); return s.length ? s[s.length - 1] : null; };
 function aimAt(k) { if (layerZ != null && lvShown(layerZ)) { const q = objAtLv(k, layerZ); if (q) return q; } return topShown(k); }
-const lvName = (key) => key === 'g' ? 'Ground' : key === 'r' ? 'Rugs' : 'Level ' + key;
+const lvName = (key) => key === 'g' ? 'Ground' : key === 'r' ? 'Rugs' : 'Level ' + lvNum(key);
 const layerKey = () => LSK + 'hide:' + (plan ? plan.id : '');
-function loadLayers() { hidden = new Set(); layerZ = null; try { for (const v of JSON.parse(LS.get(layerKey()) || '[]')) if (v === 'g' || v === 'r' || (Number.isInteger(v) && v >= 0 && v <= ZMAX)) hidden.add(v); } catch (e) { } layerDot(); renderOptbar(); }
+function loadLayers() { hidden = new Set(); layerZ = null; try { for (const v of JSON.parse(LS.get(layerKey()) || '[]')) if (v === 'g' || v === 'r' || (Number.isInteger(v) && v >= ZMIN && v <= ZMAX)) hidden.add(v); } catch (e) { } layerDot(); renderOptbar(); }
 function saveLayers() { if (hidden.size) LS.set(layerKey(), JSON.stringify([...hidden])); else LS.del(layerKey()); }
 function layerDot() { const b = document.getElementById('zlayers'); if (!b) return; const t = hidden.size ? 'Layers: ' + hidden.size + ' hidden (L)' : 'Layers (L)'; b.classList.toggle('dot', hidden.size > 0); b.setAttribute('data-tip', t); b.setAttribute('aria-label', t); }
 function layersChanged() { layerDot(); requestDraw(); renderOptbar(); updateStatus(); if (activeTab === 'layers') renderPanel(); }
@@ -709,7 +713,7 @@ function setHidden(key, hide) {
 }
 function showAllLayers() { if (!hidden.size) return; hidden.clear(); saveLayers(); layersChanged(); }
 function reveal(key) { if (!hidden.has(key)) return; setHidden(key, false); toast(lvName(key) + ' was hidden, so it\'s shown now'); }
-function setLayerZ(z) { if (z != null) z = clamp(z | 0, 0, ZMAX); if (z === layerZ) return; layerZ = z; layersChanged(); }
+function setLayerZ(z) { if (z != null) z = clamp(Math.round(+z) || 0, ZMIN, ZMAX); if (z === layerZ) return; layerZ = z; layersChanged(); }
 
 let tx = null; const undoStack = [], redoStack = [];
 function beginTx() { if (!tx) tx = { g: new Map(), e: new Map(), add: [], del: [], z: null, in: null, r: null }; }
@@ -732,8 +736,8 @@ function clearFor(x, y, w, h, self, z = 0) { const gone = new Set(); for (let yy
 const SURFACE = /\b(tables?|desks?|counters?|stands?|washing machine|storage box|transmitter|shel(f|ves)|cabinet|chests?|dressers?|pedestal|display case|bookcase|cupboard)\b/i, NOT_SURFACE = /wall-mounted|wall storage|table setting|lamp|light|switch/i;
 const rides = (it) => !!it && it.L === 'o' && it.c !== 'Kits' && !structural(it);
 const holds = (q, w, h) => isWall(q) || (w === 1 && h === 1 && SURFACE.test(q.n) && !NOT_SURFACE.test(q.n));
-function supportTop(k, w, h, self) { const st = stackAt(k); for (let j = st.length - 1; j >= 0; j--) { const q = st[j]; if (q && q.id !== self && holds(ITEMS[q.i], w, h)) return zOf(q) + 1; } return 0; }
-function levelFor(it, x, y, w, h, self) { if (!rides(it) || x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 0; let z = 0; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const t = supportTop(yy * plan.w + xx, w, h, self); if (!t) return 0; z = Math.max(z, t); } return z > ZMAX ? 0 : z; }
+function supportTop(k, w, h, self) { const st = stackAt(k); for (let j = st.length - 1; j >= 0; j--) { const q = st[j]; if (q && q.id !== self && holds(ITEMS[q.i], w, h)) return zOf(q) + 1; } return null; }
+function levelFor(it, x, y, w, h, self) { if (!rides(it) || x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 0; let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const t = supportTop(yy * plan.w + xx, w, h, self); if (t == null) return 0; z = Math.max(z, t); } return z > ZMAX ? 0 : z; }
 function lineAt(x, y) { if (!inB(plan, x, y)) return null; const o = plan.occ[y * plan.w + x]; const q = o && plan.objs.get(o); return q && structural(ITEMS[q.i]) ? q : null; }
 function wallAlong(x, y, dx, dy) { for (let n = 0; n < 16; n++, x += dx, y += dy) { const q = lineAt(x, y); if (!q) return null; if (isWall(ITEMS[q.i]) && q.w === 1 && q.h === 1) return q.i; } return null; }
 function closeWall(r, keep) {
@@ -751,12 +755,13 @@ function blockBase(k, self) { const st = stackAt(k); for (let j = st.length - 1;
 function autoZ(it, x, y, w, h, self) {
   if (!stacker(it)) return levelFor(it, x, y, w, h, self);
   if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 0;
-  let z = 0; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) z = Math.max(z, blockBase(yy * plan.w + xx, self)); return z;
+  let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) z = Math.max(z, blockBase(yy * plan.w + xx, self)); return z;
 }
 const placeZ = (it, x, y, w, h) => layerZ != null && leveled(it) ? layerZ : autoZ(it, x, y, w, h);
 function placeCheck(it, x, y, w, h, z, force) {
   if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return { err: 'edge', z };
   if (z > ZMAX) return { err: 'top', z };
+  if (z < ZMIN) return { err: 'bottom', z };
   const fixed = force || (layerZ != null && leveled(it)), rep = force || (fixed && layerReplace), gone = new Set(), lift = [], moved = new Set();
   for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
     const o = occAt(plan, yy * plan.w + xx, z), q = o && plan.objs.get(o); if (!q || gone.has(q) || moved.has(q.id)) continue;
@@ -785,7 +790,7 @@ function putObj(it, x, y, w, h, force, z) {
 function placeReport() {
   const miss = placeMiss, hit = placeHit; placeMiss = []; placeHit = 0; if (!miss.length) return;
   const objs = miss.filter(m => m.err && m.err.id), m = objs[0] || miss[0];
-  const msg = m.err === 'top' ? 'That\'s as high as it goes: level ' + ZMAX + ' is the top' : m.err === 'edge' ? 'No room here: off the edge' : ITEMS[m.err.i].n + ' is in the way' + (m.z ? ' on level ' + m.z : '');
+  const msg = m.err === 'top' ? 'That\'s as high as it goes: level ' + ZMAX + ' is the top' : m.err === 'bottom' ? 'That\'s as low as it goes: level ' + lvNum(ZMIN) + ' is the bottom' : m.err === 'edge' ? 'No room here: off the edge' : ITEMS[m.err.i].n + ' is in the way' + (m.z ? ' on level ' + lvNum(m.z) : '');
   const tail = hit ? ' · ' + miss.length + ' skipped' : '';
   if (objs.length) toast(msg + tail, 6000, { label: 'Replace', fn: () => replaceMissed(objs) }); else toast(msg + tail);
 }
@@ -800,11 +805,11 @@ function reshapeObj(ob, x, y, w, h, z = zOf(ob)) {
 }
 function removeObj(ob) { delObj(ob); if (inWall(ITEMS[ob.i]) && !zOf(ob)) closeWall(ob); }
 function ridersOf(ob) { const out = [], seen = new Set([ob.id]), q = [ob]; while (q.length) { const b = q.shift(), z = zOf(b) + 1; if (z > ZMAX) continue; for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { const r = objAtLv(y * plan.w + x, z); if (r && !seen.has(r.id) && r.x >= b.x && r.y >= b.y && r.x + r.w <= b.x + b.w && r.y + r.h <= b.y + b.h) { seen.add(r.id); out.push(r); q.push(r); } } } return out; }
-function carry(riders, dx, dy, dz) { for (const r of riders) { let n = null; const nz = zOf(r) + dz; if (nz >= 0 && nz <= ZMAX) n = addObj(r.i, r.x + dx, r.y + dy, r.w, r.h, nz); for (let z = zOf(r); !n && z <= ZMAX; z++) n = addObj(r.i, r.x, r.y, r.w, r.h, z); if (n && r.int) n.int = r.int; } }
-function freeAt(x, y, w, h, z, ids) { if (z < 0 || z > ZMAX || x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = occAt(plan, yy * plan.w + xx, z); if (o && !ids.has(o)) return false; } return true; }
+function carry(riders, dx, dy, dz) { for (const r of riders) { let n = null; const nz = zOf(r) + dz; if (nz >= ZMIN && nz <= ZMAX) n = addObj(r.i, r.x + dx, r.y + dy, r.w, r.h, nz); for (let z = zOf(r); !n && z <= ZMAX; z++) n = addObj(r.i, r.x, r.y, r.w, r.h, z); if (n && r.int) n.int = r.int; } }
+function freeAt(x, y, w, h, z, ids) { if (z < ZMIN || z > ZMAX || x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = occAt(plan, yy * plan.w + xx, z); if (o && !ids.has(o)) return false; } return true; }
 function shiftLevel(ob, dz) {
   const riders = ridersOf(ob), ids = new Set([ob.id, ...riders.map(r => r.id)]), z = zOf(ob) + dz;
-  if (!freeAt(ob.x, ob.y, ob.w, ob.h, z, ids) || riders.some(r => !freeAt(r.x, r.y, r.w, r.h, zOf(r) + dz, ids))) { toast(z < 0 ? 'It\'s on the ground already' : z > ZMAX ? 'That\'s as high as it goes' : 'Something is in the way ' + (dz > 0 ? 'above' : 'below')); return; }
+  if (!freeAt(ob.x, ob.y, ob.w, ob.h, z, ids) || riders.some(r => !freeAt(r.x, r.y, r.w, r.h, zOf(r) + dz, ids))) { toast(z < ZMIN ? 'That\'s as low as it goes' : z > ZMAX ? 'That\'s as high as it goes' : 'Something is in the way ' + (dz > 0 ? 'above' : 'below')); return; }
   for (const r of riders) delObj(r); delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z); if (n && ob.int) n.int = ob.int; carry(riders, 0, 0, dz);
   commitTx(dz > 0 ? 'Up a level' : 'Down a level'); if (n) { selection = { obj: n }; showObjInspector(n); reveal(z); }
 }
@@ -812,8 +817,8 @@ function shiftRegion(r, dz) {
   const list = [], seen = new Set();
   for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; for (const ob of shownStack(y * plan.w + x)) if (!seen.has(ob.id)) { seen.add(ob.id); if (ob.x >= r.x && ob.y >= r.y && ob.x + ob.w <= r.x + r.w && ob.y + ob.h <= r.y + r.h && ITEMS[ob.i].c !== 'Kits') list.push(ob); } }
   list.sort((a, b) => (zOf(b) - zOf(a)) * dz); let moved = 0; const to = new Set();
-  for (const ob of list) { const z = zOf(ob) + dz; if (z < 0 || z > ZMAX || !fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, z)) continue; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z); if (n && ob.int) n.int = ob.int; moved++; to.add(z); }
-  if (!moved) { toast(list.length ? (dz > 0 ? 'No room above them' : 'They\'re on the ground already') : 'No items here'); return; }
+  for (const ob of list) { const z = zOf(ob) + dz; if (z < ZMIN || z > ZMAX || !fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, z)) continue; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z); if (n && ob.int) n.int = ob.int; moved++; to.add(z); }
+  if (!moved) { toast(list.length ? (dz > 0 ? 'No room above them' : 'No room below them') : 'No items here'); return; }
   for (const z of to) if (hidden.has(z)) { hidden.delete(z); saveLayers(); layersChanged(); }
   commitTx(dz > 0 ? 'Up a level' : 'Down a level'); toast(moved + ' item' + (moved === 1 ? '' : 's') + ' moved ' + (dz > 0 ? 'up' : 'down') + (moved < list.length ? ', ' + (list.length - moved) + ' had no room' : '')); showRegionInspector();
 }
@@ -1986,6 +1991,7 @@ function draw(t, c = ctx) {
     drawArea(c, r.area, s, sel);
   }
   if (lvShown('r')) for (const r of plan.rugs.values()) { if (r.x + r.w < x0 || r.x > x1 || r.y + r.h < y0 || r.y > y1) continue; const it = ITEMS[r.i], rx = view.px + r.x * s, ry = view.py + r.y * s; if (!drawRug(c, it, rx, ry, s, r.w, r.h)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(rx, ry, r.w * s, r.h * s); } }
+  for (const z of plan.zs) if (z < 0) drawLevel(c, z, s, x0, y0, x1, y1);
   const drawn = new Set();
   const big = [];
   if (lvShown(0)) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
@@ -1997,12 +2003,7 @@ function draw(t, c = ctx) {
   }
   const resIx = big.length || autoHouses.length ? residentsIndex() : null;
   for (const ob of big) { drawPicItem(c, ITEMS[ob.i], view.px + ob.x * s, view.py + ob.y * s, s, ob.w, ob.h, true, [ob.x, ob.y, ob.w, ob.h]); const it = ITEMS[ob.i]; if (it.cap && s >= 8) { const e = resIx.homes.get('kit:' + ob.id); if (e) { const t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = view.px + (ob.x + ob.w) * s - tw - 3, by = view.py + ob.y * s + 3; c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8); } } }
-  if (plan.up) for (let z = 1; z < plan.up.length; z++) {
-    const L = plan.up[z]; if (!L || hidden.has(z)) continue; const lv = [];
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const oid = L[y * plan.w + x]; if (!oid || drawn.has(oid)) continue; drawn.add(oid); const ob = plan.objs.get(oid); if (ob) lv.push(ob); }
-    for (const ob of lv) if (solidUp(ITEMS[ob.i])) upShadow(c, ob, s);
-    for (const ob of lv) if (structural(ITEMS[ob.i])) drawUp(c, ob, s); else drawRaised(c, ob, s);
-  }
+  for (const z of plan.zs) if (z > 0) drawLevel(c, z, s, x0, y0, x1, y1);
   if (s >= 30 && gShow) { c.font = '700 10px sans-serif'; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillStyle = 'rgba(0,0,0,.55)'; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const e = plan.elev[y * plan.w + x]; if (e) c.fillText('▲' + e, view.px + (x + 1) * s - 2, view.py + y * s + 2); } }
   for (const hs of autoHouses) {
     const sel = selection && selection.house === hs.id;
@@ -2033,7 +2034,7 @@ function draw(t, c = ctx) {
       const ft = footOf(it), rug = isRug(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = rug ? (rotated ? ft[1] : ft[0]) : it.L === 'g' ? brush : tw, fh = rug ? (rotated ? ft[0] : ft[1]) : it.L === 'g' ? brush : th;
       const pw = mu ? fw : 1, ph = mu ? fh : 1, objp = !rug && it.L !== 'g', lz = objp ? placeZ(it, hx, hy, pw, ph) : 0, chk = objp ? placeCheck(it, hx, hy, pw, ph, lz) : null;
       const ok = rug ? hx + fw <= plan.w && hy + fh <= plan.h : !objp || (!mu && brush > 1) || !chk.err;
-      c.globalAlpha = 0.55; if (rug) { if (!drawRug(c, it, view.px + hx * s, view.py + hy * s, s, fw, fh)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s); } } else if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else if (lz && lz <= ZMAX) { const g = { i: it.i, x: hx, y: hy, w: pw, h: ph, z: lz }; if (structural(it)) drawUp(c, g, s); else drawRaised(c, g, s); } else drawPicItem(c, it, view.px + hx * s, view.py + hy * s, s, pw, ph, false, [hx, hy, pw, ph]); c.globalAlpha = 1;
+      c.globalAlpha = 0.55; if (rug) { if (!drawRug(c, it, view.px + hx * s, view.py + hy * s, s, fw, fh)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s); } } else if (it.L === 'g') { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else if (lz && lz <= ZMAX && lz >= ZMIN) { const g = { i: it.i, x: hx, y: hy, w: pw, h: ph, z: lz }; if (structural(it)) drawUp(c, g, s); else drawRaised(c, g, s); } else drawPicItem(c, it, view.px + hx * s, view.py + hy * s, s, pw, ph, false, [hx, hy, pw, ph]); c.globalAlpha = 1;
       if (chk && chk.gone && chk.gone.length) { c.globalAlpha = 0.3; c.fillStyle = theme.bad; for (const q of chk.gone) for (let y = Math.max(q.y, hy); y < Math.min(q.y + q.h, hy + ph); y++) for (let x = Math.max(q.x, hx); x < Math.min(q.x + q.w, hx + pw); x++) c.fillRect(view.px + x * s, view.py + y * s, s, s); c.globalAlpha = 1; }
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if (tool === 'move' && moving && inB(plan, hx, hy)) drawMovePreview(c, s, moving, fitMove(moving, hx, hy, 0, 0));
@@ -2052,6 +2053,12 @@ function draw(t, c = ctx) {
       for (let k = 0; k < 8; k++) { const ang = k * Math.PI / 4, rr = k % 2 ? r * 0.35 : r; c.lineTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr); } c.closePath(); c.fill(); c.globalAlpha = 1;
     }
   }
+}
+function drawLevel(c, z, s, x0, y0, x1, y1) {
+  const L = plan.up.get(z); if (!L || hidden.has(z)) return; const lv = [], seen = new Set();
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const oid = L[y * plan.w + x]; if (!oid || seen.has(oid)) continue; seen.add(oid); const ob = plan.objs.get(oid); if (ob) lv.push(ob); }
+  if (z > 0) for (const ob of lv) if (solidUp(ITEMS[ob.i])) upShadow(c, ob, s);
+  for (const ob of lv) if (structural(ITEMS[ob.i])) drawUp(c, ob, s); else drawRaised(c, ob, s);
 }
 function drawArea(c, a, s, strong) {
   c.save();
@@ -2269,6 +2276,7 @@ addEventListener('keydown', e => {
   if (map[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) setTool(map[e.key.toLowerCase()]);
   if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) $('#zarea').click();
   if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey) openLayers();
+  if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); setLayerZ((layerZ == null ? 0 : layerZ) + (e.key === 'PageUp' ? 1 : -1)); toast('Working on level ' + lvNum(layerZ)); }
   if (e.key === '[') { brush = Math.max(1, brush - 1); renderOptbar(); }
   if (e.key === ']') { brush = Math.min(5, brush + 1); renderOptbar(); }
   if (e.key === 'Escape') { if (drag && drag.kind === 'objmove') { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool('select'); requestDraw(); }
@@ -2282,7 +2290,7 @@ function updateStatus() {
   if (hover && plan && inB(plan, hover[0], hover[1])) {
     const k = hover[1] * plan.w + hover[0]; const g = lvShown('g') && plan.ground[k]; const pile = shownStack(k), ob = pile[pile.length - 1];
     st.append(h('span', { class: 'chip' }, hover[0] + ', ' + hover[1] + (plan.elev[k] ? ' · ▲' + plan.elev[k] : '')));
-    const rg = !ob && lvShown('r') && rugAt(hover[0], hover[1]); if (ob) st.append(h('span', { class: 'chip' }, ITEMS[ob.i].n + (pile.length > 1 ? ' on ' + ITEMS[pile[pile.length - 2].i].n : zOf(ob) ? ' · +' + zOf(ob) : ''))); else if (rg) st.append(h('span', { class: 'chip' }, ITEMS[rg.i].n)); else if (g) st.append(h('span', { class: 'chip' }, ITEMS[g - 1].n));
+    const rg = !ob && lvShown('r') && rugAt(hover[0], hover[1]); if (ob) st.append(h('span', { class: 'chip' }, ITEMS[ob.i].n + (pile.length > 1 ? ' on ' + ITEMS[pile[pile.length - 2].i].n : zOf(ob) ? ' · ' + lvTxt(zOf(ob)) : ''))); else if (rg) st.append(h('span', { class: 'chip' }, ITEMS[rg.i].n)); else if (g) st.append(h('span', { class: 'chip' }, ITEMS[g - 1].n));
     const homes = []; for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (r && r.area && inArea(r.area, hover[0], hover[1])) homes.push(z.kind === 'habitat' && r.ok ? r.best.hb.n : (z.name || 'Zone')); } for (const hs of autoHouses) if (hs.cells.has(hover[1] * plan.w + hover[0])) homes.push(hs.ok ? 'House' : 'unfinished house');
     if (homes.length) st.append(h('span', { class: 'chip', style: 'color:var(--accent)' }, 'In range of ' + homes.slice(0, 3).join(', ') + (homes.length > 3 ? ' +' + (homes.length - 3) : '')));
   }
@@ -2520,19 +2528,20 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
   c.restore();
 }
 function drawRaised(c, ob, s) {
-  const it = ITEMS[ob.i], z = zOf(ob), k = 0.72, w = ob.w * s, hh = ob.h * s, ix = view.px + ob.x * s + w * (1 - k) / 2, iy = view.py + ob.y * s + hh * (1 - k) / 2 - Math.min(z, 3) * s * 0.03;
-  const a = c.globalAlpha; c.globalAlpha = a * 0.35; c.fillStyle = '#000'; roundRect(c, ix + s * 0.05, iy + s * 0.08, w * k, hh * k, Math.min(8, s * 0.18)); c.fill(); c.globalAlpha = a;
+  const it = ITEMS[ob.i], z = zOf(ob), k = 0.72, w = ob.w * s, hh = ob.h * s, ix = view.px + ob.x * s + w * (1 - k) / 2, iy = view.py + ob.y * s + hh * (1 - k) / 2 - clamp(z, 0, 3) * s * 0.03;
+  const a = c.globalAlpha; if (z > 0) { c.globalAlpha = a * 0.35; c.fillStyle = '#000'; roundRect(c, ix + s * 0.05, iy + s * 0.08, w * k, hh * k, Math.min(8, s * 0.18)); c.fill(); c.globalAlpha = a; }
   if (s < 6) { c.fillStyle = itemColour(it); c.fillRect(ix, iy, w * k, hh * k); }
   else { c.save(); c.translate(ix, iy); c.scale(k, k); drawPicItem(c, it, 0, 0, s, ob.w, ob.h, s >= 14); c.restore(); }
+  if (z < 0) { c.globalAlpha = a * Math.min(0.45, 0.12 - 0.06 * z); c.fillStyle = '#000'; roundRect(c, ix, iy, w * k, hh * k, Math.min(8, s * 0.18)); c.fill(); c.globalAlpha = a; }
   if (s >= 18) lvBadge(c, z, view.px + ob.x * s, view.py + ob.y * s, s);
 }
-function lvBadge(c, z, x, y, s) { const t = '+' + z, f = Math.round(Math.max(9, s * 0.2)); c.font = `700 ${f}px ${BODY_FONT}`; const tw = c.measureText(t).width + f * 0.7, bx = x + 2, by = y + 2; c.fillStyle = 'rgba(20,24,28,.78)'; roundRect(c, bx, by, tw, f + 4, (f + 4) / 2); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, bx + tw / 2, by + (f + 4) / 2 + 0.5); }
+function lvBadge(c, z, x, y, s) { const t = lvTxt(z), f = Math.round(Math.max(9, s * 0.2)); c.font = `700 ${f}px ${BODY_FONT}`; const tw = c.measureText(t).width + f * 0.7, bx = x + 2, by = y + 2; c.fillStyle = 'rgba(20,24,28,.78)'; roundRect(c, bx, by, tw, f + 4, (f + 4) / 2); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, bx + tw / 2, by + (f + 4) / 2 + 0.5); }
 const solidUp = (it) => structural(it) && !fenceLike(it);
 function upShadow(c, ob, s) { c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(view.px + ob.x * s + s * 0.07, view.py + ob.y * s + s * 0.12, ob.w * s, ob.h * s); }
 function drawUp(c, ob, s) {
   const it = ITEMS[ob.i], z = zOf(ob), x = view.px + ob.x * s, y = view.py + ob.y * s, W = ob.w * s, H = ob.h * s, at = [ob.x, ob.y, ob.w, ob.h, z];
   if (s < 6) { c.fillStyle = itemColour(it); c.fillRect(x, y, W + 0.5, H + 0.5); } else drawPicItem(c, it, x, y, s, ob.w, ob.h, true, at);
-  if (solidUp(it) && it.sh !== 'hedge') { const a = c.globalAlpha; c.globalAlpha = a * Math.min(0.3, 0.06 * z); c.fillStyle = '#fff'; c.fillRect(x, y, W, H); c.globalAlpha = a; }
+  if (solidUp(it) && it.sh !== 'hedge') { const a = c.globalAlpha; c.globalAlpha = a * (z > 0 ? Math.min(0.3, 0.06 * z) : Math.min(0.45, 0.12 - 0.06 * z)); c.fillStyle = z > 0 ? '#fff' : '#000'; c.fillRect(x, y, W, H); c.globalAlpha = a; }
   if (s >= 18) { const nb = ob.id ? structAround(at) : {}; if (!nb.w && !nb.n) lvBadge(c, z, x, y, s); }
 }
 function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true, at = null) {
@@ -2634,7 +2643,7 @@ function renderOptbar() {
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item'));
     if (recent.length > 1) { const r = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Recent')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
   } else if (tool === 'erase') {
-    ob.append(h('span', { class: 'pill' }, segmented([['both', 'Both'], ['objects', 'Items'], ['ground', 'Ground']], eraseMode, v => { eraseMode = v; renderOptbar(); }, 'Erase mode'), tipBtn(layerZ != null && eraseMode !== 'ground' ? 'Only items on level ' + layerZ + ' are erased. Hidden layers are never erased.' : 'Both: the top item first, then the ground under it. Hidden layers are never erased.')));
+    ob.append(h('span', { class: 'pill' }, segmented([['both', 'Both'], ['objects', 'Items'], ['ground', 'Ground']], eraseMode, v => { eraseMode = v; renderOptbar(); }, 'Erase mode'), tipBtn(layerZ != null && eraseMode !== 'ground' ? 'Only items on level ' + lvNum(layerZ) + ' are erased. Hidden layers are never erased.' : 'Both: the top item first, then the ground under it. Hidden layers are never erased.')));
     ob.append(layerChip());
     ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
   } else if (tool === 'height') {
@@ -2653,13 +2662,13 @@ function renderOptbar() {
   else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool('select') }, 'Cancel')));
 }
 
-function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Working on'), h('b', null, 'Level ' + layerZ), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
+function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Working on'), h('b', null, 'Level ' + lvNum(layerZ)), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
 function levelPill(it) {
-  const sel = h('select', { class: 'lvsel', 'aria-label': 'Level to place on' }, h('option', { value: '' }, 'On top'), Array.from({ length: ZMAX + 1 }, (_, z) => h('option', { value: String(z) }, 'Level ' + z + (hidden.has(z) ? ' (hidden)' : ''))));
-  sel.value = layerZ == null ? '' : String(layerZ); sel.onchange = () => setLayerZ(sel.value === '' ? null : +sel.value);
+  const sel = h('select', { class: 'lvsel', 'aria-label': 'Level to place on' }, h('option', { value: '' }, 'On top'), levelList(levelStats()).map(z => h('option', { value: String(z) }, 'Level ' + lvNum(z) + (hidden.has(z) ? ' (hidden)' : ''))), h('option', { value: '*' }, 'Other level…'));
+  sel.value = layerZ == null ? '' : String(layerZ); sel.onchange = () => { if (sel.value === '*') { sel.value = layerZ == null ? '' : String(layerZ); levelDialog(); return; } setLayerZ(sel.value === '' ? null : +sel.value); };
   const p = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), sel);
-  if (layerZ != null) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + layerZ));
-  p.append(tipBtn(layerZ == null ? (stacker(it) ? 'Blocks stack on top of the blocks already there, and lift anything sitting on them.' : 'Items go on top of walls, blocks, tables and shelves.') + ' Pick a level to place on that level instead, or pick one in Layers.' : 'Everything you place goes on level ' + layerZ + '. Keep leaves what\'s already on that level and skips those squares; Replace takes it away. Squares that will be replaced show red.'));
+  if (layerZ != null) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + lvNum(layerZ)));
+  p.append(tipBtn(layerZ == null ? (stacker(it) ? 'Blocks stack on top of the blocks already there, and lift anything sitting on them.' : 'Items go on top of walls, blocks, tables and shelves.') + ' Pick a level to place on that level instead, or pick one in Layers.' : 'Everything you place goes on level ' + lvNum(layerZ) + '. Keep leaves what\'s already on that level and skips those squares; Replace takes it away. Squares that will be replaced show red.'));
   return p;
 }
 function zoneAt(x, y) { for (let i = plan.zones.length - 1; i >= 0; i--) { const z = plan.zones[i]; if (x >= z.x && y >= z.y && x < z.x + z.w && y < z.y + z.h) return z; } return null; }
@@ -2702,7 +2711,7 @@ function recipeChips(it) { const w = h('div', { class: 'reqs' }); if (it.m && it
 function showObjInspector(ob) {
   const it = ITEMS[ob.i], guess = sizeGuessed(it) || it.est;
   const z = zOf(ob), under = z ? objAtLv(ob.y * plan.w + ob.x, z - 1) : null;
-  const box = inspectorShell(it.n, swatchEl(it), it.c + (it.sub ? ' · ' + it.sub : '') + ' · ' + ob.w + '×' + ob.h + (guess ? '?' : '') + (z ? ' · level ' + z + (under ? ', on ' + ITEMS[under.i].n : '') : ''), guess ? 'The size is a guess: Resize it if yours differs in game.' : '');
+  const box = inspectorShell(it.n, swatchEl(it), it.c + (it.sub ? ' · ' + it.sub : '') + ' · ' + ob.w + '×' + ob.h + (guess ? '?' : '') + (z ? ' · level ' + lvNum(z) + (under ? ', on ' + ITEMS[under.i].n : '') : ''), guess ? 'The size is a guess: Resize it if yours differs in game.' : '');
   box.append(recipeChips(it));
   if (it.cap || (it.c === 'Kits' && it.wk)) {
     const facts = h('div', { class: 'reqs' });
@@ -2731,7 +2740,7 @@ function showObjInspector(ob) {
   if (it.cap) { acts.append(ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'primary')); const hm = kitHome(ob); if (residentsOf(hm).length < hm.cap) acts.append(ibtn('useradd', 'Add resident', () => residentPicker(hm))); }
   acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n); }));
   acts.append(ibtn('move', 'Move', () => { moving = ob; setTool('move'); }));
-  if (it.c !== 'Kits') acts.append(ibtn('up', 'Up a level', () => shiftLevel(ob, 1)), ibtn('down', 'Down a level', () => shiftLevel(ob, -1), '', { disabled: !z }));
+  if (it.c !== 'Kits') acts.append(ibtn('up', 'Up a level', () => shiftLevel(ob, 1), '', { disabled: z >= ZMAX }), ibtn('down', 'Down a level', () => shiftLevel(ob, -1), '', { disabled: z <= ZMIN }));
   if (ob.w !== ob.h) acts.append(ibtn('rotate', 'Rotate', () => { const r = reshapeObj(ob, ob.x, ob.y, ob.h, ob.w); if (r.ob) { commitTx('Rotate'); selection = { obj: r.ob }; showObjInspector(r.ob); } else toast(whyNot(r.err, ob.h, ob.w, ITEMS[ob.i]).replace('No room here', 'Can\'t turn it')); }));
   acts.append(ibtn('resize', 'Resize', () => resizeObjDialog(ob)));
   acts.append(ibtn('trash', 'Delete', () => deleteObjNow(ob), 'danger'));
@@ -3168,31 +3177,52 @@ function setSheet(s) {
 let renderQueued = false;
 function renderPanel() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; const f = { build: renderBuild, layers: renderLayers, materials: renderMaterials, habitats: renderHabitats, pokemon: renderPokemon, plans: renderPlans }[activeTab]; if (f) f(); }); }
 
+function levelStats() {
+  const n = new Map(), kinds = new Map();
+  for (const ob of plan.objs.values()) { const z = zOf(ob); n.set(z, (n.get(z) || 0) + 1); let m = kinds.get(z); if (!m) kinds.set(z, m = new Map()); m.set(ob.i, (m.get(ob.i) || 0) + 1); }
+  return { n, kinds };
+}
+function levelList(st) {
+  const want = new Set([0, ...st.n.keys()]); for (const v of hidden) if (Number.isInteger(v)) want.add(v); if (layerZ != null) want.add(layerZ);
+  let lo = 0, hi = 0; for (const z of want) { lo = Math.min(lo, z); hi = Math.max(hi, z); }
+  if (hi < ZMAX) want.add(hi + 1); if (lo > ZMIN) want.add(lo - 1);
+  return [...want].sort((a, b) => b - a);
+}
+function levelDialog() {
+  let inp; const go = () => { const v = Math.round(Number(inp.value)); if (inp.value.trim() === '' || !Number.isFinite(v) || v < ZMIN || v > ZMAX) { toast('Pick a level from ' + lvNum(ZMIN) + ' to ' + ZMAX); return false; } setLayerZ(v); toast('Working on level ' + lvNum(v)); };
+  modal('Go to level', (box) => {
+    inp = h('input', { type: 'number', id: 'lvGo', min: ZMIN, max: ZMAX, step: 1, value: layerZ == null ? 0 : layerZ, onkeydown: (e) => { if (e.key === 'Enter' && go() !== false) closeModal(); } });
+    const step = (d) => { const v = clamp((Math.round(Number(inp.value)) || 0) + d, ZMIN, ZMAX); inp.value = v; };
+    box.append(h('p', { class: 'sub' }, 'Any level from ' + lvNum(ZMIN) + ' to ' + ZMAX + '. 0 stands on the ground, below 0 is under it. Place, Fill and Erase then work on that level.'),
+      h('div', { class: 'field' }, h('label', { for: 'lvGo' }, 'Level'), h('div', { class: 'lvgo' }, ibtn('minus', 'One down', () => step(-1)), inp, ibtn('plus', 'One up', () => step(1)))));
+  }, 'Work on it', go);
+}
 function openLayers() { showTab('layers'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); }
 function renderLayers() {
   const root = $('#tab-layers'); root.textContent = ''; if (!plan) return;
-  const n = new Array(ZMAX + 1).fill(0), kinds = Array.from({ length: ZMAX + 1 }, () => new Map());
-  for (const ob of plan.objs.values()) { const z = zOf(ob); n[z]++; kinds[z].set(ob.i, (kinds[z].get(ob.i) || 0) + 1); }
-  let top = 0; for (let z = 0; z <= ZMAX; z++) if (n[z] || hidden.has(z) || layerZ === z) top = z; top = Math.min(ZMAX, top + 1);
+  const st = levelStats(), levels = levelList(st);
   let tiles = 0; for (const g of plan.ground) if (g) tiles++;
   const plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
   const eye = (key) => { const off = hidden.has(key), t = (off ? 'Show ' : 'Hide ') + lvName(key).toLowerCase(); return h('button', { class: 'eye', type: 'button', 'aria-pressed': off ? 'false' : 'true', 'aria-label': t, 'data-tip': t, onclick: () => setHidden(key, !off) }, icon(off ? 'eyeoff' : 'eye')); };
   const line = (key, badge, name, ds, pick) => h('div', { class: 'lyr' + (key != null && hidden.has(key) ? ' off' : '') }, key != null ? eye(key) : h('span', { class: 'gap' }),
     h(pick ? 'button' : 'div', pick ? { class: 'row', type: 'button', 'aria-pressed': pick.on ? 'true' : 'false', onclick: pick.fn } : { class: 'row' }, h('span', { class: 'lvl' }, badge), h('span', { class: 'meta' }, h('div', { class: 'nm' }, name), h('div', { class: 'ds' }, ds))));
   root.append(h('h2', { class: 'hrow' }, 'Layers', tipBtn('Each level is a layer, as in a drawing app. Tap the eye to hide or show one: hidden layers aren\'t drawn and can\'t be tapped, but they still count for houses, habitats and comfort. Tap a level to work on it: Place and Fill put items on it, Erase only takes them from it, and Select picks them first.')));
-  root.append(h('p', { class: 'sub' }, layerZ == null ? 'New items stack on top of what\'s there.' : 'Working on level ' + layerZ + (hidden.has(layerZ) ? ', which is hidden' : '') + '.'));
+  root.append(h('p', { class: 'sub' }, (layerZ == null ? 'New items stack on top of what\'s there.' : 'Working on level ' + lvNum(layerZ) + (hidden.has(layerZ) ? ', which is hidden' : '') + '.') + ' Levels go from ' + lvNum(ZMIN) + ' to ' + ZMAX + '; below 0 is under the ground.'));
   const list = h('div', { class: 'list' });
   list.append(line(null, icon('layers'), 'On top', 'New things stack on what\'s there', { on: layerZ == null, fn: () => setLayerZ(null) }));
-  for (let z = top; z >= 0; z--) {
-    const names = [...kinds[z].entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([i]) => ITEMS[i].n), more = kinds[z].size - names.length;
-    const ds = n[z] ? plural(n[z], 'item') + ' · ' + names.join(', ') + (more > 0 ? ' +' + more : '') : z ? 'Empty' : 'Empty · standing on the ground';
-    list.append(line(z, String(z), 'Level ' + z + (z ? '' : ' · ground floor'), ds, { on: layerZ === z, fn: () => setLayerZ(layerZ === z ? null : z) }));
-  }
+  levels.forEach((z, j) => {
+    const cnt = st.n.get(z) || 0, kinds = st.kinds.get(z) || new Map(), names = [...kinds.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([i]) => ITEMS[i].n), more = kinds.size - names.length;
+    const ds = cnt ? plural(cnt, 'item') + ' · ' + names.join(', ') + (more > 0 ? ' +' + more : '') : 'Empty' + (z > 0 ? '' : z ? ' · under the ground' : ' · standing on the ground');
+    list.append(line(z, lvNum(z), 'Level ' + lvNum(z) + (z ? '' : ' · ground floor'), ds, { on: layerZ === z, fn: () => setLayerZ(layerZ === z ? null : z) }));
+    const next = levels[j + 1], gap = next == null ? 0 : z - next - 1;
+    if (gap > 0) list.append(h('div', { class: 'lyrgap' }, gap === 1 ? 'Level ' + lvNum(z - 1) + ' · empty' : 'Levels ' + lvNum(next + 1) + ' to ' + lvNum(z - 1) + ' · empty'));
+  });
   list.append(line('r', icon('rect'), 'Rugs', plan.rugs.size ? plural(plan.rugs.size, 'rug') : 'None'));
   list.append(line('g', icon('map'), 'Ground', tiles ? plural(tiles, 'tile') + ' of terrain and floors, with heights' : 'Bare'));
   root.append(list);
   const foot = h('div', { class: 'lyrfoot' });
-  if (layerZ != null) foot.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Already on level ' + layerZ), segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); renderLayers(); }, 'Items already on level ' + layerZ)));
+  foot.append(h('button', { class: 'btn sm', type: 'button', onclick: levelDialog }, icon('layers'), 'Go to level'));
+  if (layerZ != null) foot.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Already on level ' + lvNum(layerZ)), segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); renderLayers(); }, 'Items already on level ' + lvNum(layerZ))));
   if (hidden.size) foot.append(h('button', { class: 'btn sm', type: 'button', onclick: showAllLayers }, icon('eye'), 'Show all'));
   if (foot.childNodes.length) root.append(foot);
 }
@@ -3482,14 +3512,14 @@ function renderPlans() {
     ['Painting', 'Paint terrain and plants with Place; drag Fill for big areas. Liquids (Water, Ocean, Muddy, Hot-spring, Lava, Waterfall) count toward habitat needs.'],
     ['Zones', 'Draw a Zone around a cluster. It checks the cluster against all ' + HAB.length + ' habitats and turns green when one forms.'],
     ['Height', 'Height raises tiles. A 2-level rise inside a zone counts as a "High-up location".'],
-    ['Layers', 'Every level is a layer. In Layers (or L), tap an eye to hide or show a level, the rugs or the ground, and tap a level to work on it: Place and Fill put things there, Erase only takes from there. Blocks stack on blocks unless you pick a level; then Keep or Replace decides what happens to what\'s already there.'],
+    ['Layers', 'Every level is a layer, from −99 to 99; below 0 is under the ground. In Layers (or L), tap an eye to hide or show a level, the rugs or the ground, and tap a level to work on it (Go to level, or Page Up and Page Down, reach any other): Place and Fill put things there, Erase only takes from there. Blocks stack on blocks unless you pick a level; then Keep or Replace decides what happens to what\'s already there.'],
     ['Active areas', 'The dotted button by the zoom controls (or A) shows the white dotted line the game shows with the right stick: 4 tiles past a home on every side, 4 levels up or down. Light, warmth and humidity in a house you built only count the floor inside the walls.'],
     ['Houses you build', 'Found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Fill → Outline lays walls fast.'],
     ['Residents', 'Tap a house or kit house to choose who lives there. Decorate lists their favourite kinds of things, ticks what\'s already there and suggests items, including ones that bring light, warmth or humidity to what they like.'],
     ['Pokémon sizes', 'Large ones were tested by players (too big for dens); small or medium with a ? is a guess from height and weight. Tap a size to change it; yours syncs. Each Pokémon needs a rest item at least its size: 1×1 small, 2×1 medium, 2×2 large.'],
     ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls.'],
     ['Tooltips', 'Hover, long-press or tap ⓘ for the details behind any button or chip.'],
-    ['Shortcuts', 'A active areas, L layers, B place, R fill, E erase, V select, Z zone, T height, I pick, H pan, Q rotate item, [ ] brush, Space+drag pan.']
+    ['Shortcuts', 'A active areas, L layers, Page Up/Down level, B place, R fill, E erase, V select, Z zone, T height, I pick, H pan, Q rotate item, [ ] brush, Space+drag pan.']
   ].map(([lb, t]) => h('span', { class: 'req', 'data-tip': t }, lb))));
   root.append(h('h4', { class: 'hrow' }, 'Data sources', tipBtn('Community-researched data current to the game\'s Bubbly Basin update and the autumn 2026 event. Kit footprints marked estimated and group memberships (Seat, Table, Toy…) may differ slightly in game. Fan-made planner, not affiliated with Nintendo or The Pokémon Company.')));
   root.append(h('ul', { class: 'srcs', style: 'padding-left:18px;margin:0' }, DATA.sources.map(([t, u]) => h('li', null, h('a', { href: u, target: '_blank', rel: 'noopener' }, t)))));
@@ -3856,7 +3886,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T03:15';
+const APP_BUILD = '2026-11-21T04:02';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
