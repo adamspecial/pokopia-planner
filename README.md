@@ -12,6 +12,19 @@ The planner opens on **Select**. Tap any square of an item to select it, and dra
 
 In **Decorate**, tapping a suggestion folds the window into a small bar under the map and centres the house, so you can see where the item goes. Once you've placed it, the window opens again where you left it. The bar's buttons bring it back early or close it.
 
+## Levels
+
+Items can sit on top of other things, as in the game. Pick a lamp, a plant or any other item and tap a wall, fence, block, table, counter, shelf or chest: it goes on top, drawn a little smaller with a shadow and a **+1** badge. Anything fits on a wall or block; furniture tops take items one tile big. The outline shows where it will land before you tap.
+
+Select an item and use **Up** and **Down** to change its level, for a loft or something hung up high. Select an area to move everything in it up or down together. Tap a selected item again to select what's under it. Moving a table or a wall carries what's on it. Erase takes the top item first. Taking away what's underneath leaves the item where it was, floating, as the game does.
+
+Height decides what counts:
+
+- **Making a house:** the 3 kinds of furniture have to stand inside the walls at the door's level. A kit house needs 3 different kinds on the floor with its door.
+- **Comfort and favourites:** anything in the active area counts at its own height, from 4 levels below to 3 above the door. That includes things just outside the walls, on a loft, on a table or on top of a wall.
+- **Light, warmth and humidity:** only what's inside the walls, from 1 below to 3 above the floor (see below). Things on top of walls never count.
+- Items on top of walls don't break the house. Habitats only count items standing on the ground.
+
 ## Item pictures
 
 Furniture, storage, shelves, lamps and appliances show on the map, and in kit rooms, as top-down symbols of their kind (a bed with its pillows, a sofa with its cushions, a stove with its burners), in the colour of their pictures. Decorations, dolls, fossils, plants, kits and other one-off items show as their own pictures. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint, with the floor kept under it and furniture standing on it. Rug sizes are guesses until you set them with **Change**, which can also resize the rugs already placed. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
@@ -28,7 +41,7 @@ Every item, and every tile of water, lava, ice or grass, carries light, warmth a
 
 **What counts where**
 
-- **A house you built from blocks**, or a kit built from blocks such as the cottages and the log cabin: only what's on the floor inside the walls or on a door tile counts, from 1 level below to 3 above the floor. The walls, anything on top of or under them, and anything outside never count. Lights hung higher than 3 don't count either. Daylight is 90 × floor tiles open to the sky ÷ every tile of the house, walls included. That's 62 at most even in the biggest house (9×10), and 45 in a 5×4. A roof is any block 2 or more above the floor. Set how much is roofed with **Roof**; unset counts as open sky. Kits built from blocks count as roofed, and only their ground floor counts.
+- **A house you built from blocks**, or a kit built from blocks such as the coloured huts and cottages and the log cabin: only what's on the floor inside the walls or on a door tile counts, from 1 level below to 3 above the floor. Each item counts at its own level, so a lamp on a table counts and one raised 4 up doesn't. The floor itself sits 1 below, so the floor of a tile dug 1 deep doesn't count, though what stands on it does. The walls, anything on top of or under them, and anything outside never count. Lights hung higher than 3 don't count either. Daylight is 90 × floor tiles open to the sky ÷ every tile of the house, walls included. That's 62 at most even in the biggest house (9×10), and 45 in a 5×4. A roof is any block 2 or more above the floor. Set how much is roofed with **Roof**; unset counts as open sky. Kits built from blocks count as roofed, and only their ground floor counts.
 - **A kit house with its own interior**: everything inside counts, on both floors and at any height. There's no daylight, and windows, curtains, wallpaper and floors don't count.
 
 **When a home is bright, warm or humid**
