@@ -812,6 +812,7 @@ function buildIndex(d) {
     }
     if (!o.sh) o.sh = o.c === 'Kits' ? 'kit' : (o.L === 'g' ? 'floor' : ((o.c === 'Blocks' || /wall|pillar/i.test(o.n)) && o.c !== 'Wallpaper' ? 'block' : 'chip'));
     o.gl = initials(o.n);
+    if (o.lk) { const q = o.lk.split(' '); o.look = { k: q[0], a: q[1], b: q[2] || null }; }
     o.key = o.n.toLowerCase();
     return o;
   });
@@ -2196,6 +2197,148 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = nu
   }
   c.restore();
 }
+const LOOKS = {
+  chip: 'r0,14,14,72,72,16',
+  plate: 'o0,50,50,38 o1,50,50,25',
+  platter: 'o0,50,50,40 o1,36,42,12 o1,62,40,12 o1,50,64,12',
+  basket: 'r0,14,40,72,44,10 r1,14,40,72,11,5 ~l2,2,32,54,32,80 ~l2,2,50,54,50,80 ~l2,2,68,54,68,80 a2,6,50,40,24,180,360',
+  fruitbasket: 'r0,14,46,72,40,10 o1,34,42,12 o1,52,36,12 o1,68,44,11 a2,6,50,46,26,180,360',
+  mug: 'a0,9,72,50,14,-70,70 o0,46,50,30 o1,46,50,21',
+  teaset: 'r0,10,22,80,56,12 o1,38,50,17 o1,70,36,9 o1,70,64,9 ~o4,38,50,5',
+  setting: 'o0,50,50,30 o1,50,50,19 l2,5,14,30,14,70 l2,5,86,30,86,70',
+  cups: 'o0,32,38,16 o0,68,36,15 o0,50,68,16 o1,32,38,10 o1,68,36,9 o1,50,68,10',
+  pizza: 'o0,50,50,40 o1,50,50,33 ~l2,2,50,17,50,83 ~l2,2,21,33,79,67 ~l2,2,21,67,79,33 ~o4,38,36,5 ~o4,64,44,5 ~o4,44,64,5',
+  fries: 'l1,8,36,44,30,14 l1,8,50,44,50,10 l1,8,64,44,70,14 l1,8,43,44,40,20 l1,8,57,44,60,18 p0,26,40,74,40,68,88,32,88',
+  float: 'p0,30,26,70,26,64,90,36,90 o1,50,24,18 ~l3,4,58,20,70,4',
+  tiers: 'o0,50,50,40 o1,50,50,29 o0,50,50,17 o1,50,50,6',
+  cookies: 'o1,50,50,40 o0,36,42,13 o0,63,40,13 o0,50,64,13 ~o2,33,40,2 ~o2,40,46,2 ~o2,62,36,2 ~o2,66,44,2 ~o2,48,62,2 ~o2,54,68,2',
+  sandwich: 'o1,50,50,40 p0,16,24,68,24,16,68 p0,84,76,32,76,84,32',
+  shavedice: 'p0,20,54,80,54,68,88,32,88 e1,50,48,30,20 ~e6,42,40,8,5',
+  cake: 'o0,50,50,38 r1,44,12,12,76,2 r1,12,44,76,12,2 o1,50,50,9',
+  vase: 'p0,36,52,64,52,72,88,28,88 o1,38,40,11 o1,62,38,11 o1,50,26,12',
+  flowers: 'p0,34,60,66,60,70,90,30,90 o1,28,42,12 o1,50,30,13 o1,72,42,12 o1,40,54,10 o1,60,54,10',
+  bin: 'r0,26,28,48,60,6 r1,20,18,60,12,4 ~l2,3,40,40,40,78 ~l2,3,60,40,60,78',
+  pencils: 'l1,6,40,44,30,12 l1,6,52,44,54,8 l1,6,62,44,72,14 r0,30,40,40,48,6',
+  pen: 'l0,13,26,74,70,30 l1,13,70,30,80,20 ~l6,3,34,60,58,36',
+  letter: 'r0,12,26,76,50,4 p1,14,28,50,56,86,28 o1,50,54,6',
+  note: 'r0,24,14,52,72,4 r1,24,14,52,14,3 ~l2,3,32,44,68,44 ~l2,3,32,56,68,56 ~l2,3,32,68,58,68',
+  book: 'r0,22,16,56,68,4 r1,22,16,11,68,3 ~l2,3,42,34,68,34 ~l2,3,42,44,62,44',
+  openbook: 'p1,6,30,50,38,94,30,94,80,50,88,6,80 p0,12,26,50,34,50,80,12,72 p0,50,34,88,26,88,72,50,80 ~l2,2,20,40,42,44 ~l2,2,58,44,80,40 ~l2,2,20,52,42,56 ~l2,2,58,56,80,52',
+  papers: 'r0,18,26,52,60,3 r0,30,14,52,60,3 ~l2,3,38,30,74,30 ~l2,3,38,42,74,42 ~l2,3,38,54,64,54',
+  newspaper: 'r0,12,20,76,60,3 r1,18,26,30,22,2 ~l2,3,54,30,82,30 ~l2,3,54,40,82,40 ~l2,3,18,58,82,58 ~l2,3,18,68,82,68',
+  frame: 'r0,18,14,64,72,4 r1,27,23,46,54,2',
+  board: 'r0,8,16,84,68,4 r1,15,23,70,54,2 ~r3,24,30,16,14,1 ~r3,48,34,18,12,1 ~r3,34,54,20,14,1',
+  fireplace: '!f r0,4,8,92,84,6 r2,26,30,48,62,22 p1,36,92,40,60,50,72,58,50,64,92',
+  fan: 'o0,50,50,40 w1,50,50,33,-20,40 w1,50,50,33,100,160 w1,50,50,33,220,280 o0,50,50,8',
+  aircon: 'r0,6,26,88,48,10 r1,14,56,72,10,3 ~l2,2,16,40,84,40',
+  printer: 'r1,26,12,48,24,2 r0,10,30,80,44,6 r1,24,62,52,26,2 ~o2,78,40,3',
+  bottles: 'r0,18,36,26,50,8 r0,23,26,16,12,2 r1,52,28,30,58,8 r1,59,16,16,14,2',
+  bucket: 'l1,6,66,10,48,60 p0,22,32,78,32,70,88,30,88 e2,50,32,28,7',
+  tablet: 'r0,22,10,56,80,8 r1,28,17,44,62,3 ~o2,50,87,2',
+  phone: 'r0,32,12,36,76,8 r1,36,20,28,56,3',
+  laptop: 'r0,16,14,68,46,4 r1,22,20,56,34,2 p0,10,64,90,64,84,84,16,84 ~r2,26,68,48,8,1',
+  monitor: 'r0,10,12,80,54,5 r1,16,18,68,42,2 r0,42,66,16,12,0 r0,28,76,44,10,3',
+  tower: 'r0,28,8,44,84,5 ~o1,50,24,7 ~r1,36,44,28,4,1 ~r1,36,54,28,4,1 ~r1,36,64,28,4,1',
+  clock: 'o0,28,22,11 o0,72,22,11 o0,50,54,34 o1,50,54,26 l2,4,50,54,50,38 l2,4,50,54,62,60',
+  blocks: 'r0,12,48,36,36,4 r1,52,48,36,36,4 r0,32,12,36,36,4',
+  pinwheel: 'l2,4,50,52,50,94 p0,50,50,50,12,76,28 p1,50,50,88,50,72,76 p0,50,50,50,88,24,72 p1,50,50,12,50,28,24 o2,50,50,4',
+  yarn: 'o0,38,56,26 o1,66,40,20 ~l2,3,20,24,56,60 ~l2,3,30,16,62,52',
+  handheld: 'r0,28,8,44,84,8 r1,34,14,32,30,2 ~r2,34,60,14,5,1 ~r2,38.5,55.5,5,14,1 ~o2,62,60,5 ~o2,54,70,5',
+  humidifier: 'r0,26,30,48,60,18 o1,50,32,10 ~e6,50,14,12,7',
+  aidkit: 'r0,12,28,76,54,8 r1,44,36,12,38,1 r1,31,49,38,12,1 a2,5,50,28,10,180,360',
+  crystal: 'r1,30,70,40,18,4 o0,50,46,30 ~o6,40,36,8',
+  microscope: 'r0,20,78,60,12,3 l0,8,32,78,32,44 l1,12,40,62,64,18 r0,42,56,32,6,2',
+  flask: 'p0,40,12,60,12,60,40,84,86,16,86,40,40 p1,27.5,64,72.5,64,84,86,16,86',
+  cords: '!n q0,6,14,40,50,4,86,46 q1,6,16,72,54,96,88,62 q2,6,26,18,64,40,40,90',
+  cdplayer: 'r0,12,26,76,48,8 o1,50,50,18 ~o0,50,50,5',
+  mic: 'r0,28,78,44,10,4 l0,5,50,78,50,48 o1,50,32,18 ~l4,2,38,28,62,28 ~l4,2,38,36,62,36',
+  standmic: 'e0,50,86,22,7 l0,5,50,86,50,30 o1,50,22,13',
+  drum: 'o0,50,50,40 o1,50,50,31 ~o2,50,14,3 ~o2,86,50,3 ~o2,50,86,3 ~o2,14,50,3',
+  guitar: 'l1,9,48,52,84,16 r1,78,8,14,16,3 o0,40,62,24 o0,57,47,15 ~o2,41,61,6',
+  mixer: 'r0,8,20,84,60,6 ~r2,23,30,6,40,2 ~r2,39,30,6,40,2 ~r2,55,30,6,40,2 ~r2,71,30,6,40,2 r1,19,44,14,8,2 r1,35,56,14,8,2 r1,51,36,14,8,2 r1,67,50,14,8,2',
+  speaker: 'r0,22,8,56,84,6 o1,50,62,18 o1,50,28,10 ~o4,50,62,7',
+  balloons: 'l2,2,50,92,32,42 l2,2,50,92,68,40 l2,2,50,92,50,26 o1,50,26,16 o0,32,42,16 o0,68,40,16',
+  arcade: 'r0,22,8,56,84,6 r1,30,16,40,30,3 o1,50,64,12 ~o4,50,64,5',
+  boxes: 'r0,12,44,42,42,3 r0,48,50,40,36,3 r0,26,12,40,34,3 ~r1,29,44,8,42,0 ~r1,64,50,8,36,0 ~r1,42,12,8,34,0',
+  whiteboard: '!f r0,4,8,92,72,4 r1,8,14,84,60,2 ~l2,3,16,28,52,28 ~l2,3,16,42,70,42 ~l2,3,16,56,44,56 r0,10,82,80,8,3',
+  console: 'r0,14,24,72,52,8 r1,22,32,30,24,2 ~o1,64,40,6 ~o1,74,52,6 ~o1,64,64,6',
+  armor: 'p0,24,32,76,32,82,50,70,88,30,88,18,50 o1,50,22,15 ~l2,4,50,38,50,84',
+  bell: 'p0,50,12,64,18,70,40,76,72,24,72,30,40,36,18 r0,16,70,68,10,5 o1,50,86,8',
+  wheel: 'l0,6,50,8,50,92 l0,6,8,50,92,50 l0,6,20,20,80,80 l0,6,80,20,20,80 a0,10,50,50,30,0,360 o1,50,50,11',
+  wreath: 'a0,16,50,50,28,0,360 ~o1,50,22,6 ~o1,76,58,6 ~o1,24,58,6 p1,40,76,60,76,66,92,50,82,34,92',
+  grandclock: 'r0,26,6,48,88,6 o1,50,30,16 ~l2,3,50,30,50,20 ~l2,3,50,30,58,34 r1,40,54,20,28,6 ~o0,50,74,5',
+  banner: 'l2,4,14,14,86,14 p0,24,14,76,14,76,88,50,72,24,88 ~o1,50,40,11',
+  bunting: 'q2,3,4,16,50,44,96,16 p0,8,18,26,25,14,50 p1,30,28,48,32,40,60 p0,52,32,70,28,62,60 p1,74,25,92,18,86,50',
+  scroll: 'r1,18,8,64,9,4 r0,24,16,52,68,0 r1,18,82,64,9,4 ~l2,3,40,30,40,70 ~l2,3,56,30,56,58',
+  pokeball: 'o1,50,50,38 w0,50,50,38,180,360 l2,6,12,50,88,50 o1,50,50,11 ~o2,50,50,5',
+  plates: 'o0,36,52,26 o1,36,52,16 o0,64,46,26 o1,64,46,16',
+  books: 'r0,16,62,68,20,3 r1,22,42,58,20,3 r0,18,22,62,20,3',
+  showcase: '!f r0,4,10,92,80,5 r1,9,16,82,48,3 ~o0,28,40,8 ~o0,52,40,8 ~o0,74,40,8',
+  bottle: 'r1,8,30,70,40,18 r0,76,40,14,20,4 p0,20,56,62,56,56,64,26,64 p0,40,30,40,54,58,54',
+  gem: 'p0,50,12,84,40,50,88,16,40 ~p3,32,24,68,24,84,40,16,40',
+  metronome: 'p0,34,10,66,10,82,90,18,90 l1,4,50,80,64,24 ~r2,40,82,20,4,1',
+  musicbox: 'r0,14,32,72,48,6 r1,14,32,72,14,4 ~l2,4,86,56,94,56 ~l2,4,94,48,94,64',
+  harp: 'l0,9,26,88,26,14,78,38,78,88,26,88 ~l1,2,38,24,38,84 ~l1,2,50,30,50,84 ~l1,2,62,34,62,84',
+  toolbox: 'r0,12,38,76,46,6 r1,12,38,76,12,4 a2,6,50,38,16,180,360',
+  servers: 'r0,18,8,64,84,5 ~r2,24,16,52,14,2 ~r2,24,36,52,14,2 ~r2,24,56,52,14,2 ~o1,70,23,3 ~o1,70,43,3 ~o1,70,63,3',
+  orb: 'o0,50,50,36 o1,50,50,24 ~o6,42,42,7',
+  screen: 'r0,8,20,84,60,5 r1,14,26,72,48,2',
+  calendar: 'r0,18,12,64,76,4 r1,18,12,64,18,3 ~l2,2,26,48,74,48 ~l2,2,26,62,74,62 ~l2,2,26,76,74,76 ~l2,2,42,36,42,84 ~l2,2,58,36,58,84',
+  vine: 'q0,8,10,24,50,64,90,30 o1,26,30,10 o1,50,50,11 o1,74,34,10 ~o1,62,60,8 ~o1,36,48,8',
+  wallclock: 'o0,50,50,38 o1,50,50,30 l2,5,50,50,50,30 l2,5,50,50,64,58',
+  toolboard: 'r0,10,10,80,80,4 l1,6,28,24,28,74 l1,6,50,24,50,60 l1,6,72,24,72,70 ~r1,42,64,16,12,2',
+};
+const lookDefs = new Map(), LOOK_D = Math.PI / 180;
+function lookDef(k) {
+  let d = lookDefs.get(k); if (d) return d;
+  d = { f: 0, r: 0, n: 0, p: [], big: -1 }; let best = 0;
+  for (let t of (LOOKS[k] || LOOKS.chip).split(' ')) {
+    if (t[0] === '!') { d[t[1]] = 1; continue; }
+    const fine = t[0] === '~'; if (fine) t = t.slice(1);
+    const q = [t[0], fine, ...t.slice(1).split(',').map(Number)];
+    let ar = 0; if (q[0] === 'r') ar = q[5] * q[6]; else if (q[0] === 'o') ar = 3.14 * q[5] * q[5]; else if (q[0] === 'e') ar = 3.14 * q[5] * q[6];
+    else if (q[0] === 'p') for (let i = 3; i < q.length; i += 2) { const j = i + 2 < q.length ? i + 2 : 3; ar += (q[i] * q[j + 1] - q[j] * q[i + 1]) / 2; }
+    ar = Math.abs(ar); if (!fine && ar > best) { best = ar; d.big = d.p.length; }
+    d.p.push(q);
+  }
+  lookDefs.set(k, d); return d;
+}
+function lookPal(lk) {
+  if (lk.pal) return lk.pal;
+  const a = lk.a, b = lk.b || (lum(a) > 0.6 ? shade(a, -0.28) : shade(a, 0.38)), f = [a, b, shade(a, -0.32), shade(a, 0.32), shade(b, -0.32), shade(b, 0.32), 'rgba(255,255,255,.55)', 'rgba(0,0,0,.25)'];
+  return lk.pal = { f, o: f.map((q, i) => i < 6 ? shade(q, -0.5) : null) };
+}
+function drawLook(c, it, x, y, s, wc = 1, hc = 1) {
+  const lk = it.look; if (!lk) return false;
+  const W = wc * s, H = hc * s, m = Math.min(W, H), d = lookDef(lk.k), pal = lookPal(lk), px = m * dpr;
+  if (px < 11) { const q = d.big >= 0 ? d.p[d.big][2] : 0, g = m * 0.12; c.fillStyle = pal.f[q] || lk.a; roundRect(c, x + g, y + g, W - 2 * g, H - 2 * g, m * 0.2); c.fill(); return true; }
+  const fine = px >= 26, edge = px >= 16, rot = d.r && H > W;
+  let bx = x, by = y, bw = W, bh = H; if (!d.f) { bx = x + (W - m) / 2; by = y + (H - m) / 2; bw = bh = m; }
+  const su = (rot ? bh : bw) / 100, sv = (rot ? bw : bh) / 100, k = Math.min(su, sv), lw = Math.max(0.8, m * 0.035), turn = rot ? Math.PI / 2 : 0;
+  const X = rot ? (u, v) => bx + bw - v * sv : (u, v) => bx + u * su, Y = rot ? (u, v) => by + u * su : (u, v) => by + v * sv;
+  const path = (q) => {
+    c.beginPath();
+    switch (q[0]) {
+      case 'o': c.arc(X(q[3], q[4]), Y(q[3], q[4]), q[5] * k, 0, 7); break;
+      case 'e': c.ellipse(X(q[3], q[4]), Y(q[3], q[4]), rot ? q[6] * sv : q[5] * su, rot ? q[5] * su : q[6] * sv, 0, 0, 7); break;
+      case 'r': { const x0 = X(q[3], q[4]), y0 = Y(q[3], q[4]), x1 = X(q[3] + q[5], q[4] + q[6]), y1 = Y(q[3] + q[5], q[4] + q[6]), w = Math.abs(x1 - x0), h = Math.abs(y1 - y0); roundRect(c, Math.min(x0, x1), Math.min(y0, y1), w, h, Math.min(q[7] * k, w / 2, h / 2)); break; }
+      case 'p': c.moveTo(X(q[3], q[4]), Y(q[3], q[4])); for (let i = 5; i < q.length; i += 2) c.lineTo(X(q[i], q[i + 1]), Y(q[i], q[i + 1])); c.closePath(); break;
+      case 'w': { const cx = X(q[3], q[4]), cy = Y(q[3], q[4]); c.moveTo(cx, cy); c.arc(cx, cy, q[5] * k, q[6] * LOOK_D + turn, q[7] * LOOK_D + turn); c.closePath(); break; }
+      case 'l': c.moveTo(X(q[4], q[5]), Y(q[4], q[5])); for (let i = 6; i < q.length; i += 2) c.lineTo(X(q[i], q[i + 1]), Y(q[i], q[i + 1])); break;
+      case 'q': c.moveTo(X(q[4], q[5]), Y(q[4], q[5])); c.quadraticCurveTo(X(q[6], q[7]), Y(q[6], q[7]), X(q[8], q[9]), Y(q[8], q[9])); break;
+      case 'a': c.arc(X(q[4], q[5]), Y(q[4], q[5]), q[6] * k, q[7] * LOOK_D + turn, q[8] * LOOK_D + turn); break;
+    }
+  };
+  c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
+  if (!d.n && d.big >= 0) { const ox = m * 0.04, oy = m * 0.06; c.translate(ox, oy); path(d.p[d.big]); c.fillStyle = 'rgba(0,0,0,.16)'; c.fill(); c.translate(-ox, -oy); }
+  for (const q of d.p) {
+    if (q[1] && !fine) continue;
+    path(q);
+    if (q[0] === 'l' || q[0] === 'q' || q[0] === 'a') { const w = Math.max(1, q[3] * k); if (edge && q[3] >= 5 && pal.o[q[2]]) { c.strokeStyle = pal.o[q[2]]; c.lineWidth = w + lw * 2; c.stroke(); } c.strokeStyle = pal.f[q[2]]; c.lineWidth = w; c.stroke(); }
+    else { c.fillStyle = pal.f[q[2]]; c.fill(); if (edge && pal.o[q[2]]) { c.strokeStyle = pal.o[q[2]]; c.lineWidth = lw; c.stroke(); } }
+  }
+  c.restore(); return true;
+}
 const isRug = (it) => it.c === 'Rug' || it.ht === 0;
 const painted = (it) => it.L === 'g' && !isRug(it);
 const rugsOf = (p) => [...p.rugs.values()];
@@ -2658,7 +2801,7 @@ function swatchURL(it) {
   x.fillStyle = it.L === 'g' ? it.col : (it.c === 'Nature' ? '#d6dfcf' : '#e8ebe5'); x.fillRect(0, 0, S, S);
   if (it.L === 'g') drawGroundCell(x, it, 0, 0, S);
   else if (it.sh === 'kit') { drawItem(x, it, 2, 2, S / 2 - 2, 2, 2, false); }
-  else drawItem(x, it, 0, 0, S);
+  else if (!drawLook(x, it, 0, 0, S)) drawItem(x, it, 0, 0, S);
   const url = c.toDataURL(); swatchCache.set(it.i, url); return url;
 }
 const PIC_WEB = 'https://www.serebii.net/pokemonpokopia/items/';
@@ -2738,7 +2881,7 @@ function drawPicIn(c, p, x, y, w, h, fill) {
   c.drawImage(src, sx, sy, sw, sh, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 const picInfo = (it) => { const u = picsFor(it)[0]; return (u && mapPics.get(u)) || null; };
-const itemColour = (it) => { const p = picInfo(it); return (p && p.col) || it.col; };
+const itemColour = (it) => { if (it.look) return it.look.a; const p = picInfo(it); return (p && p.col) || it.col; };
 const fenceLike = (it) => /fenc|railing|enclosure|barrier|handrail|\bposts\b/i.test(it.n);
 function structAround(at) {
   if (!at) return { n: null, s: null, w: null, e: null };
@@ -2902,7 +3045,7 @@ function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true, at = null) {
   if (structural(it)) { const u = picsFor(it)[0]; if (u) mapPic(u); drawStructure(c, it, x, y, s, wc, hc, at); return; }
   const fk = furnKind(it); if (fk && s * dpr >= MAP_PIC_MIN) { const u = picsFor(it)[0]; if (u) mapPic(u); drawFurniture(c, it, fk, x, y, s, wc, hc); return; }
   const url = S.pics && s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = url && mapPic(url);
-  if (!p) { drawItem(c, it, x, y, s, wc, hc, label); return; }
+  if (!p) { if (!drawLook(c, it, x, y, s, wc, hc)) drawItem(c, it, x, y, s, wc, hc, label); return; }
   const w = s * wc, hh = s * hc;
   if (it.sh === 'kit') { drawItem(c, it, x, y, s, wc, hc, label, (bx, by, bw, bh) => drawPicIn(c, p, bx, by, bw, bh)); return; }
   if (it.sh === 'block') { drawPicIn(c, p, x, y, w, hh); return; }
@@ -4648,7 +4791,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T19:30';
+const APP_BUILD = '2026-11-21T20:00';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
