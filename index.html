@@ -2433,6 +2433,51 @@ const LOOKS = {
   cloche: 'e1,50,76,40,10 p0,16,74,20,50,40,34,60,34,80,50,84,74 o0,50,26,6',
   target: 'o0,50,50,38 o1,50,50,26 o0,50,50,14',
   amulet: 'a2,3,50,30,22,180,360 p0,50,40,70,58,50,86,30,58 ~p6,50,46,58,58,50,70',
+  ladder: '!f !n l0,8,26,4,26,96 l0,8,74,4,74,96 l0,6,26,22,74,22 l0,6,26,50,74,50 l0,6,26,78,74,78',
+  wire: '!f !r !n l0,4,0,50,100,50 ~o0,50,50,5',
+  chain: '!f !r !n a0,5,22,50,13,0,360 a0,5,50,50,13,0,360 a0,5,78,50,13,0,360',
+  rope: '!f !r !n q0,8,2,40,50,72,98,40',
+  pulley: 'l2,4,40,58,40,96 l2,4,60,58,60,96 o0,50,40,24 o1,50,40,9',
+  shutter: '!f r0,6,6,88,88,4 ~l2,3,10,24,90,24 ~l2,3,10,42,90,42 ~l2,3,10,60,90,60 ~l2,3,10,78,90,78',
+  curtain: '!f p0,8,4,62,4,40,96,8,96 ~l2,3,22,10,18,90 ~l2,3,38,10,30,90',
+  curtainr: '!f p0,92,4,38,4,60,96,92,96 ~l2,3,78,10,82,90 ~l2,3,62,10,70,90',
+  hatch: 'r0,10,10,80,80,6 r1,20,20,60,60,4 ~l0,4,30,50,70,50',
+  roofslope: '!f !n r0,0,0,100,100,0 r2,0,0,100,12,0 ~l2,3,0,37,100,37 ~l2,3,0,62,100,62 ~l2,3,0,87,100,87',
+  roofhip: '!f !n r0,0,0,100,100,0 p3,0,0,100,0,50,50 ~l2,3,0,0,100,100 ~l2,3,100,0,0,100',
+  roofvalley: '!f !n r0,0,0,100,100,0 p2,0,100,50,50,100,100 ~l2,3,0,0,50,50,100,0',
+  roofflat: '!f !n r0,0,0,100,100,0 ~r3,10,10,80,80,3',
+  roofdeco: '!n r0,0,0,100,100,0 o1,50,50,22 ~o5,50,50,10',
+  fish: 'p1,80,50,98,28,98,72 p0,8,50,36,24,72,32,86,50,72,68,36,76 ~o2,28,44,4',
+  skylight: '!f r0,4,4,92,92,4 r1,14,14,72,72,2 ~l0,4,50,14,50,86 ~l0,4,14,50,86,50',
+  awning: '!f !n r1,0,6,100,66,0 r0,0,6,20,66,0 r0,40,6,20,66,0 r0,80,6,20,66,0 r2,0,70,100,10,0',
+  corrugated: '!f !n r0,0,0,100,100,0 ~l2,3,12,0,12,100 ~l2,3,32,0,32,100 ~l2,3,52,0,52,100 ~l2,3,72,0,72,100 ~l2,3,92,0,92,100',
+  handrail: '!f !r l0,8,4,50,96,50 o0,14,50,9 o0,86,50,9',
+  bollard: 'o0,50,50,28 o3,50,50,17 ~o6,44,44,6',
+  partition: '!f !r r0,4,36,92,28,4 ~l2,3,30,36,30,64 ~l2,3,50,36,50,64 ~l2,3,70,36,70,64',
+  planks: '!f !n r0,0,0,100,100,0 ~l2,3,0,25,100,25 ~l2,3,0,50,100,50 ~l2,3,0,75,100,75 ~l2,2,40,0,40,25 ~l2,2,70,25,70,50 ~l2,2,30,50,30,75 ~l2,2,60,75,60,100',
+  steppingstones: 'o0,30,32,18 o0,70,40,16 o0,44,72,18',
+  grate: '!f !n r0,0,0,100,100,0 ~l2,4,25,0,25,100 ~l2,4,50,0,50,100 ~l2,4,75,0,75,100 ~l2,4,0,25,100,25 ~l2,4,0,50,100,50 ~l2,4,0,75,100,75',
+  slab: '!f !n r0,2,2,96,96,3 ~o2,18,18,3 ~o2,82,82,3 ~o2,82,18,3 ~o2,18,82,3',
+  scaffold: '!f !n l0,7,8,8,92,8,92,92,8,92,8,8 l0,5,8,8,92,92 l0,5,92,8,8,92',
+  logs: '!f !r r0,4,10,92,24,12 r0,4,38,92,24,12 r0,4,66,92,24,12 ~o3,10,22,6 ~o3,10,50,6 ~o3,10,78,6',
+  netting: '!f !n l0,3,0,0,100,100 l0,3,34,0,100,66 l0,3,66,0,100,34 l0,3,0,34,66,100 l0,3,0,66,34,100 l0,3,100,0,0,100 l0,3,66,0,0,66 l0,3,34,0,0,34 l0,3,100,34,34,100 l0,3,100,66,66,100',
+  border: '!f !r !n r0,0,36,100,28,2 ~l2,2,50,36,50,64',
+  bordersingle: 'r0,30,30,40,40,4',
+  bordercorner: '!n r0,36,36,64,28,2 r0,36,36,28,64,2',
+  log: '!f !r r0,4,26,92,48,22 e3,90,50,8,20 ~e2,90,50,4,10',
+  uplog: 'o0,50,50,36 o3,50,50,26 ~a2,2,50,50,15,0,360',
+  beam: '!f !r r0,0,34,100,32,2 ~l2,3,0,50,100,50',
+  column: 'r0,24,24,52,52,4 ~r3,32,32,36,36,2',
+  pipeh: '!f !r !n r0,0,34,100,32,0 ~l3,4,0,42,100,42',
+  pipev: 'o0,50,50,20 o2,50,50,11',
+  pipecurve: '!n r0,34,34,66,32,0 r0,34,34,32,66,0',
+  pipet: '!n r0,0,34,100,32,0 r0,34,34,32,66,0',
+  pipecross: '!n r0,0,34,100,32,0 r0,34,0,32,100,0',
+  pipeup: '!n r0,34,34,66,32,0 o0,50,50,20 o2,50,50,11',
+  pipeupt: '!n r0,0,34,100,32,0 o0,50,50,20 o2,50,50,11',
+  pipeupx: '!n r0,0,34,100,32,0 r0,34,0,32,100,0 o0,50,50,20 o2,50,50,11',
+  glass: '!f !n r0,4,4,92,92,2 ~l6,4,20,70,70,20 ~l6,3,40,80,80,40',
+  ironframe: '!f !n l0,6,8,8,92,8,92,92,8,92,8,8',
 };
 const lookDefs = new Map(), LOOK_D = Math.PI / 180;
 function lookDef(k) {
@@ -2456,7 +2501,7 @@ function lookPal(lk) {
 }
 function drawLook(c, it, x, y, s, wc = 1, hc = 1) {
   const lk = it.look; if (!lk) return false;
-  if (!LOOKS[lk.k] && FURN_KINDS.some(f => f[0] === lk.k)) { drawFurniture(c, it, lk.k, x, y, s, wc, hc); return true; }
+  if (!LOOKS[lk.k]) { if (structural(it)) { drawStructure(c, it, x, y, s, wc, hc, null); return true; } if (FURN_KINDS.some(f => f[0] === lk.k)) { drawFurniture(c, it, lk.k, x, y, s, wc, hc); return true; } }
   const W = wc * s, H = hc * s, m = Math.min(W, H), d = lookDef(lk.k), pal = lookPal(lk), px = m * dpr;
   if (px < 11) { const q = d.big >= 0 ? d.p[d.big][2] : 0, g = m * 0.12; c.fillStyle = pal.f[q] || lk.a; roundRect(c, x + g, y + g, W - 2 * g, H - 2 * g, m * 0.2); c.fill(); return true; }
   const fine = px >= 26, edge = px >= 16, rot = d.r && H > W;
@@ -3088,7 +3133,7 @@ function drawStructure(c, it, x, y, s, wc, hc, at) {
     const ps = s * 0.3; c.fillStyle = col; c.fillRect(cx - ps / 2, cy - ps / 2, ps, ps); c.strokeStyle = dk; c.lineWidth = Math.max(1, s * 0.05); c.strokeRect(cx - ps / 2, cy - ps / 2, ps, ps);
     return;
   }
-  const pi = it.sh === 'hedge' && picInfo(it); wallTop(c, (pi && pi.leaf) || col, x, y, W, H, s, open, it.sh === 'hedge', pi && pi.bloom);
+  const pi = it.sh === 'hedge' && (it.look ? { leaf: it.look.a, bloom: it.look.b } : picInfo(it)); wallTop(c, (pi && pi.leaf) || col, x, y, W, H, s, open, it.sh === 'hedge', pi && pi.bloom);
   if (/pillar/i.test(it.n)) { const ps = Math.min(W, H) * 0.56, px = x + (W - ps) / 2, py = y + (H - ps) / 2; c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(px + s * 0.05, py + s * 0.07, ps, ps); c.fillStyle = shade(col, 0.18); c.fillRect(px, py, ps, ps); c.strokeStyle = dk; c.lineWidth = Math.max(1.5, s * 0.06); c.strokeRect(px, py, ps, ps); }
 }
 const FURN_KINDS = [
@@ -3189,8 +3234,8 @@ function drawUp(c, ob, s, d = zOf(ob)) {
   if (s >= 18) { const nb = ob.id ? structAround(at) : {}; if (!nb.w && !nb.n) lvBadge(c, z, x, y, s); }
 }
 function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true, at = null) {
-  if (structural(it)) { const u = picsFor(it)[0]; if (u) mapPic(u); drawStructure(c, it, x, y, s, wc, hc, at); return; }
-  const fk = furnKind(it); if (fk && s * dpr >= MAP_PIC_MIN) { const u = picsFor(it)[0]; if (u) mapPic(u); drawFurniture(c, it, fk, x, y, s, wc, hc); return; }
+  if (structural(it)) { const u = picsFor(it)[0]; if (u && !it.look) mapPic(u); drawStructure(c, it, x, y, s, wc, hc, at); return; }
+  const fk = furnKind(it); if (fk && s * dpr >= MAP_PIC_MIN) { const u = picsFor(it)[0]; if (u && !it.look) mapPic(u); drawFurniture(c, it, fk, x, y, s, wc, hc); return; }
   const url = S.pics && s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = url && mapPic(url);
   if (!p) { if (!drawLook(c, it, x, y, s, wc, hc)) drawItem(c, it, x, y, s, wc, hc, label); return; }
   const w = s * wc, hh = s * hc;
@@ -4938,7 +4983,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T21:30';
+const APP_BUILD = '2026-11-21T22:00';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
