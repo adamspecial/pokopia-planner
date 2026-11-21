@@ -44,6 +44,22 @@ Height decides what counts:
 - **Light, warmth and humidity:** only what's inside the walls, from 1 below to 3 above the floor (see below). Things on top of walls never count.
 - Items on top of walls don't break the house. Habitats only count items standing on the ground.
 
+## Pokémon and homes
+
+The **Pokémon** tab lists every Pokémon in the game. Search it by name, type, specialty, likes, ideal habitat, flavour or Pokédex number. Every word you type has to match. To search one thing only, start a word with `type:`, `spec:`, `likes:`, `ideal:`, `flavour:`, `hab:` (habitat), `home:` (the home it lives in), `size:` or `no:`. "Quotes" keep a phrase together, and `-` in front of a word leaves those Pokémon out. For example, `type:water -spec:water` finds Water types that can't water plants.
+
+**Filters** narrow the list by:
+
+- status: in your habitats, waiting for a home, has a home or has none
+- Pokédex: Main, Bubbly Basin or Event
+- type, specialty and likes (choose whether any or all of the ones you pick must match)
+- ideal habitat, size and flavour
+- the habitat that attracts them
+
+Each choice shows how many Pokémon it would leave. You can sort by number, name, size, height, weight, number of habitats or number of specialties, and switch between full cards and a compact list. The planner remembers your filters, sort and view on that device.
+
+To move a Pokémon into a home, drag it onto the home. Drag by the dots beside its name, or drag the whole card with a mouse. On a phone you can also long-press a card. Drop it on a kit house or a house you built on the map, or on a home in the tray that opens at the bottom of the map. On a phone the panel slides down while you drag and comes back afterwards. A green outline means it fits; red means the home is full, it lives there already, or it's too big for a den. Tap the dots instead to pick a home from a list, with the best housemates first. Undo puts it back.
+
 ## Item pictures
 
 Furniture, storage, shelves, lamps and appliances show on the map, and in kit rooms, as top-down symbols of their kind (a bed with its pillows, a sofa with its cushions, a stove with its burners), in the colour of their pictures. Decorations, dolls, fossils, plants, kits and other one-off items show as their own pictures. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint, with the floor kept under it and furniture standing on it. Rug sizes are guesses until you set them with **Change**, which can also resize the rugs already placed. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.

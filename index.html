@@ -244,6 +244,56 @@ span[data-tip],b[data-tip],div[data-tip]{cursor:help}
 .btn.sm{padding:4px 9px;font-size:12.5px;border-radius:8px}
 .btn:disabled{opacity:.5;cursor:default}
 .spec{display:inline-block;font-size:11.5px;font-weight:700;border-radius:6px;padding:1px 6px;margin:1px 2px 1px 0;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.pkgrip{flex:none;display:grid;place-items:center;width:30px;height:32px;margin:-5px -2px -5px -5px;border:0;border-radius:8px;background:none;color:var(--muted);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+.pkgrip:hover{background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--ink)}
+.pkgrip svg{width:18px;height:18px;display:block}
+.pkcard,.pkrow{-webkit-user-select:none;user-select:none}
+@media (hover:hover) and (pointer:fine){ .pkcard,.pkrow{cursor:grab} }
+.pkcard .hd{align-items:center;flex-wrap:wrap;row-gap:2px}
+.pkcard.inrow{margin:2px 0 4px}
+.pkrow{padding:3px 6px 3px 4px}
+.pkrow .no{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;font-weight:700}
+.pkname{border:0;background:none;padding:2px 0;text-align:left;color:inherit;cursor:inherit;border-radius:6px}
+.pkrows .row:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.pkdragsrc{opacity:.4}
+.pkghost{position:fixed;left:0;top:0;z-index:60;pointer-events:none;background:var(--ink);color:var(--paper);border-radius:12px;padding:6px 12px;font-weight:800;font-size:13.5px;line-height:1.3;box-shadow:0 10px 28px rgba(0,0,0,.3);white-space:nowrap;max-width:min(320px,calc(100vw - 12px));overflow:hidden;text-overflow:ellipsis;transition:background-color .12s}
+.pkghost .to{display:block;font-size:12px;font-weight:600;opacity:.9;overflow:hidden;text-overflow:ellipsis}
+.pkghost.ok{background:var(--good);color:#fff}
+.pkghost.no{background:var(--bad);color:#fff}
+body.pkdragging,body.pkdragging *{cursor:grabbing !important}
+body.pkdragging .section[data-home]{outline:2px dashed var(--accent);outline-offset:3px;border-radius:8px}
+.droptray{position:absolute;left:8px;right:8px;bottom:8px;z-index:9;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.2);padding:7px 9px 8px;max-height:44%;overflow:hidden;animation:pop .2s var(--ease)}
+.droptray .thd{font-size:12.5px;font-weight:700;color:var(--muted);margin:0 0 6px}
+.dropchips{display:flex;flex-wrap:wrap;gap:5px}
+.dropchip{border:1.5px dashed color-mix(in srgb,var(--accent) 65%,var(--line));background:var(--paper);border-radius:10px;padding:4px 9px;font-size:12.5px;font-weight:700;line-height:1.25;max-width:100%}
+.dropchip small{display:block;font-weight:600;color:var(--muted);font-size:11px}
+.dropchip.no{opacity:.55;border-style:solid;border-color:var(--line)}
+.dropchip.on{border-style:solid;border-color:var(--good);background:color-mix(in srgb,var(--good) 18%,var(--paper));opacity:1}
+.dropchip.on.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--paper))}
+.fbtn{flex:none;position:relative}
+.fbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:800;line-height:1}
+.pktools{display:flex;align-items:center;gap:6px;margin:7px 0 4px;flex-wrap:wrap}
+.pksort{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)}
+.pktools select,.fgrp select{border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--paper);color:var(--ink);font-size:13px;max-width:100%}
+.fgrp select{width:100%}
+.pktools #pkView{margin-left:auto}
+.pkfilt{border:1px solid var(--line);border-radius:12px;padding:9px 10px 2px;margin:6px 0 8px;background:var(--paper)}
+.fgrp{margin:0 0 9px}
+.fhd{display:flex;align-items:center;gap:6px;font-size:12.5px;margin:0 0 4px;flex-wrap:wrap}
+.fhd .seg button{padding:2px 8px;font-size:11.5px}
+.fhd .lnk{margin-left:auto}
+.fchips{display:flex;flex-wrap:wrap;gap:4px}
+.fchips .cat{padding:3px 9px;font-size:12px}
+.cat.zero{opacity:.45}
+.fchip{padding:2px 3px 2px 8px;gap:2px}
+.fchip button{border:0;background:none;padding:0;display:grid;place-items:center;width:20px;height:20px;border-radius:5px;color:var(--muted)}
+.fchip button:hover{background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}
+.fchip svg{width:13px;height:13px}
+.lnk{border:0;background:none;padding:0;color:var(--accent);font-weight:700;font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
+.row:disabled{opacity:.5;cursor:default}
+.row:disabled:hover{background:none}
+@media (max-width: 899px){ .droptray{bottom:calc(var(--sheet-h) + 8px)} }
 .coverage{display:flex;flex-wrap:wrap;gap:6px}
 .cov{display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:4px 8px;font-size:12.5px;background:var(--paper)}
 .cov b{font-variant-numeric:tabular-nums}
@@ -419,6 +469,8 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
     <symbol id="i-chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-expand" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
     <symbol id="i-shrink" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></g></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M4 6.5h16M7 12h10M10 17.5h4"/></symbol>
   </defs>
 </svg>
 
@@ -1198,7 +1250,7 @@ function resChip(home, r, onChange) {
 }
 function floorHasRoomFor(home, f, name) { if (!home.pf) return true; return residentsOf(home, f).filter(r => r.p !== name).length < home.pf; }
 function residentsSection(home) {
-  const wrap = h('div', { class: 'section' }); const list = residentsOf(home); const pks = list.map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
+  const wrap = h('div', { class: 'section', 'data-home': home.key }); const list = residentsOf(home); const pks = list.map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
   const refresh = () => afterResChange(home);
   wrap.append(h('div', { class: 'hrow' }, h('b', null, 'Residents'), h('span', { class: 'note' }, list.length + '/' + home.cap + (home.pf ? ' · ' + home.pf + '/floor' : '')), home.floors > 1 && list.length ? tipBtn('1F / 2F is the floor each one sleeps on: tap it to swap.') : ''));
   const chips = h('div', { class: 'reqs' });
@@ -2051,6 +2103,7 @@ function draw(t, c = ctx) {
     }
   }
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
+  if (pkDrag && c === ctx) drawPkDrop(c, s);
   if (selection && ((selection.obj && plan.objs.has(selection.obj.id)) || (selection.rug && plan.rugs.has(selection.rug.id)))) { const ob = selection.obj || selection.rug; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
   if (selection && selection.rect) { const r = selection.rect; c.strokeStyle = theme.accent; c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.08; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; }
   if (drag && drag.rect) { const r = normRect(drag.rect); c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.12; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; c.fillStyle = theme.ink; c.font = '700 12px sans-serif'; c.fillText(r.w + ' × ' + r.h, view.px + (r.x + r.w) * s + 6, view.py + r.y * s + 8); }
@@ -3242,10 +3295,11 @@ function setSheet(s) {
   let tc = null;
   panel.addEventListener('touchstart', e => {
     tc = null; if (!phone() || d || e.touches.length !== 1) return;
-    const body = e.target.closest('.tabbody'); if (!body || e.target.closest('input[type=range],textarea')) return;
+    const body = e.target.closest('.tabbody'); if (!body || e.target.closest('input[type=range],textarea,.pkgrip')) return;
     tc = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: e.timeStamp, body, on: false };
   }, { passive: true });
   panel.addEventListener('touchmove', e => {
+    if (pkDrag) { if (e.cancelable) e.preventDefault(); tc = null; return; }
     if (!tc) return; const t = e.touches[0];
     if (!tc.on) {
       const dx = t.clientX - tc.x, dy = t.clientY - tc.y;
@@ -3521,16 +3575,92 @@ function renderHabList() {
 }
 function focusZone(z) { centerOn(z.x + z.w / 2, z.y + z.h / 2); if (innerWidth < 900) setSheet('peek'); selectZone(z); }
 
-let pkQuery = '', pkSpec = null, pkDex = 'All', openPk = null;
-function openPokemon(n) { openPk = n; pkQuery = n.toLowerCase(); showTab('pokemon'); }
+const PKF0 = () => ({ q: '', st: '', dex: [], ty: [], tyAll: false, sp: [], spAll: false, id: [], sz: [], fl: [], fv: [], fvAll: false, hb: '', sort: 'no', desc: false, view: 'cards', open: false });
+let PKF = PKF0(), openPk = null, pkHabAll = false;
+{ let s = null; try { s = JSON.parse(LS.get(LSK + 'pkf') || 'null'); } catch (e) { } if (s && typeof s === 'object') for (const k in PKF) if (k !== 'q' && k in s && typeof s[k] === typeof PKF[k] && Array.isArray(s[k]) === Array.isArray(PKF[k])) PKF[k] = s[k]; }
+function savePkf() { const o = Object.assign({}, PKF); delete o.q; LS.set(LSK + 'pkf', JSON.stringify(o)); }
+const PK_ST = [['plan', 'In my habitats', 'Your finished habitats attract them'], ['wait', 'Waiting for a home', 'Your habitats attract them, but they don\'t live in a home yet'], ['home', 'Has a home', 'Lives in one of your homes'], ['free', 'No home', 'Doesn\'t live in any of your homes']];
+const PK_DEX = [['Main', 'Main'], ['Basin', 'Bubbly Basin'], ['Event', 'Event']];
+const PK_SORTS = [['no', 'Number'], ['name', 'Name'], ['size', 'Size'], ['ht', 'Height'], ['wt', 'Weight'], ['hab', 'Habitats'], ['spec', 'Specialties']];
+const PKQ_F = { name: 'n', type: 't', t: 't', spec: 's', specialty: 's', s: 's', likes: 'f', like: 'f', fav: 'f', f: 'f', ideal: 'i', i: 'i', flavor: 'fl', flavour: 'fl', fl: 'fl', hab: 'hb', habitat: 'hb', h: 'hb', size: 'sz', no: 'no', dex: 'd', home: 'hm', lives: 'hm' };
+const PK_HELP = 'Every word must match. Plain words look in the name, type, specialty, likes, ideal habitat, flavour and Pokédex number. Narrow a word with type:, spec:, likes:, ideal:, flavour:, hab:, home:, size: or no:, put a phrase in "quotes", and start a word with - to leave those out: type:water -spec:water.';
+const pkNo = (p) => p.dex === 'Main' ? '#' + p.no : (p.dex === 'Basin' ? 'Basin ' : 'Event ') + p.no.slice(1);
+function pkTerms(q) { const out = [], re = /(-)?(?:([a-z]+):)?(?:"([^"]*)"?|(\S+))/g; let m; while ((m = re.exec(q))) { const f = m[2] ? PKQ_F[m[2]] : null; let v = m[3] != null ? m[3] : m[4] || ''; if (m[2] && !f) v = m[2] + ':' + v; v = v.trim(); if (v) out.push({ neg: !!m[1], f, v }); } return out; }
+function pkText(p) { return p._tx || (p._tx = { n: p.n.toLowerCase(), t: p.t.map(x => x.toLowerCase()), s: p.s.map(x => x.toLowerCase()), i: (p.ideal || '').toLowerCase(), f: (p.fv || []).map(f => (FAVS[f] || '').toLowerCase()), fl: (p.fl || '').toLowerCase(), hb: p.hab.map(id => (HAB_BY_ID.get(id) || { n: '' }).n.toLowerCase()), no: p.no.toLowerCase(), d: p.dex.toLowerCase() }); }
+function pkTermHit(p, t, pc) {
+  const x = pkText(p), v = t.v, has = (a) => a.some(s => s.includes(v)), num = /^#?\d+$/.test(v) ? +v.replace('#', '') : null, sz = SIZE_NAME[pkSize(p)].toLowerCase();
+  const noHit = () => num != null ? p.dex === 'Main' && +p.no === num : x.no === v;
+  switch (t.f) {
+    case 'n': return x.n.includes(v);
+    case 't': return has(x.t);
+    case 's': return has(x.s);
+    case 'f': return has(x.f);
+    case 'i': return !!x.i && x.i.startsWith(v);
+    case 'fl': return x.fl.includes(v);
+    case 'hb': return has(x.hb);
+    case 'sz': return sz.startsWith(v);
+    case 'no': return noHit();
+    case 'd': return x.d.startsWith(v);
+    case 'hm': { const hm = pc.home.get(p.n); return !!hm && hm.label.toLowerCase().includes(v); }
+  }
+  if (num != null) return noHit();
+  return x.n.includes(v) || has(x.t) || has(x.s) || x.i.includes(v) || has(x.f) || x.fl.includes(v) || x.no === v || sz === v;
+}
+function pkCtx() { const home = new Map(); for (const e of residentsIndex().homes.values()) for (const r of e.list) home.set(r.p, e.home); return { att: planPokemon(), home }; }
+const anyAll = (sel, all, f) => !sel.length || (all ? sel.every(f) : sel.some(f));
+const pkStatus = (p, pc, v) => v === 'plan' ? pc.att.has(p.n) : v === 'wait' ? pc.att.has(p.n) && !pc.home.has(p.n) : v === 'home' ? pc.home.has(p.n) : !pc.home.has(p.n);
+function pkPreds(pc) {
+  const F = PKF;
+  return [
+    ['st', p => !F.st || pkStatus(p, pc, F.st)],
+    ['dex', p => !F.dex.length || F.dex.includes(p.dex)],
+    ['ty', p => anyAll(F.ty, F.tyAll, v => p.t.includes(v))],
+    ['sp', p => anyAll(F.sp, F.spAll, v => p.s.includes(v))],
+    ['id', p => !F.id.length || F.id.includes(p.ideal || '')],
+    ['sz', p => !F.sz.length || F.sz.includes(pkSize(p))],
+    ['fl', p => !F.fl.length || F.fl.includes(p.fl || '')],
+    ['fv', p => anyAll(F.fv, F.fvAll, v => (p.fv || []).includes(v))],
+    ['hb', p => !F.hb || (F.hb === '+' ? p.hab.length > 0 : F.hb === '-' ? !p.hab.length : p.hab.includes(F.hb))],
+  ];
+}
+function pkSearch() {
+  const pc = pkCtx(), P = pkPreds(pc), terms = pkTerms(PKF.q.toLowerCase()), res = [], base = {};
+  for (const [k] of P) base[k] = [];
+  for (const p of PK) {
+    if (terms.length && !terms.every(t => pkTermHit(p, t, pc) !== t.neg)) continue;
+    let nf = 0, miss = null; for (const [k, f] of P) if (!f(p)) { miss = k; if (++nf > 1) break; }
+    if (!nf) { res.push(p); for (const k in base) base[k].push(p); } else if (nf === 1) base[miss].push(p);
+  }
+  const key = { no: p => p._i, size: p => SIZE_RANK[pkSize(p)], ht: p => p.hw ? p.hw[0] : 0, wt: p => p.hw ? p.hw[1] : 0, hab: p => p.hab.length, spec: p => p.s.length }[PKF.sort], dir = PKF.desc ? -1 : 1;
+  res.sort((a, b) => dir * (key ? (key(a) - key(b)) || (a._i - b._i) : a.n.localeCompare(b.n)));
+  return { pc, res, base };
+}
+function pkActive() {
+  const F = PKF, out = [];
+  if (F.st) out.push(['st', F.st, (PK_ST.find(s => s[0] === F.st) || [0, F.st])[1]]);
+  for (const v of F.dex) out.push(['dex', v, (PK_DEX.find(d => d[0] === v) || [0, v])[1]]);
+  for (const v of F.ty) out.push(['ty', v, v]);
+  for (const v of F.sp) out.push(['sp', v, v]);
+  for (const v of F.id) out.push(['id', v, v || 'No ideal']);
+  for (const v of F.sz) out.push(['sz', v, SIZE_NAME[v] || v]);
+  for (const v of F.fl) out.push(['fl', v, v ? v.replace(/ flavors$/, '') : 'No flavour']);
+  for (const v of F.fv) out.push(['fv', v, 'Likes ' + (FAVS[v] || v)]);
+  if (F.hb) out.push(['hb', F.hb, F.hb === '+' ? 'Has a habitat' : F.hb === '-' ? 'No habitat' : (HAB_BY_ID.get(F.hb) || { n: F.hb }).n]);
+  return out;
+}
+function pkUnset(k, v) { PKF[k] = Array.isArray(PKF[k]) ? PKF[k].filter(x => x !== v) : ''; }
+function pkClear() { const keep = { sort: PKF.sort, desc: PKF.desc, view: PKF.view, open: PKF.open }; PKF = Object.assign(PKF0(), keep); const inp = $('#pkSearch'); if (inp) inp.value = ''; pkResults(); }
+function openPokemon(n) { openPk = n; PKF = Object.assign(PKF0(), { sort: PKF.sort, desc: PKF.desc, view: PKF.view, q: n }); showTab('pokemon'); }
+const pkGrip = (p) => h('button', { class: 'pkgrip', type: 'button', 'aria-label': 'Move ' + p.n + ' into a home', 'data-tip': 'Drag onto a home, or tap to choose one', onclick: (e) => { e.stopPropagation(); pkHomeChooser(p); } }, icon('grip'));
 function renderPokemon() {
-  const root = $('#tab-pokemon'); root.textContent = '';
-  const att = planPokemon(); const hc = housingCapacity();
-  root.append(h('h2', { class: 'hrow' }, 'Pokémon', tipBtn('Who your finished habitats attract, which jobs they cover, and where every Pokémon lives.')));
+  const root = $('#tab-pokemon'), was = $('#pkList'), keep = { top: root.scrollTop, n: was ? was.children.length : 0 }; root.textContent = '';
+  PK.forEach((p, i) => { p._i = i; });
+  const pc = pkCtx(), att = pc.att, hc = housingCapacity();
+  root.append(h('h2', { class: 'hrow' }, 'Pokémon', tipBtn('Who your finished habitats attract, which jobs they cover, and where every Pokémon lives. Drag one from a list onto a home to move it in.')));
   root.append(h('div', { class: 'tiles' },
     h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Can appear'), h('div', { class: 'v' }, att.size)),
     h('div', { class: 'tile', 'data-tip': 'Places to live in kit homes and houses you built' }, h('div', { class: 'k' }, 'Beds'), h('div', { class: 'v' }, hc.cap)),
-    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Housed'), h('div', { class: 'v' }, (plan.res || []).filter(r => homeAt(r.x, r.y, r.k)).length))));
+    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Housed'), h('div', { class: 'v' }, pc.home.size))));
   root.append(h('div', { class: 'card', style: 'margin-top:10px;border-left:4px solid var(--accent)' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Group into houses'), tipBtn('Find who should share a home: Pokémon that like the same things need fewer decorations.')),
     h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: housemateGroups }, icon('ball'), 'Plan housemates'))));
   const cov = new Map(); for (const n of att.keys()) { const p = PK_BY_NAME.get(n); if (p) for (const s of p.s) cov.set(s, (cov.get(s) || 0) + 1); }
@@ -3542,37 +3672,209 @@ function renderPokemon() {
   if (!allSpecs.size) cw.append(h('p', { class: 'empty' }, 'Finish a habitat to see them'));
   for (const s of [...allSpecs].sort((a, b) => (needSpec.has(b) - needSpec.has(a)) || (cov.get(b) || 0) - (cov.get(a) || 0))) {
     const have = cov.get(s) || 0, need = needSpec.has(s);
-    cw.append(h('button', { class: 'cov ' + (need && !have ? 'need' : have ? 'have' : ''), onclick: () => { pkSpec = s; pkQuery = ''; renderPokemon(); }, 'data-tip': DATA.specialties[s] || null }, h('b', null, have), s, need ? h('span', { class: 'note' }, have ? 'needed ✓' : 'needed') : ''));
+    cw.append(h('button', { class: 'cov ' + (need && !have ? 'need' : have ? 'have' : ''), onclick: () => { PKF.sp = [s]; PKF.spAll = false; PKF.q = ''; const inp = $('#pkSearch'); if (inp) inp.value = ''; pkResults(); const hd = $('#pkHead'); if (hd) root.scrollTop += hd.getBoundingClientRect().top - root.getBoundingClientRect().top - 6; }, 'data-tip': DATA.specialties[s] || null }, h('b', null, have), s, need ? h('span', { class: 'note' }, have ? 'needed ✓' : 'needed') : ''));
   }
   root.append(cw);
   if (att.size) {
-    root.append(h('h4', null, 'From your habitats'));
-    const l = h('div', { class: 'list' });
-    for (const [n, hb] of att) { const p = PK_BY_NAME.get(n); const hm = homeOfPokemon(n); l.append(h('div', { class: 'row', style: 'cursor:default' }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, n, ' ', p && p.ideal ? h('span', { class: 'env' }, p.ideal) : ''), h('div', { class: 'ds' }, (p ? p.s.join(' · ') + ' · ' : '') + (hm ? 'lives in ' + hm.label : 'in ' + hb.n + ', no house yet'))))); }
+    root.append(h('h4', { class: 'hrow' }, 'From your habitats', h('span', { class: 'note' }, '(' + att.size + ')'), tipBtn('Drag one onto a home to move it in, or tap its dots to choose a home.')));
+    const l = h('div', { class: 'list' }), all = [...att], cut = all.length > 8 && !pkHabAll ? 6 : all.length;
+    for (const [n, hb] of all.slice(0, cut)) { const p = PK_BY_NAME.get(n); const hm = pc.home.get(n); l.append(h('div', { class: 'row' + (p ? ' pkrow' : ''), style: p ? null : 'cursor:default', 'data-pk': p ? n : null }, p ? pkGrip(p) : '', h('span', { class: 'meta' }, h('div', { class: 'nm' }, n, ' ', p && p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p ? sizeBadge(p, () => renderPanel()) : ''), h('div', { class: 'ds' }, (p ? p.s.join(' · ') + ' · ' : '') + (hm ? 'lives in ' + hm.label : 'in ' + hb.n + ', no house yet'))))); }
     root.append(l);
+    root.append(h('div', { class: 'reqs' }, cut < all.length ? h('button', { class: 'btn sm', type: 'button', onclick: () => { pkHabAll = true; renderPokemon(); } }, 'Show all ' + all.length) : all.length > 8 ? h('button', { class: 'btn sm', type: 'button', onclick: () => { pkHabAll = false; renderPokemon(); } }, 'Show fewer') : '',
+      h('button', { class: 'btn sm', type: 'button', onclick: () => { PKF = Object.assign(PKF0(), { sort: PKF.sort, desc: PKF.desc, view: PKF.view, open: PKF.open, st: 'wait' }); const inp = $('#pkSearch'); if (inp) inp.value = ''; pkResults(); const hd = $('#pkHead'); if (hd) root.scrollTop += hd.getBoundingClientRect().top - root.getBoundingClientRect().top - 6; } }, icon('filter'), 'Who still needs a home')));
   }
-  root.append(h('h4', null, 'Pokédex (' + PK.length + ')'));
-  const inp = h('input', { id: 'pkSearch', type: 'search', placeholder: 'Pokémon, type, specialty, favourite', value: pkQuery, autocomplete: 'off' });
-  inp.oninput = () => { pkQuery = inp.value.trim().toLowerCase(); renderPkList(); };
-  root.append(h('label', { class: 'search' }, icon('search'), inp));
-  const specs = h('div', { class: 'cats' }); specs.append(h('button', { class: 'cat', 'aria-pressed': !pkSpec ? 'true' : 'false', onclick: () => { pkSpec = null; renderPokemon(); } }, 'Any'));
-  const specCount = new Map(); for (const p of PK) for (const s of p.s) specCount.set(s, (specCount.get(s) || 0) + 1);
-  for (const [s, c] of [...specCount].sort((a, b) => b[1] - a[1])) specs.append(h('button', { class: 'cat', 'aria-pressed': pkSpec === s ? 'true' : 'false', 'data-tip': DATA.specialties[s] || null, onclick: () => { pkSpec = s; renderPokemon(); } }, s, h('span', { class: 'n' }, c)));
-  root.append(specs);
-  if (pkSpec && DATA.specialties[pkSpec]) root.append(h('p', { class: 'note' }, pkSpec + ': ' + DATA.specialties[pkSpec]));
-  root.append(h('div', { id: 'pkList', class: 'list' }));
-  renderPkList();
+  root.append(h('h4', { class: 'hrow', id: 'pkHead' }, 'Pokédex', h('span', { class: 'note', id: 'pkNum' }), tipBtn(PK_HELP)));
+  const inp = h('input', { id: 'pkSearch', type: 'search', placeholder: 'Name, type, specialty, likes…', value: PKF.q, autocomplete: 'off', enterkeyhint: 'search', 'aria-label': 'Search the Pokédex' });
+  inp.oninput = () => { PKF.q = inp.value; pkResults(); };
+  root.append(h('div', { class: 'searchrow' }, h('label', { class: 'search' }, icon('search'), inp), h('button', { class: 'btn sm fbtn', id: 'pkFiltBtn', type: 'button', 'aria-controls': 'pkFilt', onclick: () => { PKF.open = !PKF.open; pkResults(); } })));
+  const sortSel = h('select', { id: 'pkSort', 'aria-label': 'Sort by' }, PK_SORTS.map(([v, lb]) => h('option', { value: v, selected: PKF.sort === v }, lb)));
+  sortSel.onchange = () => { PKF.sort = sortSel.value; pkResults(); };
+  root.append(h('div', { class: 'pktools' }, h('label', { class: 'pksort' }, 'Sort', sortSel), h('button', { class: 'btn sm', id: 'pkDir', type: 'button', onclick: () => { PKF.desc = !PKF.desc; pkResults(); } }), h('span', { id: 'pkView' })));
+  root.append(h('div', { id: 'pkFilt', class: 'pkfilt', hidden: true }), h('div', { id: 'pkAct', class: 'reqs' }), h('div', { id: 'pkList', class: 'list' }));
+  pkResults(keep.n);
+  if (keep.top) root.scrollTop = keep.top;
 }
-function renderPkList() {
-  const list = $('#pkList'); if (!list) return; list.textContent = ''; const q = pkQuery; const att = planPokemon();
-  const all = PK.filter(p => (!pkSpec || p.s.includes(pkSpec)) && (!q || (p.n.toLowerCase().includes(q) || p.t.join(' ').toLowerCase().includes(q) || p.s.join(' ').toLowerCase().includes(q) || (p.ideal || '').toLowerCase().includes(q) || (p.fv || []).some(f => FAVS[f].toLowerCase().includes(q)) || (SIZE_NAME[pkSize(p)].toLowerCase() === q)))), arr = all.slice(0, 120);
-  if (!arr.length) { list.append(h('p', { class: 'empty' }, 'No Pokémon match.')); return; }
-  fillLazy(list, arr, (p) => {
-    const habs = h('div', { class: 'mons' }); if (p.hab.length) { habs.append('Habitats: '); p.hab.forEach((id, k) => { habs.append(h('button', { onclick: () => openHabitat(id) }, HAB_BY_ID.get(id).n), k < p.hab.length - 1 ? ', ' : ''); }); } else habs.append('No habitat (story or events)');
-    const hm = homeOfPokemon(p.n);
-    return h('div', { class: 'card', style: openPk === p.n ? 'border-color:var(--accent)' : '' }, h('div', { class: 'hd' }, h('span', { class: 'no' }, p.dex === 'Main' ? '#' + p.no : p.dex === 'Basin' ? 'Basin ' + p.no.slice(1) : 'Event ' + p.no.slice(1)), h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p, () => renderPanel()), att.has(p.n) ? h('span', { class: 'chip good', style: 'margin-left:auto' }, 'In plan') : ''), h('div', null, h('span', { class: 'note' }, p.t.join(' / ') + ' · '), p.s.map(s => h('span', { class: 'spec' }, s))), p.fv && p.fv.length ? h('div', { class: 'note', style: 'margin-top:4px' }, 'Likes: ' + p.fv.map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')) : '', hm ? h('div', { class: 'note' }, 'Lives in ' + hm.label) : '', habs);
-  }, $('#tab-pokemon'), 30, all.length > 120 ? h('p', { class: 'note' }, 'First 120: search to narrow') : null);
+function pkResults(first = 0) {
+  const root = $('#tab-pokemon'), list = $('#pkList'); if (!list) return; savePkf();
+  const { pc, res, base } = pkSearch(), act = pkActive();
+  const fb = $('#pkFiltBtn'); fb.textContent = ''; fb.append(icon('filter'), 'Filters', act.length ? h('span', { class: 'badge' }, act.length) : ''); fb.setAttribute('aria-expanded', PKF.open ? 'true' : 'false'); fb.setAttribute('aria-pressed', PKF.open ? 'true' : 'false');
+  const dir = $('#pkDir'), alpha = PKF.sort === 'name'; dir.textContent = PKF.desc ? (alpha ? 'Z–A' : 'High first') : (alpha ? 'A–Z' : 'Low first'); dir.setAttribute('aria-label', 'Order: ' + dir.textContent + '. Change');
+  const vw = $('#pkView'); vw.textContent = ''; vw.append(segmented([['cards', 'Cards'], ['list', 'List']], PKF.view === 'list' ? 'list' : 'cards', v => { PKF.view = v; pkResults(); }, 'View'));
+  $('#pkNum').textContent = res.length === PK.length ? '(' + PK.length + ')' : '(' + res.length + ' of ' + PK.length + ')';
+  pkFiltPanel(base, pc);
+  const ab = $('#pkAct'); ab.textContent = '';
+  for (const [k, v, lb] of act) ab.append(h('span', { class: 'req fchip' }, lb, h('button', { type: 'button', 'aria-label': 'Remove ' + lb, onclick: () => { pkUnset(k, v); pkResults(); } }, icon('close'))));
+  if (act.length > 1 || (act.length && PKF.q.trim())) ab.append(h('button', { class: 'lnk', type: 'button', onclick: pkClear }, 'Clear all'));
+  ab.hidden = !ab.children.length;
+  list.textContent = ''; list.classList.toggle('pkrows', PKF.view === 'list');
+  if (!res.length) { list.append(h('p', { class: 'empty' }, 'No Pokémon match. ', act.length || PKF.q.trim() ? h('button', { class: 'lnk', type: 'button', onclick: pkClear }, 'Clear the search and filters') : '')); return; }
+  const rows = PKF.view === 'list', at = openPk ? res.findIndex(p => p.n === openPk) + 1 : 0;
+  fillLazy(list, res, rows ? (p) => pkRowEl(p, pc) : (p) => pkCardEl(p, pc), root, rows ? 60 : 30, null, Math.max(first, at));
 }
+function pkFiltPanel(base, pc) {
+  const box = $('#pkFilt'); box.textContent = ''; box.hidden = !PKF.open; if (!PKF.open) return;
+  const cnt = (k, f) => { let n = 0; for (const p of base[k]) if (f(p)) n++; return n; };
+  const chip = (k, v, lb, n, tip) => { const single = !Array.isArray(PKF[k]), on = single ? PKF[k] === v : PKF[k].includes(v); return h('button', { class: 'cat' + (!n && !on ? ' zero' : ''), type: 'button', 'aria-pressed': on ? 'true' : 'false', 'data-tip': tip || null, onclick: () => { if (single) PKF[k] = on ? '' : v; else PKF[k] = on ? PKF[k].filter(x => x !== v) : PKF[k].concat([v]); pkResults(); } }, lb, h('span', { class: 'n' }, n)); };
+  const grp = (label, k, kids, allKey, tip) => { const set = Array.isArray(PKF[k]) ? PKF[k].length : !!PKF[k]; return h('div', { class: 'fgrp' }, h('div', { class: 'fhd' }, h('b', null, label), tip ? tipBtn(tip) : '', allKey && PKF[k].length > 1 ? segmented([['any', 'Any of them'], ['all', 'All of them']], PKF[allKey] ? 'all' : 'any', v => { PKF[allKey] = v === 'all'; pkResults(); }, label + ': match') : '', set ? h('button', { class: 'lnk', type: 'button', onclick: () => { PKF[k] = Array.isArray(PKF[k]) ? [] : ''; pkResults(); } }, 'Clear') : ''), h('div', { class: 'fchips' }, kids)); };
+  const types = [...new Set(PK.flatMap(p => p.t))].sort(), specC = new Map(); for (const p of PK) for (const s of p.s) specC.set(s, (specC.get(s) || 0) + 1);
+  const specs = [...specC.keys()].sort((a, b) => (a === '???') - (b === '???') || specC.get(b) - specC.get(a) || a.localeCompare(b));
+  const ideals = ['Bright', 'Dark', 'Warm', 'Cool', 'Humid', 'Dry'].filter(v => PK.some(p => p.ideal === v)), flavours = [...new Set(PK.map(p => p.fl).filter(Boolean))].sort();
+  const favIx = FAVS.map((f, i) => i).filter(i => PK.some(p => (p.fv || []).includes(i))).sort((a, b) => FAVS[a].localeCompare(FAVS[b]));
+  const hsel = h('select', { id: 'pkHab', 'aria-label': 'Habitat' }, h('option', { value: '' }, 'Any habitat'), h('option', { value: '+', selected: PKF.hb === '+' }, 'Has a habitat (' + cnt('hb', p => p.hab.length > 0) + ')'), h('option', { value: '-', selected: PKF.hb === '-' }, 'No habitat: story or events (' + cnt('hb', p => !p.hab.length) + ')'),
+    h('optgroup', { label: 'Attracted by' }, [...HAB].sort((a, b) => a.n.localeCompare(b.n)).map(hb => h('option', { value: hb.id, selected: PKF.hb === hb.id }, hb.n + ' (' + cnt('hb', p => p.hab.includes(hb.id)) + ')'))));
+  hsel.onchange = () => { PKF.hb = hsel.value; pkResults(); };
+  box.append(
+    grp('Status', 'st', PK_ST.map(([v, lb, tip]) => chip('st', v, lb, cnt('st', p => pkStatus(p, pc, v)), tip))),
+    grp('Pokédex', 'dex', PK_DEX.map(([v, lb]) => chip('dex', v, lb, cnt('dex', p => p.dex === v)))),
+    grp('Type', 'ty', types.map(v => chip('ty', v, v, cnt('ty', p => p.t.includes(v)))), 'tyAll'),
+    grp('Specialty', 'sp', specs.map(v => chip('sp', v, v, cnt('sp', p => p.s.includes(v)), DATA.specialties[v])), 'spAll'),
+    grp('Ideal habitat', 'id', ideals.map(v => chip('id', v, v, cnt('id', p => p.ideal === v))), null, 'The habitat each one feels best in: a home\'s light, warmth and humidity can match it.'),
+    grp('Size', 'sz', ['s', 'm', 'l'].map(v => chip('sz', v, SIZE_NAME[v], cnt('sz', p => pkSize(p) === v), v === 'l' ? 'Too big for dens and the Poké Ball house; needs a 2×2 rest item' : v === 'm' ? 'Fits a den; needs a 2×1 rest item' : 'Fits a den; any rest item will do')), null, 'Sizes with ? on a Pokémon are guesses: tap its size to change it.'),
+    grp('Flavour', 'fl', flavours.map(v => chip('fl', v, v.replace(/ flavors$/, ''), cnt('fl', p => p.fl === v)))),
+    grp('Likes', 'fv', favIx.map(i => chip('fv', i, FAVS[i], cnt('fv', p => (p.fv || []).includes(i)), FAV_COUNT[i] ? FAV_COUNT[i] + ' items count as ' + FAVS[i].toLowerCase() : null)), 'fvAll', 'The kinds of things each one likes to have nearby. Pick several and choose All of them to find good housemates.'),
+    h('div', { class: 'fgrp' }, h('div', { class: 'fhd' }, h('b', null, 'Habitat'), PKF.hb ? h('button', { class: 'lnk', type: 'button', onclick: () => { PKF.hb = ''; pkResults(); } }, 'Clear') : ''), hsel),
+    h('div', { class: 'fgrp', style: 'display:flex;gap:8px;align-items:center' }, h('button', { class: 'btn sm', type: 'button', onclick: pkClear }, 'Reset filters'), h('button', { class: 'btn sm', type: 'button', onclick: () => { PKF.open = false; pkResults(); } }, 'Done'), h('span', { class: 'note' }, 'The numbers say how many each choice would show.')));
+}
+function pkCardEl(p, pc) {
+  const habs = h('div', { class: 'mons' }); if (p.hab.length) { habs.append('Habitats: '); p.hab.forEach((id, k) => { habs.append(h('button', { onclick: () => openHabitat(id) }, HAB_BY_ID.get(id).n), k < p.hab.length - 1 ? ', ' : ''); }); } else habs.append('No habitat (story or events)');
+  const hm = pc.home.get(p.n);
+  return h('div', { class: 'card pkcard', 'data-pk': p.n, style: openPk === p.n ? 'border-color:var(--accent)' : '' },
+    h('div', { class: 'hd' }, pkGrip(p), h('span', { class: 'no' }, pkNo(p)), h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p, () => renderPanel()), pc.att.has(p.n) ? h('span', { class: 'chip good', style: 'margin-left:auto' }, 'In plan') : ''),
+    h('div', null, h('span', { class: 'note' }, p.t.join(' / ') + (p.hw ? ' · ' + p.hw[0] + ' m, ' + p.hw[1] + ' kg' : '') + ' · '), p.s.map(s => h('span', { class: 'spec' }, s))),
+    p.fv && p.fv.length ? h('div', { class: 'note', style: 'margin-top:4px' }, 'Likes: ' + p.fv.map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')) : '',
+    hm ? h('div', { class: 'note' }, '⌂ Lives in ' + hm.label) : '', habs);
+}
+function pkRowEl(p, pc) {
+  const hm = pc.home.get(p.n);
+  const open = () => { const c = pkCardEl(p, pc), less = h('button', { class: 'lnk', type: 'button', style: 'margin-left:auto', 'aria-label': 'Show less about ' + p.n, onclick: () => { const r = pkRowEl(p, pc); c.replaceWith(r); r.querySelector('.pkname').focus(); } }, 'Less'); c.classList.add('inrow'); c.querySelector('.hd').append(less); row.replaceWith(c); less.focus(); };
+  const row = h('div', { class: 'row pkrow', 'data-pk': p.n }, pkGrip(p),
+    h('button', { class: 'meta pkname', type: 'button', 'aria-label': p.n + ': show more', onclick: open }, h('div', { class: 'nm' }, h('span', { class: 'no' }, pkNo(p)), ' ', p.n, ' ', p.ideal ? h('span', { class: 'env' }, p.ideal) : ''),
+      h('div', { class: 'ds' }, p.t.join('/') + ' · ' + p.s.join(', ') + (hm ? ' · ⌂ ' + hm.label : pc.att.has(p.n) ? ' · in your habitats' : ''))),
+    sizeBadge(p, () => renderPanel()));
+  return row;
+}
+function pkCanTake(p, hm) {
+  const l = residentsOf(hm);
+  if (l.some(r => r.p === p.n)) return { ok: false, code: 'same', why: 'lives here already' };
+  if (!fitsHome(p, hm)) return { ok: false, code: 'big', why: 'too big for a den' };
+  if (l.length >= hm.cap) return { ok: false, code: 'full', why: 'full' };
+  return { ok: true, code: '', why: '' };
+}
+function pkMoveIn(p, hm) {
+  const c = pkCanTake(p, hm);
+  if (!c.ok) { toast(c.code === 'full' ? hm.label + ' is full' : c.code === 'big' ? p.n + ' is too big for a den' : p.n + ' lives there already'); return false; }
+  const from = homeOfPokemon(p.n), r = { p: p.n, x: hm.ax, y: hm.ay, k: hm.kind === 'kit' ? 'k' : 'h' }; if (hm.floors > 1 && !floorHasRoom(hm, 0)) r.f = 1;
+  setRes((plan.res || []).filter(q => q.p !== p.n).concat([r])); commitTx(p.n + ' moved in');
+  if ($('#inspector').classList.contains('open') && selection && selection.obj && plan.objs.has(selection.obj.id) && ITEMS[selection.obj.i].cap) showObjInspector(selection.obj);
+  toast(p.n + (from ? ' moved to ' : ' moved into ') + hm.label, 4200, { label: 'Undo', fn: undo });
+  return true;
+}
+function pkHomeChooser(p) {
+  const homes = allHomes(), cur = homeOfPokemon(p.n);
+  modal('Move ' + p.n + ' in', (box) => {
+    box.classList.add('wide');
+    box.append(h('p', { class: 'sub' }, cur ? 'Lives in ' + cur.label : 'No home yet'));
+    if (!homes.length) { box.append(h('p', { class: 'empty' }, 'No homes yet. Place a kit house from Build, or build a house: walls all round, a door and 3 kinds of furniture inside.')); return; }
+    const rows = homes.map(({ hm, used }) => { const names = residentsOf(hm).map(r => r.p), others = names.map(n => PK_BY_NAME.get(n)).filter(q => q && q.n !== p.n); return { hm, used, names, c: pkCanTake(p, hm), others, cp: compat(p, others) }; });
+    rows.sort((a, b) => (b.c.ok - a.c.ok) || (b.cp.score - a.cp.score) || a.hm.label.localeCompare(b.hm.label));
+    const l = h('div', { class: 'list' });
+    for (const x of rows) {
+      const bits = [x.used + '/' + x.hm.cap + (x.names.length ? ': ' + x.names.join(', ') : ', empty')];
+      if (x.others.length) bits.push(x.cp.shared + ' shared like' + (x.cp.shared === 1 ? '' : 's') + (!x.cp.sameEnv ? ' · ⚠ opposite of ' + listNames(x.cp.clash) : x.cp.same ? ' · same ideal' : ''));
+      if (!x.c.ok) bits.push(x.c.code === 'same' ? 'lives here now' : x.c.why);
+      l.append(h('button', { class: 'row', type: 'button', disabled: !x.c.ok, style: 'align-items:flex-start', onclick: () => { closeModal(); pkMoveIn(p, x.hm); } }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, x.hm.label), h('div', { class: 'ds', style: 'white-space:normal' }, bits.join(' · ')))));
+    }
+    box.append(l);
+    if (cur) box.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { closeModal(); moveOut([p.n]); commitTx(p.n + ' moved out'); toast(p.n + ' moved out of ' + cur.label, 4200, { label: 'Undo', fn: undo }); } }, 'Move out')));
+  }, null, null, false, 'Homes with room come first, then the best housemates: shared likes and an ideal habitat that doesn\'t clash. You can also drag ' + p.n + ' from the list onto a home on the map.');
+}
+let pkDrag = null, pkPend = null, pkQuiet = 0;
+function pkUnlisten() { removeEventListener('pointermove', pkMove, true); removeEventListener('pointerup', pkUp, true); removeEventListener('pointercancel', pkUp, true); }
+function pkAbort() { const P = pkPend; pkPend = null; if (P) clearTimeout(P.timer); if (!pkDrag) pkUnlisten(); }
+function pkDown(e) {
+  if (pkDrag || pkPend || !e.isPrimary || !plan) return;
+  const src = e.target.closest && e.target.closest('[data-pk]'); if (!src) return;
+  const grip = e.target.closest('.pkgrip'), mouse = e.pointerType === 'mouse';
+  if (mouse && e.button !== 0) return;
+  if (!grip && e.target.closest('button:not(.pkname), a, input, select, textarea, label, summary')) return;
+  const p = PK_BY_NAME.get(src.dataset.pk); if (!p) return;
+  pkPend = { id: e.pointerId, p, src, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, lp: !mouse && !grip, mouse, timer: 0 };
+  if (pkPend.lp) pkPend.timer = setTimeout(() => { if (pkPend) pkStart(); }, 380);
+  addEventListener('pointermove', pkMove, true); addEventListener('pointerup', pkUp, true); addEventListener('pointercancel', pkUp, true);
+}
+function pkMove(e) {
+  const P = pkDrag || pkPend; if (!P || e.pointerId !== P.id) return;
+  P.x = e.clientX; P.y = e.clientY;
+  if (!pkDrag) { const d = Math.hypot(P.x - P.x0, P.y - P.y0); if (P.lp) { if (d > 9) pkAbort(); return; } if (d >= (P.mouse ? 6 : 4)) pkStart(); return; }
+  e.stopPropagation(); e.preventDefault(); pkTrack();
+}
+function pkUp(e) {
+  const P = pkDrag || pkPend; if (!P || e.pointerId !== P.id) return;
+  if (!pkDrag) { pkAbort(); return; }
+  e.stopPropagation(); if (e.type === 'pointerup') { P.x = e.clientX; P.y = e.clientY; pkTrack(); }
+  pkEnd(e.type === 'pointerup');
+}
+function pkStart() {
+  const P = pkPend; pkPend = null; clearTimeout(P.timer); if (!P.src.isConnected) { pkUnlisten(); return; }
+  clearTimeout(TIP.press); TIP.press = 0; tipHide();
+  const ae = document.activeElement; if (ae && ae.matches && ae.matches('input, textarea, select')) ae.blur();
+  try { P.src.setPointerCapture(P.id); } catch (er) { }
+  const homes = allHomes().map(x => x.hm); homes.sort((a, b) => (pkCanTake(P.p, b).ok - pkCanTake(P.p, a).ok) || a.label.localeCompare(b.label));
+  pkDrag = Object.assign(P, { hm: null, chk: null, homes, sheet: null, ghost: h('div', { class: 'pkghost', 'aria-hidden': 'true' }) });
+  document.body.append(pkDrag.ghost); P.src.classList.add('pkdragsrc'); document.body.classList.add('pkdragging');
+  try { const s = getSelection(); if (s) s.removeAllRanges(); } catch (er) { }
+  if (!P.mouse && navigator.vibrate) try { navigator.vibrate(12); } catch (er) { }
+  if (innerWidth < 900 && sheetState !== 'peek') { pkDrag.sheet = sheetState; setSheet('peek'); clearTimeout(shutTimer); $('#panel').classList.remove('shut'); }
+  pkTray(); pkTrack(true); requestDraw();
+}
+function pkTray() {
+  const D = pkDrag, t = h('div', { class: 'droptray', id: 'droptray' });
+  t.append(h('div', { class: 'thd' }, D.homes.length ? 'Drop ' + D.p.n + ' on a home: here or on the map' : 'No homes yet: place a kit house, or build a house with walls, a door and 3 kinds of furniture'));
+  const chips = h('div', { class: 'dropchips' });
+  for (const hm of D.homes) { const c = pkCanTake(D.p, hm), n = residentsOf(hm).length; chips.append(h('div', { class: 'dropchip' + (c.ok ? '' : ' no'), 'data-home': hm.key }, hm.label, h('small', null, n + '/' + hm.cap + (c.ok ? '' : ' · ' + c.why)))); }
+  if (D.homes.length) t.append(chips);
+  $('#mapwrap').append(t);
+}
+function pkHitHome(x, y) {
+  const el = document.elementFromPoint(x, y); if (!el) return null;
+  const t = el.closest('[data-home]'); if (t) return pkDrag.homes.find(hm => hm.key === t.dataset.home) || null;
+  if (el !== cv) return null; const r = cv.getBoundingClientRect(), [cx, cy] = toCell(x - r.left, y - r.top); return homeAt(cx, cy);
+}
+function pkTrack(force) {
+  for (const el of [$('.app'), $('.main')]) if (el && el.scrollTop) el.scrollTop = 0;
+  const D = pkDrag, hm = pkHitHome(D.x, D.y), g = D.ghost;
+  if (force || (hm ? hm.key : '') !== (D.hm ? D.hm.key : '')) {
+    D.hm = hm; D.chk = hm ? pkCanTake(D.p, hm) : null; requestDraw();
+    for (const b of $$('.dropchip')) b.classList.toggle('on', !!hm && b.dataset.home === hm.key);
+    g.textContent = ''; g.className = 'pkghost' + (hm ? (D.chk.ok ? ' ok' : ' no') : '');
+    g.append(D.p.n, h('span', { class: 'to' }, !hm ? 'Drop on a home' : D.chk.ok ? '→ ' + hm.label + ' (' + residentsOf(hm).length + '/' + hm.cap + ')' : hm.label + ': ' + D.chk.why));
+  }
+  const w = g.offsetWidth, hh = g.offsetHeight;
+  const gx = D.mouse ? D.x + 14 : D.x - w / 2, gy = D.mouse ? D.y + 16 : D.y - hh - 46;
+  g.style.transform = 'translate(' + Math.round(clamp(gx, 6, innerWidth - w - 6)) + 'px,' + Math.round(clamp(gy, 6, innerHeight - hh - 6)) + 'px)';
+}
+function pkEnd(drop) {
+  const D = pkDrag; if (!D) return; pkDrag = null; pkQuiet = performance.now() + 400; pkUnlisten();
+  try { D.src.releasePointerCapture(D.id); } catch (er) { }
+  D.ghost.remove(); D.src.classList.remove('pkdragsrc'); document.body.classList.remove('pkdragging'); const t = $('#droptray'); if (t) t.remove();
+  requestDraw();
+  const onMap = drop && document.elementFromPoint(D.x, D.y) === cv;
+  if (D.sheet) setSheet(D.sheet);
+  if (!drop) return;
+  if (D.hm) pkMoveIn(D.p, D.hm); else if (onMap) toast('Drop ' + D.p.n + ' on a home');
+}
+function drawPkDrop(c, s) {
+  const D = pkDrag, R = (hm) => hm.kind === 'kit' ? hm.ob : hm.hs.area.outer;
+  c.save(); c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeStyle = theme.accent;
+  for (const hm of D.homes) { const r = R(hm); c.strokeRect(view.px + r.x * s - 2, view.py + r.y * s - 2, r.w * s + 4, r.h * s + 4); }
+  c.setLineDash([]);
+  if (D.hm) { const r = R(D.hm), col = D.chk && D.chk.ok ? theme.good : theme.bad; c.globalAlpha = 0.22; c.fillStyle = col; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; c.lineWidth = 3; c.strokeStyle = col; c.strokeRect(view.px + r.x * s - 1.5, view.py + r.y * s - 1.5, r.w * s + 3, r.h * s + 3); }
+  c.restore();
+}
+document.addEventListener('pointerdown', pkDown);
+document.addEventListener('click', e => { if (performance.now() < pkQuiet) { e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener('contextmenu', e => { if (pkDrag || pkPend) e.preventDefault(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape' && pkDrag) { e.stopPropagation(); e.preventDefault(); pkEnd(false); } }, true);
 
 function renderPlans() {
   const root = $('#tab-plans'); root.textContent = '';
@@ -3606,6 +3908,8 @@ function renderPlans() {
     ['Layers', 'Every level is a layer, from −99 to 99, with its own terrain and items. In Layers (or L), tap an eye to hide or show a level, the rugs or all terrain, and tap a level to work on it (Go to level, or Page Up and Page Down, reach any other): Place and Fill put things there, Erase only takes from there, and everything above fades out so you can see into a basement. With On top, blocks and terrain stack on what\'s there; on a chosen level, Keep or Replace decides what happens to what\'s already there.'],
     ['Active areas', 'The dotted button by the zoom controls (or A) shows the white dotted line the game shows with the right stick: 4 tiles past a home on every side, 4 levels up or down. Light, warmth and humidity in a house you built only count the floor inside the walls.'],
     ['Houses you build', 'Found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Fill → Outline lays walls fast.'],
+    ['Moving Pokémon in', 'In the Pokémon tab, drag a Pokémon by its dots onto a home: a kit house or a house you built on the map, or one in the tray that opens. On a phone the panel slides down while you drag; long-press a card to drag it too, and with a mouse drag the whole card. Tap the dots instead to choose a home from a list. Undo puts it back.'],
+    ['Pokédex search', 'Filters narrow by status, Pokédex, type, specialty, ideal habitat, size, flavour, likes and habitat; each number says how many that choice would show. In the search box every word must match, and type:, spec:, likes:, ideal:, flavour:, hab:, home:, size: and no: look in one place only. "Quotes" keep a phrase together and a - in front leaves those out.'],
     ['Residents', 'Tap a house or kit house to choose who lives there. Decorate lists their favourite kinds of things, ticks what\'s already there and suggests items, including ones that bring light, warmth or humidity to what they like.'],
     ['Pokémon sizes', 'Large ones were tested by players (too big for dens); small or medium with a ? is a guess from height and weight. Tap a size to change it; yours syncs. Each Pokémon needs a rest item at least its size: 1×1 small, 2×1 medium, 2×2 large.'],
     ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls.'],
@@ -3977,7 +4281,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T07:12';
+const APP_BUILD = '2026-11-21T10:40';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
