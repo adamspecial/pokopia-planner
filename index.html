@@ -807,16 +807,19 @@ const LIQUID = new Set(['Water', 'Ocean water', 'Muddy water', 'Hot-spring water
 const BERRY_COL = { Leppa: '#e0443c', Chesto: '#6b4fb8', Rawst: '#3a8fd1', Aspear: '#f2d33c', Pecha: '#f28bb5', Lum: '#5cc45a' };
 const SPEC_FOR_MAT = { Lumber: 'Chop', 'Iron ingot': 'Burn', 'Copper ingot': 'Burn', 'Gold ingot': 'Burn', Pokémetal: 'Burn', Glass: 'Burn', Brick: 'Burn', Paper: 'Recycle', Concrete: 'Crush', Tinkagear: 'Engineer' };
 
+const SIZE_KNOWN_CATS = new Set(['Kits', 'Blocks', 'Wallpaper', 'Terrain', 'Rug']);
 function buildIndex(d) {
   DATA = d;
   ITEMS = d.items.map((it, i) => {
     const o = Object.assign({}, it); o.i = i;
+    const noSize = !o.w && !o.h;
     o.w = o.w || 1; o.h = o.h || 1; o.L = o.L || 'o';
     if (!o.col) {
       const base = CAT_META[o.c] ? CAT_META[o.c].col : '#999';
       o.col = (o.c === 'Blocks' || o.c === 'Buildings' || o.c === 'Rug' || o.c === 'Wallpaper') ? matColor(o.n, base) : base;
     }
     if (!o.sh) o.sh = o.c === 'Kits' ? 'kit' : (o.L === 'g' ? 'floor' : ((o.c === 'Blocks' || /wall|pillar/i.test(o.n)) && o.c !== 'Wallpaper' ? 'block' : 'chip'));
+    if (noSize && !o.sg && o.L === 'o' && !SIZE_KNOWN_CATS.has(o.c) && o.sh !== 'block' && !isWall(o)) o.sg = 1;
     o.gl = initials(o.n);
     if (o.lk) { const q = o.lk.split(' '); o.look = { k: q[0], a: q[1], b: q[2] || null }; }
     o.key = o.n.toLowerCase();
@@ -5290,7 +5293,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T00:30';
+const APP_BUILD = '2026-11-22T01:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
