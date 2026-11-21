@@ -72,7 +72,10 @@ button{cursor:pointer}
 .tbtn.icononly{min-width:44px}
 .sep{width:1px;height:28px;background:var(--line);margin:0 4px;flex:none}
 
-.main{position:relative;display:grid;grid-template-columns:1fr 380px;min-height:0}
+.main{position:relative;display:grid;grid-template-columns:1fr var(--pw,380px);min-height:0}
+:root[data-pw="narrow"]{--pw:320px}
+:root[data-pw="wide"]{--pw:460px}
+@media (min-width: 900px){ :root[data-side="left"] .main{grid-template-columns:var(--pw,380px) 1fr} :root[data-side="left"] .panel{order:-1;border-left:0;border-right:1px solid var(--line)} }
 .mapwrap{position:relative;min-height:0;overflow:hidden;background:var(--map-bg)}
 #map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
 .optbar{position:absolute;top:6px;left:6px;right:6px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;pointer-events:none}
@@ -85,6 +88,7 @@ button{cursor:pointer}
 .seg button.segi{display:grid;place-items:center}
 .seg button.segi svg{width:17px;height:17px;display:block}
 .swatch{width:20px;height:20px;border-radius:6px;flex:none;background-size:cover;image-rendering:auto}
+.status[hidden]{display:none}
 .status{position:absolute;left:6px;bottom:6px;display:flex;gap:5px;align-items:center;font-size:12px;color:var(--muted);pointer-events:none;flex-wrap:wrap}
 .status .chip{pointer-events:none}
 .zoomctl{position:absolute;right:6px;bottom:6px;display:flex;flex-direction:column;gap:5px}
@@ -347,6 +351,53 @@ body.pkdragging .section[data-home]{outline:2px dashed var(--accent);outline-off
 .toggle{display:flex;align-items:center;gap:7px;font-size:13px}
 .empty{color:var(--muted);font-size:13px;padding:8px 4px}
 a{color:var(--accent)}
+.sets{position:fixed;inset:0;background:rgba(10,15,12,.5);z-index:36;display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .18s ease-out}
+.sets[hidden]{display:none}
+.sets .win{background:var(--panel);border-radius:16px;width:min(880px,100%);height:min(780px,100%);display:grid;grid-template-rows:auto 1fr;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;animation:pop .26s var(--ease)}
+.sets .win:focus{outline:none}
+.sets .shead{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-bottom:1px solid var(--line)}
+.sets .shead h2{margin:0}
+.sets .shead .note{margin-right:auto}
+.sets .shead .close{margin-left:0;padding:8px}
+.sets .sbody{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:0}
+.snav{display:flex;flex-direction:column;gap:2px;padding:10px 8px;border-right:1px solid var(--line);overflow:auto}
+.snav button{display:flex;align-items:center;gap:9px;border:0;background:none;border-radius:9px;padding:9px 10px;font-weight:700;font-size:13.5px;color:var(--muted);text-align:left;flex:none}
+.snav button svg{width:18px;height:18px;flex:none}
+.snav button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.snav button[aria-current="true"]{background:var(--accent-soft);color:var(--ink)}
+.sscroll{position:relative;overflow:auto;padding:4px 20px 28px;overscroll-behavior:contain}
+.ssec{padding-top:12px}
+.ssec>h3{font-family:var(--font-display);font-weight:800;font-size:16.5px;margin:6px 0 0;display:flex;align-items:center;gap:8px}
+.ssec>h3 svg{width:18px;height:18px;color:var(--accent)}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.ssec .srow:last-child{border-bottom:0}
+.stxt{flex:1 1 250px;min-width:0}
+.stxt b{display:block;font-size:14px}
+.stxt .note{display:block;margin-top:2px;font-size:12.5px}
+.sctl{flex:0 1 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
+.sets .seg{flex-wrap:wrap;border-radius:12px}
+.sets .seg button{padding:7px 12px;font-size:13px;min-height:36px}
+.sw{position:relative;width:48px;height:28px;border-radius:999px;border:0;padding:0;background:color-mix(in srgb,var(--ink) 24%,var(--panel));flex:none;transition:background-color .2s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s var(--ease)}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"]::after{transform:translateX(20px)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatches button{width:36px;height:36px;border-radius:50%;border:3px solid var(--panel);box-shadow:0 0 0 1px var(--line);background:var(--c);padding:0}
+.swatches button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+.sets details{padding:12px 0 4px}
+.sets details summary{font-family:var(--font-body);font-weight:700;font-size:14px}
+.keys{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;font-size:13px;margin:10px 0 0;align-items:baseline}
+kbd{font-family:inherit;font-size:12px;font-weight:700;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:0 6px;background:var(--paper);white-space:nowrap}
+@media (max-width: 899px){
+  .sets{padding:0}
+  .sets .win{width:100%;height:100%;border-radius:0}
+  .sets .sbody{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .snav{flex-direction:row;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;padding:6px 8px;gap:4px}
+  .snav::-webkit-scrollbar{display:none}
+  .snav button{padding:7px 11px;font-size:13px;gap:6px}
+  .snav button svg{width:16px;height:16px}
+  .sscroll{padding:2px 16px 28px}
+}
 .toasts{position:fixed;left:0;right:0;bottom:24px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;pointer-events:none;z-index:50;transition:bottom .3s var(--ease-sheet)}
 .toast{background:var(--ink);color:var(--paper);padding:8px 15px;border-radius:18px;font-size:13.5px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transform:translateY(14px) scale(.96);transition:opacity .2s ease,transform .3s var(--ease);pointer-events:none;max-width:min(560px,100%);text-align:center}
 .toast.on{opacity:1;transform:none}
@@ -460,8 +511,22 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
 }
 @media (max-width: 899px){ .toasts{bottom:calc(var(--sheet-h) + 60px)} html[data-sheet="full"] .toasts{bottom:24px} }
 @media (max-width: 599px){ .brand h1{display:none} .planname{max-width:46vw} .toolbar{gap:0;padding:2px 4px} .tbtn{flex:1 1 0;min-width:0;padding:3px 1px;font-size:10.5px} .tbtn.icononly{flex:0 0 34px;min-width:0} .sep{margin:0 2px} }
-@media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none !important;transition:none !important} }
+@media (prefers-reduced-motion: reduce){ :root:not([data-motion="on"]) *,:root:not([data-motion="on"]) *::before,:root:not([data-motion="on"]) *::after{animation:none !important;transition:none !important} }
+:root[data-motion="off"] *,:root[data-motion="off"] *::before,:root[data-motion="off"] *::after{animation:none !important;transition:none !important}
 </style>
+<script>
+window.pokopiaLook = (S) => {
+  const r = document.documentElement, A = { blue: ['#3a6ad4', '#e0e8fa', '#ffffff', '#8db0f4', '#1e2a42', '#0d1730'], teal: ['#137677', '#d5eeed', '#ffffff', '#5ccac5', '#16302f', '#06201f'], pink: ['#bc3c74', '#f8dfeb', '#ffffff', '#f08fbc', '#3a1d2b', '#2a0b1a'], orange: ['#b0521a', '#f9e4d6', '#ffffff', '#f0a46a', '#3a2516', '#261205'] }, a = A[S.accent];
+  const at = (k, v, d) => { if (v && v !== d) r.dataset[k] = v; else delete r.dataset[k]; };
+  at('theme', S.theme, 'system'); at('motion', S.motion, 'system'); at('side', S.side, 'right'); at('pw', S.width, 'normal');
+  let st = document.getElementById('accentCss');
+  if (!a) { if (st) st.remove(); return; }
+  if (!st) { st = document.createElement('style'); st.id = 'accentCss'; document.head.append(st); }
+  const L = '--accent:' + a[0] + ';--accent-soft:' + a[1] + ';--accent-ink:' + a[2], D = '--accent:' + a[3] + ';--accent-soft:' + a[4] + ';--accent-ink:' + a[5];
+  st.textContent = ':root{' + L + '}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){' + D + '}}:root[data-theme="dark"]{' + D + '}';
+};
+try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}') || {}); } catch (e) { }
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#eef1ec">
 <meta name="mobile-web-app-capable" content="yes">
@@ -510,6 +575,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
     <symbol id="i-expand" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
     <symbol id="i-shrink" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></g></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M19.11 9.95L21.41 10.09L21.41 13.91L19.11 14.05L18.47 15.58L20 17.3L17.3 20L15.58 18.47L14.05 19.11L13.91 21.41L10.09 21.41L9.95 19.11L8.42 18.47L6.7 20L4 17.3L5.53 15.58L4.89 14.05L2.59 13.91L2.59 10.09L4.89 9.95L5.53 8.42L4 6.7L6.7 4L8.42 5.53L9.95 4.89L10.09 2.59L13.91 2.59L14.05 4.89L15.58 5.53L17.3 4L20 6.7L18.47 8.42z"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
     <symbol id="i-filter" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M4 6.5h16M7 12h10M10 17.5h4"/></symbol>
   </defs>
 </svg>
@@ -525,15 +591,16 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
       <span class="chip hide-sm" id="hdrArea">—</span>
       <span class="chip" id="saveChip" role="status"><span class="dot"></span><span>Starting</span></span>
       <button class="iconbtn fsbtn" id="fsBtn" data-tip="Full screen" aria-label="Full screen" hidden><svg><use href="#i-expand"/></svg></button>
+      <button class="iconbtn fsbtn" id="setBtn" data-tip="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
     </div>
   </header>
 
   <nav class="toolbar" aria-label="Tools">
-    <button class="tbtn" data-tool="pan" aria-pressed="false" data-tip="Pan (H)"><svg><use href="#i-hand"/></svg>Pan</button>
+    <button class="tbtn" data-tool="pan" aria-pressed="true" data-tip="Pan (H)"><svg><use href="#i-hand"/></svg>Pan</button>
     <button class="tbtn" data-tool="place" aria-pressed="false" data-tip="Place (B)"><svg><use href="#i-brush"/></svg>Place</button>
     <button class="tbtn" data-tool="rect" aria-pressed="false" data-tip="Fill area (R)"><svg><use href="#i-rect"/></svg>Fill</button>
     <button class="tbtn" data-tool="erase" aria-pressed="false" data-tip="Erase (E)"><svg><use href="#i-erase"/></svg>Erase</button>
-    <button class="tbtn" data-tool="select" aria-pressed="true" data-tip="Select (V)"><svg><use href="#i-select"/></svg>Select</button>
+    <button class="tbtn" data-tool="select" aria-pressed="false" data-tip="Select (V)"><svg><use href="#i-select"/></svg>Select</button>
     <button class="tbtn" data-tool="zone" aria-pressed="false" data-tip="Zone (Z)"><svg><use href="#i-zone"/></svg>Zone</button>
     <button class="tbtn" data-tool="pick" aria-pressed="false" data-tip="Pick item (I)"><svg><use href="#i-pick"/></svg>Pick</button>
     <span class="sep"></span>
@@ -577,6 +644,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
   </div>
 </div>
 <div class="ied" id="ied" hidden></div>
+<div class="sets" id="sets" hidden></div>
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <div class="modal" id="modal"><div class="box" id="modalBox" role="dialog" aria-modal="true"></div></div>
 
@@ -631,11 +699,11 @@ const tipOf = (e) => e.target && e.target.closest ? e.target.closest('[data-tip]
 const tipIsControl = (el) => el.matches('button:not(.tipi), a, input, select, textarea, summary, label');
 function tipsInit() {
   const D = document, stopPress = () => { clearTimeout(TIP.press); TIP.press = 0; };
-  D.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const t = tipOf(e); if (t === TIP.at) return; clearTimeout(TIP.t); if (!t) { if (TIP.at && !TIP.at.classList.contains('tipi')) tipHide(); return; } TIP.t = setTimeout(() => tipShow(t), 380); });
+  D.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse' || !S.tips) return; const t = tipOf(e); if (t === TIP.at) return; clearTimeout(TIP.t); if (!t) { if (TIP.at && !TIP.at.classList.contains('tipi')) tipHide(); return; } TIP.t = setTimeout(() => tipShow(t), 380); });
   D.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; const t = tipOf(e); if (t && !t.contains(e.relatedTarget)) { clearTimeout(TIP.t); if (TIP.at === t && !t.classList.contains('tipi')) tipHide(); } });
   D.addEventListener('pointerdown', e => {
     TIP.eat = false; const t = tipOf(e); if (TIP.at && TIP.at !== t) tipHide();
-    if (e.pointerType !== 'mouse' && t && !t.classList.contains('tipi')) { stopPress(); TIP.px = [e.clientX, e.clientY]; TIP.press = setTimeout(() => { TIP.press = 0; TIP.eat = true; tipShow(t); }, 450); }
+    if (S.tips && e.pointerType !== 'mouse' && t && !t.classList.contains('tipi')) { stopPress(); TIP.px = [e.clientX, e.clientY]; TIP.press = setTimeout(() => { TIP.press = 0; TIP.eat = true; tipShow(t); }, 450); }
   }, true);
   D.addEventListener('pointermove', e => { if (TIP.press && Math.hypot(e.clientX - TIP.px[0], e.clientY - TIP.px[1]) > 10) stopPress(); }, true);
   D.addEventListener('pointerup', stopPress, true); D.addEventListener('pointercancel', stopPress, true);
@@ -671,6 +739,7 @@ function toastFlip(fn) {
 function toastTime(t, ms) { clearTimeout(t._t); t._end = Date.now() + ms; t._t = setTimeout(() => toastOff(t), ms); }
 function toastOff(t) { if (!t || t.classList.contains('out')) return; clearTimeout(t._t); t.classList.remove('on'); t.classList.add('out'); t.inert = true; setTimeout(() => toastFlip(() => t.remove()), calm() ? 0 : 220); }
 function toast(msg, ms = 2400, act, key = msg) {
+  ms = Math.round(ms * (TOAST_K[S.toast] || 1));
   const box = $('#toasts'), live = () => [...box.children].filter(e => !e.classList.contains('out')); let t;
   toastFlip(() => {
     t = live().find(e => e._key === key);
@@ -688,6 +757,12 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { } },
 };
+const SET_KEY = 'pokopia-planner:settings';
+const SET_DEF = { theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
+const SET_OPTS = { theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
+let S = Object.assign({}, SET_DEF);
+try { const v = JSON.parse(LS.get(SET_KEY) || 'null'); if (v && typeof v === 'object') for (const k in SET_DEF) if (k in v && (SET_OPTS[k] ? SET_OPTS[k].includes(v[k]) : typeof v[k] === 'boolean')) S[k] = v[k]; } catch (e) { }
+const TOAST_K = { short: 0.6, normal: 1, long: 1.8 };
 function shade(hex, amt) {
   let c = hex.replace('#', ''); if (c.length === 3) c = c.split('').map(x => x + x).join('');
   let r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16);
@@ -2025,14 +2100,14 @@ const cv = $('#map'); const ctx = cv.getContext('2d');
 const view = { zoom: 1, px: 40, py: 60, cs: 26 };
 let dpr = 1, W = 0, H = 0, needDraw = true;
 let theme = {};
-function readTheme() { const cs = getComputedStyle(document.documentElement); for (const k of ['map-bg', 'map-empty', 'map-grid', 'map-chunk', 'accent', 'accent-soft', 'good', 'warn', 'bad', 'ink', 'panel', 'line', 'muted']) theme[k] = cs.getPropertyValue('--' + k).trim(); requestDraw(); }
+function readTheme() { const cs = getComputedStyle(document.documentElement); for (const k of ['map-bg', 'map-empty', 'map-grid', 'map-chunk', 'accent', 'accent-soft', 'good', 'warn', 'bad', 'ink', 'panel', 'line', 'muted']) theme[k] = cs.getPropertyValue('--' + k).trim(); const m = document.querySelector('meta[name="theme-color"]'), pc = cs.getPropertyValue('--paper').trim(); if (m && pc) m.setAttribute('content', pc); requestDraw(); }
 function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); requestDraw(); }
 function cellSize() { return view.cs * view.zoom; }
 function toCell(sx, sy) { const s = cellSize(); return [Math.floor((sx - view.px) / s), Math.floor((sy - view.py) / s)]; }
 let frame = 0;
 function requestDraw() { needDraw = true; if (!frame) frame = requestAnimationFrame(loop); }
 function loop(t) { frame = 0; if (needDraw || sparkles.length) { needDraw = false; draw(t); } if (sparkles.length) frame = requestAnimationFrame(loop); }
-const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const calm = () => S.motion === 'off' || (S.motion !== 'on' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 let glide = 0, glideTo = null;
 function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = 0; } }
 function glideView(to, anchor, ms = 260) {
@@ -2159,14 +2234,14 @@ function rugCellsToRugs(p) {
   for (const r of found) { for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) g[yy * W + xx] = r.under; const q = { id: p.nextId++, rug: 1, i: r.i, x: r.x, y: r.y, w: r.w, h: r.h }, z = rugLevel(p, r.x, r.y, r.w, r.h); if (z) q.z = z; p.rugs.set(q.id, q); }
 }
 function drawRug(c, it, x, y, s, w, h, under) {
-  const u = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = u && mapPic(u); if (!p) return false;
+  const u = S.pics && s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = u && mapPic(u); if (!p) return false;
   const a = c.globalAlpha;
   if (under) for (let j = 0; j < h; j++) drawGroundRun(c, under, x, y + j * s, s, w);
   else if (under === null) { c.fillStyle = theme['map-empty'] || '#f4efe4'; c.fillRect(x, y, w * s + 0.6, h * s + 0.6); }
   c.globalAlpha = a; const pad = Math.max(1, s * 0.06); drawPicIn(c, p, x + pad, y + pad, w * s - pad * 2, h * s - pad * 2, true); return true;
 }
 function drawGroundRun(c, it, x, y, s, n) {
-  const pp = picsFor(it), p = pp[1] && s * dpr >= TILE_PIC_MIN ? mapPic(pp[1]) : null;
+  const pp = picsFor(it), p = S.pics && pp[1] && s * dpr >= TILE_PIC_MIN ? mapPic(pp[1]) : null;
   if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, n * s + 0.6, s + 0.6); return; }
   if (p) {
     const [src] = sizedPic(p, Math.ceil(s * dpr)), at = s + ',' + view.px + ',' + view.py;
@@ -2180,7 +2255,7 @@ function drawGroundRun(c, it, x, y, s, n) {
 function drawGroundCell(c, it, x, y, s) {
   const pp = picsFor(it);
   if (isRug(it)) { c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6); return; }
-  if (pp[1] && s * dpr >= TILE_PIC_MIN) { const p = mapPic(pp[1]); if (p) { drawPicIn(c, p, x, y, s + 0.6, s + 0.6, true); return; } }
+  if (S.pics && pp[1] && s * dpr >= TILE_PIC_MIN) { const p = mapPic(pp[1]); if (p) { drawPicIn(c, p, x, y, s + 0.6, s + 0.6, true); return; } }
   c.fillStyle = pp[2] || it.col; c.fillRect(x, y, s + 0.6, s + 0.6);
   if (s < 9) return;
   const n = it.n;
@@ -2195,7 +2270,7 @@ function drawGroundCell(c, it, x, y, s) {
 
 const sparkles = [];
 function celebrate(z, r) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { toast('Habitat restored: ' + r.best.hb.n); return; }
+  if (calm() || !S.party) { toast(r.kind === 'house' ? 'House is habitable' : 'Habitat restored: ' + r.best.hb.n); return; }
   const now = performance.now();
   for (let i = 0; i < 26; i++) sparkles.push({ zx: z.x + Math.random() * z.w, zy: z.y + Math.random() * z.h, t0: now + Math.random() * 300, life: 900 + Math.random() * 500, r: 0.15 + Math.random() * 0.25 });
   toast(r.kind === 'house' ? 'House is habitable' : 'Habitat restored: ' + r.best.hb.n); requestDraw();
@@ -2212,26 +2287,26 @@ function draw(t, c = ctx) {
   c.fillStyle = theme['map-empty']; c.fillRect(view.px, view.py, plan.w * s, plan.h * s);
   const gShow = lvShown('g'), cut = layerZ != null ? layerZ : Infinity, V = terrView(x0, y0, x1, y1, cut);
   drawTerr(c, V, V.tv, s);
-  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+  if (S.shade) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const z = V.tv[(y - y0) * V.cw + x - x0]; if (z === NONE_Z || !z) continue; const px = view.px + x * s, py = view.py + y * s;
     c.fillStyle = z > 0 ? `rgba(255,255,255,${Math.min(0.32, z * 0.05)})` : `rgba(0,0,0,${Math.min(0.35, -z * 0.07)})`; c.fillRect(px, py, s + 0.6, s + 0.6);
   }
-  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+  if (S.shade) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const z = V.tv[(y - y0) * V.cw + x - x0]; if (z === NONE_Z) continue; const px = view.px + x * s, py = view.py + y * s;
     const below = V.at(x, y + 1), right = V.at(x + 1, y), bl = below === NONE_Z ? z - 1 : below, rt = right === NONE_Z ? z - 1 : right;
     if (bl < z && y + 1 < plan.h) { c.fillStyle = `rgba(0,0,0,${Math.min(0.45, (z - bl) * 0.12)})`; c.fillRect(px, py + s * 0.82, s + 0.6, s * 0.18 + 0.6); }
     if (rt < z && x + 1 < plan.w) { c.fillStyle = `rgba(0,0,0,${Math.min(0.3, (z - rt) * 0.08)})`; c.fillRect(px + s * 0.88, py, s * 0.12 + 0.6, s); }
   }
-  if (s >= 10) {
+  if (s >= 10 && S.grid === 'all') {
     c.lineWidth = 1; c.strokeStyle = theme['map-grid']; c.beginPath();
     for (let x = x0; x <= x1; x++) { const px = Math.round(view.px + x * s) + 0.5; c.moveTo(px, view.py + y0 * s); c.lineTo(px, view.py + y1 * s); }
     for (let y = y0; y <= y1; y++) { const py = Math.round(view.py + y * s) + 0.5; c.moveTo(view.px + x0 * s, py); c.lineTo(view.px + x1 * s, py); }
     c.stroke();
   }
-  c.strokeStyle = theme['map-chunk']; c.lineWidth = 1; c.beginPath();
+  if (S.grid !== 'off') { c.strokeStyle = theme['map-chunk']; c.lineWidth = 1; c.beginPath();
   for (let x = Math.ceil(x0 / 8) * 8; x <= x1; x += 8) { const px = Math.round(view.px + x * s) + 0.5; c.moveTo(px, view.py + y0 * s); c.lineTo(px, view.py + y1 * s); }
   for (let y = Math.ceil(y0 / 8) * 8; y <= y1; y += 8) { const py = Math.round(view.py + y * s) + 0.5; c.moveTo(view.px + x0 * s, py); c.lineTo(view.px + x1 * s, py); }
-  c.stroke();
+  c.stroke(); }
   for (const z of plan.zones) {
     const r = zoneStatus.get(z.id); const col = z.kind === 'label' ? theme.muted : r && r.ok ? theme.good : (r && (r.kind === 'habitat' && (r.target || r.near))) ? theme.warn : theme.muted;
     c.fillStyle = col; c.globalAlpha = 0.08; c.fillRect(view.px + z.x * s, view.py + z.y * s, z.w * s, z.h * s); c.globalAlpha = 1;
@@ -2251,21 +2326,21 @@ function draw(t, c = ctx) {
   if (cut !== Infinity) {
     c.save(); c.globalAlpha = 0.28; drawTerr(c, V, V.tf, s); for (const z of lvAll) if (z > cut) { drawRugs(z); drawObjs(c, z, s, V, rix); } c.restore();
   }
-  if (s >= 30 && gShow) { c.font = '700 10px sans-serif'; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillStyle = 'rgba(0,0,0,.55)'; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const z = V.tv[(y - y0) * V.cw + x - x0]; if (z !== NONE_Z && z) c.fillText((z > 0 ? '▲' : '▼') + Math.abs(z), view.px + (x + 1) * s - 2, view.py + y * s + 2); } }
+  if (s >= 30 && gShow && S.shade) { c.font = '700 10px sans-serif'; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillStyle = 'rgba(0,0,0,.55)'; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const z = V.tv[(y - y0) * V.cw + x - x0]; if (z !== NONE_Z && z) c.fillText((z > 0 ? '▲' : '▼') + Math.abs(z), view.px + (x + 1) * s - 2, view.py + y * s + 2); } }
   for (const hs of autoHouses) {
     const sel = selection && selection.house === hs.id;
     if ((showAreas || sel) && !hs.enclosure) drawArea(c, hs.area, s, sel);
     const R = hs.area.outer, px = view.px + R.x * s, py = view.py + R.y * s, col = hs.ok ? theme.good : hs.enclosure ? theme.muted : theme.warn;
     if (!showAreas && !sel) { c.strokeStyle = col; c.globalAlpha = 0.9; c.lineWidth = 2; c.setLineDash([6, 4]); c.strokeRect(px + 1, py + 1, R.w * s - 2, R.h * s - 2); c.setLineDash([]); c.globalAlpha = 1; }
-    if (s >= 7) { const small = s < 14, fh = small ? 14 : 18; const nres = (rix().homes.get('house:' + hs.id) || { list: [] }).list.length; const label = hs.enclosure ? 'Enclosure · ' + hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : '') : (hs.ok ? 'House ✓' : 'House · ' + houseIssues(hs)[0]) + (nres ? ' · ' + nres + '/4' : '') + (hs.kitHomes.length ? ' · +' + hs.kitHomes.length + ' kit' : ''); c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14); c.fillStyle = col; roundRect(c, px, py - fh - 2, tw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); }
-    if (s >= 10 && !hs.enclosure) { const e = rix().homes.get('house:' + hs.id); if (e && e.list.length) { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, e.list.map(r => r.p), px + 4, py + R.h * s - d * 0.62, d); } }
+    if (s >= 7 && S.labels) { const small = s < 14, fh = small ? 14 : 18; const nres = (rix().homes.get('house:' + hs.id) || { list: [] }).list.length; const label = hs.enclosure ? 'Enclosure · ' + hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : '') : (hs.ok ? 'House ✓' : 'House · ' + houseIssues(hs)[0]) + (nres ? ' · ' + nres + '/4' : '') + (hs.kitHomes.length ? ' · +' + hs.kitHomes.length + ' kit' : ''); c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14); c.fillStyle = col; roundRect(c, px, py - fh - 2, tw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); }
+    if (s >= 10 && S.faces && !hs.enclosure) { const e = rix().homes.get('house:' + hs.id); if (e && e.list.length) { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, e.list.map(r => r.p), px + 4, py + R.h * s - d * 0.62, d); } }
   }
   c.textAlign = 'left'; c.textBaseline = 'middle';
   for (const z of plan.zones) {
     const r = zoneStatus.get(z.id); const px = view.px + z.x * s, py = view.py + z.y * s;
     const col = z.kind === 'label' ? theme.muted : r && r.ok ? theme.good : (r && (r.target || r.near)) ? theme.warn : theme.muted;
     c.setLineDash(r && r.ok ? [] : [6, 4]); c.lineWidth = selection && selection.zone === z ? 3 : 2; c.strokeStyle = col; c.strokeRect(px + 1, py + 1, z.w * s - 2, z.h * s - 2); c.setLineDash([]);
-    if (s >= 7) {
+    if (s >= 7 && S.labels) {
       const small = s < 14, fh = small ? 14 : 18, label = small && r && r.ok && z.kind !== 'label' ? (z.kind === 'house' ? 'House ✓' : r.best.hb.n + ' ✓') : zoneLabel(z, r);
       c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(label).width + (small ? 10 : 14);
       const bw = Math.min(tw, small ? Math.max(z.w * s + 16, 30) : Math.max(z.w * s, 40) + 120);
@@ -2327,7 +2402,7 @@ function kitBadge(c, ob, s, rix) {
   const it = ITEMS[ob.i]; if (!it.cap || s < 8) return; const e = rix().homes.get('kit:' + ob.id); if (!e) return;
   const t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = view.px + (ob.x + ob.w) * s - tw - 3, by = view.py + ob.y * s + 3;
   c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
-  if (s >= 10) { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, e.list.map(r => r.p), view.px + ob.x * s + 3, view.py + (ob.y + ob.h) * s - d * 0.62, d); }
+  if (s >= 10 && S.faces) { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, e.list.map(r => r.p), view.px + ob.x * s + 3, view.py + (ob.y + ob.h) * s - d * 0.62, d); }
 }
 function drawGhost(c, it, x, y, w, h, z, s) { const d = z - standOver(x, y, w, h), g = { i: it.i, x, y, w, h, z }; if (d === 0) drawPicItem(c, it, view.px + x * s, view.py + y * s, s, w, h, false, [x, y, w, h, z]); else if (structural(it)) drawUp(c, g, s, d); else drawRaised(c, g, s, d); }
 function drawObjs(c, z, s, V, rix) {
@@ -2370,7 +2445,7 @@ function zoneLabel(z, r) {
   return z.name || 'Habitat zone';
 }
 
-let fillMode = 'solid', tool = 'select', curItem = 'Field grass', brush = 1, rotated = false, eraseMode = 'both', zoneKind = 'habitat';
+let fillMode = 'solid', tool = 'pan', curItem = 'Field grass', brush = 1, rotated = false, eraseMode = 'both', zoneKind = 'habitat';
 let selection = null, hover = null, drag = null, clip = null, stampHab = null, moving = null, decorMini = null;
 const pointers = new Map(); let pinch = null;
 const recent = [];
@@ -2441,7 +2516,7 @@ function onDown(e) {
   }
   if (pointers.size > 2) return;
   const [cx, cy] = toCell(e.offsetX, e.offsetY); hover = [cx, cy]; updateStatus();
-  if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, px: view.px, py: view.py }; cv.style.cursor = 'grabbing'; return; }
+  if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, px: view.px, py: view.py, cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
   if (e.button === 2) return;
   const gob = grabAt(cx, cy);
   if (gob) { drag = { kind: 'objmove', ob: gob, gx: cx - gob.x, gy: cy - gob.y, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false, fit: null }; return; }
@@ -2480,7 +2555,7 @@ function onMove(e) {
     return;
   }
   if (drag.kind === 'pending') { if (Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) < 5) return; const d = drag; drag = null; startAction(d.cx, d.cy, d.sx, d.sy); if (!drag) return; }
-  if (drag.kind === 'pan') { view.px = drag.px + e.offsetX - drag.sx; view.py = drag.py + e.offsetY - drag.sy; requestDraw(); return; }
+  if (drag.kind === 'pan') { if (!drag.moved && Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) >= 6) drag.moved = true; view.px = drag.px + e.offsetX - drag.sx; view.py = drag.py + e.offsetY - drag.sy; requestDraw(); return; }
   if (drag.kind === 'stroke') {
     const [lx, ly] = drag.last; if (lx === cx && ly === cy) return;
     lineCells(lx, ly, cx, cy, (x, y) => { if (tool === 'place') placeCell(x, y, drag.seen); else eraseCell(x, y, drag.seen); });
@@ -2495,6 +2570,7 @@ function onUp(e) {
   if (!drag) return;
   if (drag.kind === 'pending') { const p = drag; drag = null; startAction(p.cx, p.cy, p.sx, p.sy); if (!drag) return; }
   const d = drag; drag = null; cv.style.cursor = '';
+  if (d.kind === 'pan') { if (d.tap && !d.moved && e.type !== 'pointercancel') { view.px = d.px; view.py = d.py; tapSelect(d.cx, d.cy); requestDraw(); } return; }
   if (d.kind === 'objmove') {
     if (e.type === 'pointercancel') { requestDraw(); return; }
     if (d.moved) { if (d.fit) doMove(d.ob, d.fit); requestDraw(); return; }
@@ -2527,7 +2603,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('dblclick', e => { if (!plan) return; const [x, y] = toCell(e.offsetX, e.offsetY); if (!inB(plan, x, y)) return; const ob = shownStack(y * plan.w + x).find(q => q && ITEMS[q.i].cap); if (ob && ['select', 'pan'].includes(tool)) interiorEditor(ob); });
 cv.addEventListener('wheel', e => {
   e.preventDefault(); stopGlide();
-  if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) > 0 && !e.shiftKey && Math.abs(e.deltaX) < 1) { const z = clamp(view.zoom * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), 0.15, 5); zoomAt(z, e.offsetX, e.offsetY); }
+  if (e.ctrlKey || e.metaKey || (S.wheel === 'zoom' && Math.abs(e.deltaY) > 0 && !e.shiftKey && Math.abs(e.deltaX) < 1)) { const z = clamp(view.zoom * Math.exp(-e.deltaY * (e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaY) < 50 ? 0.01 : 0.0015)), 0.15, 5); zoomAt(z, e.offsetX, e.offsetY); }
   else { view.px -= e.deltaX; view.py -= e.deltaY; requestDraw(); }
 }, { passive: false });
 function zoomAt(z, sx, sy, smooth) { if (smooth) { glideView({ zoom: z }, [sx, sy], 200); return; } stopGlide(); const k = z / view.zoom; view.px = sx - (sx - view.px) * k; view.py = sy - (sy - view.py) * k; view.zoom = z; requestDraw(); updateStatus(); }
@@ -2542,6 +2618,7 @@ $('#zarea').onclick = () => { setShowAreas(!showAreas); toast(showAreas ? 'Activ
 $$('.tbtn[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 $('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
 addEventListener('keydown', e => {
+  if (setsOpen()) { if (e.key === 'Escape' && !$('#modal').classList.contains('open')) { e.preventDefault(); closeSettings(); } return; }
   if (IED.ob) { iedKey(e); return; }
   if (e.target.matches('input, textarea, select')) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -2554,7 +2631,7 @@ addEventListener('keydown', e => {
   if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); setLayerZ((layerZ == null ? 0 : layerZ) + (e.key === 'PageUp' ? 1 : -1)); toast('Working on level ' + lvNum(layerZ), 2400, null, 'level'); }
   if (e.key === '[') { brush = Math.max(1, brush - 1); renderOptbar(); }
   if (e.key === ']') { brush = Math.min(5, brush + 1); renderOptbar(); }
-  if (e.key === 'Escape') { if (drag && drag.kind === 'objmove') { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool('select'); requestDraw(); }
+  if (e.key === 'Escape') { if (drag && drag.kind === 'objmove') { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool(S.tool); requestDraw(); }
   if ((e.key === 'Delete' || e.key === 'Backspace') && selection) { deleteSelection(); }
   if (e.key.toLowerCase() === 'q' && tool === 'place') { rotated = !rotated; renderOptbar(); requestDraw(); }
 });
@@ -2824,7 +2901,7 @@ function drawUp(c, ob, s, d = zOf(ob)) {
 function drawPicItem(c, it, x, y, s, wc = 1, hc = 1, label = true, at = null) {
   if (structural(it)) { const u = picsFor(it)[0]; if (u) mapPic(u); drawStructure(c, it, x, y, s, wc, hc, at); return; }
   const fk = furnKind(it); if (fk && s * dpr >= MAP_PIC_MIN) { const u = picsFor(it)[0]; if (u) mapPic(u); drawFurniture(c, it, fk, x, y, s, wc, hc); return; }
-  const url = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = url && mapPic(url);
+  const url = S.pics && s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = url && mapPic(url);
   if (!p) { drawItem(c, it, x, y, s, wc, hc, label); return; }
   const w = s * wc, hh = s * hc;
   if (it.sh === 'kit') { drawItem(c, it, x, y, s, wc, hc, label, (bx, by, bw, bh) => drawPicIn(c, p, bx, by, bw, bh)); return; }
@@ -2844,7 +2921,7 @@ async function fillPictures(force) {
   const urls = allPicURLs(); if (picFill.running || !urls.length) return;
   if (!('caches' in window) || !window.isSecureContext) { picFill.unsupported = true; picUI(); return; }
   if (!force && navigator.connection && navigator.connection.saveData) { picFill.waiting = true; picUI(); return; }
-  picFill.running = true; picFill.waiting = false; picFill.failed = 0;
+  picFill.running = true; picFill.waiting = false; picFill.failed = 0; picFill.force = !!force;
   try {
     const c = await caches.open(PIC_CACHE);
     const want = new Set(urls.map(u => new URL(u, location.href).href)), have = new Set();
@@ -2853,8 +2930,8 @@ async function fillPictures(force) {
     picFill.total = want.size; picFill.done = have.size; picUI();
     let next = 0, shown = 0;
     const worker = async () => {
-      while (next < todo.length) {
-        await new Promise(r => idle(r, 1500)); if (next >= todo.length) break;
+      while (next < todo.length && (S.offline || picFill.force)) {
+        await new Promise(r => idle(r, 1500)); if (next >= todo.length || !(S.offline || picFill.force)) break;
         const u = todo[next++];
         try { const r = await fetch(u, { headers: { 'x-pokopia-fill': '1' }, priority: 'low' }); if (!r.ok) throw new Error(r.status); await c.put(u, r); picFill.done++; }
         catch (e) { picFill.failed++; if (!navigator.onLine) { next = todo.length; } }
@@ -2872,14 +2949,13 @@ function picText() {
   if (picFill.unsupported) return 'Pictures show online only';
   if (picFill.waiting) return 'Data saver on: ' + fmt(n) + ' pictures (' + picMB() + ' MB) not saved offline yet';
   if (picFill.running) return 'Saving pictures offline… ' + fmt(picFill.done) + '/' + fmt(picFill.total);
-  if (!picFill.total) return 'Checking offline pictures…';
+  if (!picFill.total) return S.offline ? 'Checking offline pictures…' : 'Pictures aren\'t saved for offline use';
   if (picFill.done >= picFill.total) return '✓ All ' + fmt(picFill.total) + ' pictures saved offline';
-  return 'Pictures offline: ' + fmt(picFill.done) + '/' + fmt(picFill.total) + ' (the rest next time online)';
+  return 'Pictures offline: ' + fmt(picFill.done) + '/' + fmt(picFill.total) + (S.offline ? ' (the rest next time online)' : '');
 }
 const picMB = () => Math.max(1, Math.round((PICS.bytes || Object.keys(PICS.pics).length * 5000) / 1e6));
 function picUI() {
-  const el = document.getElementById('picLine'); if (!el) return; el.textContent = picText();
-  if (!picFill.running && (picFill.waiting || (picFill.total && picFill.done < picFill.total && navigator.onLine))) el.append(' ', h('button', { class: 'btn sm', onclick: () => fillPictures(true) }, picFill.waiting ? 'Save now' : 'Retry'));
+  for (const el of $$('.picline')) { el.textContent = picText(); if (!picFill.running && (picFill.waiting || (picFill.total && picFill.done < picFill.total && navigator.onLine) || (!S.offline && !picFill.total))) el.append(' ', h('button', { class: 'btn sm', onclick: () => fillPictures(true) }, picFill.waiting || !picFill.total ? 'Save now' : S.offline ? 'Retry' : 'Save the rest')); }
 }
 function swatchEl(it, cls = 'swatch') { const s = h('span', { class: cls }); const u = picURL(it); s.style.backgroundImage = (u ? `url("${u}"), ` : '') + `url(${swatchURL(it)})`; return s; }
 function picEl(it, cls = 'pic') {
@@ -2929,10 +3005,10 @@ function renderOptbar() {
     ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to inspect · drag to move'), tipBtn('Drag an item to move it. Drag from an empty square to select an area. Tap a selected item or rug again to select what\'s under it.')));
     ob.append(layerChip());
   } else if (tool === 'pick') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap an item to reuse it')));
-  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Drag to pan · pinch to zoom')));
-  else if (tool === 'stamp' && stampHab) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap the map to place'), h('b', null, stampHab.n), h('button', { class: 'btn sm', onclick: () => setTool('select') }, 'Cancel')));
-  else if (tool === 'paste' && clip) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to paste ' + clip.w + '×' + clip.h), tipBtn('Where you tap is its top-left corner.'), h('button', { class: 'btn sm', onclick: () => setTool('select') }, 'Done')));
-  else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool('select') }, 'Cancel')));
+  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Drag to pan · tap to inspect'), tipBtn('Drag to move around the map; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside.')));
+  else if (tool === 'stamp' && stampHab) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap the map to place'), h('b', null, stampHab.n), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
+  else if (tool === 'paste' && clip) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to paste ' + clip.w + '×' + clip.h), tipBtn('Where you tap is its top-left corner.'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Done')));
+  else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
 }
 
 function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Working on'), h('b', null, 'Level ' + lvNum(layerZ)), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
@@ -3156,9 +3232,9 @@ function fitMove(ob, cx, cy, gx, gy) {
 }
 function doMove(ob, f) {
   const it = ITEMS[ob.i], same = f.x === ob.x && f.y === ob.y && f.w === ob.w && f.h === ob.h && (f.z || 0) === zOf(ob);
-  if (!(ob.rug ? plan.rugs.has(ob.id) : plan.objs.has(ob.id))) { if (tool === 'move') setTool('select'); return; }
+  if (!(ob.rug ? plan.rugs.has(ob.id) : plan.objs.has(ob.id))) { if (tool === 'move') setTool(S.tool); return; }
   if (!f.ok) { toast(whyNot(f.err, f.w, f.h, it, true)); return; }
-  moving = null; if (tool === 'move') setTool('select');
+  moving = null; if (tool === 'move') setTool(S.tool);
   if (ob.rug) { const n = same ? ob : (delRug(ob), addRug(ob.i, f.x, f.y, f.w, f.h, f.z || 0)); commitTx('Move'); showRugInspector(n); return; }
   if (same) { selection = { obj: ob }; showObjInspector(ob); return; }
   const inside = (r) => r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h, res = plan.res || [];
@@ -3382,7 +3458,7 @@ function stampHabitat(hb, cx, cy) {
   const z = stampCore(hb, cx, cy);
   if (!z) { tx = null; toast('No free space here'); return; }
   setZones([...plan.zones, z]); commitTx('Stamp ' + hb.n);
-  setTool('select'); selectZone(z);
+  setTool(S.tool); selectZone(z);
   if (!habitatAllowed(hb)) toast(hb.n + ' only forms in ' + (hb.reg === 'Basin' ? 'Bubbly Basin' : 'another area'), 3200);
 }
 function fillZoneMissing(z) {
@@ -3401,9 +3477,9 @@ function showTab(t, fromHash) {
   $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'));
   for (const v of VALID_TABS) $('#tab-' + v).hidden = v !== t;
   if (!fromHash) { try { history.replaceState(null, '', '#' + t); } catch (e) { location.hash = t; } }
-  renderPanel();
+  LS.set(LSK + 'tab', t); renderPanel();
 }
-$$('.tab').forEach(b => b.onclick = () => { if (innerWidth < 900) { if (activeTab === b.dataset.tab && sheetState !== 'peek') setSheet('peek'); else if (sheetState === 'peek') setSheet('half'); } showTab(b.dataset.tab); });
+$$('.tab').forEach(b => b.onclick = () => { if (innerWidth < 900) { if (activeTab === b.dataset.tab && sheetState !== 'peek') setSheet('peek'); else if (sheetState === 'peek') setSheet(S.sheet); } showTab(b.dataset.tab); });
 addEventListener('hashchange', () => showTab(location.hash.slice(1), true));
 let sheetState = 'peek';
 const SHEET_ORDER = ['peek', 'half', 'full'];
@@ -3994,7 +4070,7 @@ function pkStart() {
   pkDrag = Object.assign(P, { hm: null, chk: null, homes, sheet: null, ghost: h('div', { class: 'pkghost', 'aria-hidden': 'true' }) });
   document.body.append(pkDrag.ghost); P.src.classList.add('pkdragsrc'); document.body.classList.add('pkdragging');
   try { const s = getSelection(); if (s) s.removeAllRanges(); } catch (er) { }
-  if (!P.mouse && navigator.vibrate) try { navigator.vibrate(12); } catch (er) { }
+  if (S.buzz && !P.mouse && navigator.vibrate) try { navigator.vibrate(12); } catch (er) { }
   if (innerWidth < 900 && sheetState !== 'peek') { pkDrag.sheet = sheetState; setSheet('peek'); clearTimeout(shutTimer); $('#panel').classList.remove('shut'); }
   pkTray(); pkTrack(true); requestDraw();
 }
@@ -4062,8 +4138,8 @@ function renderPlans() {
     h('label', { class: 'btn sm', for: 'importFile', 'data-tip': 'Import plan file' }, icon('up'), 'Import'), h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON })));
   root.append(syncCard());
   root.append(h('p', { class: 'note hrow', style: 'margin:4px 0' }, ...storageNote()));
-  root.append(h('p', { class: 'note', id: 'picLine', style: 'margin:4px 0' })); picUI();
-  root.append(h('p', { class: 'note', style: 'margin:4px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, 'Version ' + appVersion(), h('button', { class: 'btn sm', onclick: updateNow }, 'Check for updates')));
+  root.append(h('p', { class: 'note picline', style: 'margin:4px 0' })); picUI();
+  root.append(h('p', { class: 'note', style: 'margin:4px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, 'Version ' + appVersion(), h('button', { class: 'btn sm', onclick: updateNow }, 'Check for updates'), h('button', { class: 'btn sm', onclick: () => openSettings() }, icon('gear'), 'Settings')));
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
   { const cp = syncCopies(); if (cp.length) root.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, cp.length + ' sync ' + (cp.length === 1 ? 'copy' : 'copies')), tipBtn('When a plan changed in two places before they synced, the older version was set aside as a copy named “from another device” or “from this device”. The plan under its own name has the newest version.'), h('button', { class: 'btn sm', style: 'margin-left:auto', onclick: tidyCopiesDialog }, icon('trash'), 'Remove copies')))); }
   for (const p of [...plansIndex].sort((a, b) => b.updated - a.updated)) {
@@ -4125,6 +4201,125 @@ function deletePlanDialog(id) {
     renderPlans();
   }, true);
 }
+
+const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['data', 'Data', 'list']];
+const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
+const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn the item you\'re placing'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['L', 'Layers'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+let setsBack = null, setsAfter = null, setsWant = null;
+const setsOpen = () => !$('#sets').hidden;
+function applyLook() { pokopiaLook(S); readTheme(); }
+function busyNow() { return !!(drag || pinch || pkDrag || IED.ob || setsOpen() || $('#modal').classList.contains('open') || (document.activeElement && document.activeElement.matches('input, textarea, select'))); }
+function savePrefs() { const o = {}; for (const k in SET_DEF) if (S[k] !== SET_DEF[k]) o[k] = S[k]; if (Object.keys(o).length) LS.set(SET_KEY, JSON.stringify(o)); else LS.del(SET_KEY); }
+function setPref(k, v) {
+  S[k] = v; savePrefs();
+  if (['theme', 'accent', 'motion', 'side', 'width'].includes(k)) applyLook();
+  if (k === 'tool' && ['pan', 'select'].includes(tool)) setTool(v);
+  if (k === 'status') $('#status').hidden = !v;
+  if (k === 'tips' && !v) tipHide();
+  if (k === 'offline') { if (v) fillPictures(); else picFill.force = false; picUI(); setsPics(); }
+  requestDraw();
+}
+function openSettings(sec) {
+  const el = $('#sets'); if (!el.hidden) { if (sec) setsJump(sec); return; }
+  tipHide(); setsBack = document.activeElement; el.hidden = false; $('.app').inert = true; renderSettings();
+  try { history.pushState({ sets: 1 }, '', location.href); } catch (e) { }
+  if (sec) setsJump(sec, true);
+  setTimeout(() => { const w = el.querySelector('.win'); if (w) w.focus({ preventScroll: true }); }, 30);
+}
+function closeSettings(then) {
+  const el = $('#sets'); if (el.hidden) return; el.hidden = true; el.textContent = ''; $('.app').inert = false; tipHide();
+  if (setsBack && setsBack.isConnected && setsBack.focus) setsBack.focus({ preventScroll: true }); setsBack = null;
+  const fn = typeof then === 'function' ? then : null;
+  if (history.state && history.state.sets) { setsAfter = fn; try { history.back(); return; } catch (e) { setsAfter = null; } }
+  if (fn) fn();
+}
+addEventListener('popstate', () => { if (setsOpen()) { const el = $('#sets'); el.hidden = true; el.textContent = ''; $('.app').inert = false; tipHide(); setsBack = null; } const fn = setsAfter; setsAfter = null; if (fn) fn(); });
+function setsJump(id, now) { const sc = $('#sets .sscroll'), sec = document.getElementById('sets-' + id); setsWant = id; if (sc && sec) sc.scrollTo({ top: sec.offsetTop - 2, behavior: now || calm() ? 'auto' : 'smooth' }); }
+function renderSettings() {
+  const el = $('#sets'), keep = el.querySelector('.sscroll'), top = keep ? keep.scrollTop : 0; el.textContent = '';
+  const scroll = h('div', { class: 'sscroll' }), nav = h('nav', { class: 'snav', 'aria-label': 'Sections' });
+  el.append(h('div', { class: 'win', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'setsTitle', tabindex: '-1' },
+    h('div', { class: 'shead' }, h('h2', { id: 'setsTitle' }, 'Settings'), h('span', { class: 'note' }, 'Saved on this device'), h('button', { class: 'close', type: 'button', 'aria-label': 'Close settings', 'data-tip': 'Close (Esc)', onclick: () => closeSettings() }, icon('close'))),
+    h('div', { class: 'sbody' }, nav, scroll)));
+  el.onclick = (e) => { if (e.target === el) closeSettings(); };
+  const seg = (k, opts, label) => {
+    const g = h('span', { class: 'seg', role: 'group', 'aria-label': label });
+    const paint = () => { for (const b of g.children) b.setAttribute('aria-pressed', b.dataset.v === S[k] ? 'true' : 'false'); };
+    for (const [v, t] of opts) g.append(h('button', { type: 'button', 'data-v': v, onclick: () => { setPref(k, v); paint(); } }, t));
+    paint(); return g;
+  };
+  const sw = (k, label, get, set) => {
+    const b = h('button', { type: 'button', class: 'sw', role: 'switch', 'aria-label': label }), val = () => get ? get() : S[k];
+    const paint = () => b.setAttribute('aria-checked', val() ? 'true' : 'false');
+    b.onclick = () => { if (set) set(!val()); else setPref(k, !val()); paint(); }; paint(); return b;
+  };
+  const row = (title, note, ...ctl) => h('div', { class: 'srow' }, h('div', { class: 'stxt' }, h('b', null, title), typeof note === 'string' ? h('span', { class: 'note' }, note) : note || ''), ctl.length ? h('div', { class: 'sctl' }, ...ctl) : '');
+  const sec = (id, ...rows) => { const [, t, ic] = SET_SECS.find(q => q[0] === id); scroll.append(h('section', { class: 'ssec', id: 'sets-' + id, 'aria-labelledby': 'setsH-' + id }, h('h3', { id: 'setsH-' + id }, icon(ic), t), ...rows)); nav.append(h('button', { type: 'button', 'data-sec': id, onclick: () => setsJump(id) }, icon(ic), t)); };
+  const sws = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Accent colour' });
+  const paintSw = () => { for (const b of sws.children) b.setAttribute('aria-pressed', b.dataset.v === S.accent ? 'true' : 'false'); };
+  for (const [v, [n, c]] of Object.entries(ACCENT_NAMES)) sws.append(h('button', { type: 'button', 'data-v': v, 'aria-label': n, 'data-tip': n, style: '--c:' + c, onclick: () => { setPref('accent', v); paintSw(); } }));
+  paintSw();
+  sec('look',
+    row('Theme', 'System follows your device\'s light or dark mode.', seg('theme', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], 'Theme')),
+    row('Accent colour', 'Buttons, the chosen tool and highlights on the map.', sws),
+    row('Animations', 'System follows your device\'s reduce-motion setting. Off also skips the zoom glide, sliding panels and sparkles.', seg('motion', [['system', 'System'], ['on', 'On'], ['off', 'Off']], 'Animations')));
+  sec('map',
+    row('Grid lines', 'Thin lines between tiles, and stronger ones every 8 tiles.', seg('grid', [['all', 'All'], ['blocks', 'Every 8 tiles'], ['off', 'None']], 'Grid lines')),
+    row('Height shading', 'Lighter high ground, darker low ground, shadows below cliffs and level numbers when zoomed in.', sw('shade', 'Height shading')),
+    row('Pictures on the map', 'Item and terrain pictures from the game. Off draws simple shapes and colours, which is quicker on older phones.', sw('pics', 'Pictures on the map')),
+    row('Portraits on homes', 'Faces of the Pokémon living in each house and kit home.', sw('faces', 'Portraits on homes')),
+    row('Labels on zones and houses', 'The name and status above each zone and each house you built.', sw('labels', 'Labels on zones and houses')),
+    row('Every home\'s active area', 'The dotted line 4 tiles around each home. The dotted button by the zoom controls, or A, does the same.', sw(null, 'Every home\'s active area', () => showAreas, v => setShowAreas(v))),
+    row('Info at the bottom of the map', 'Tile position, what\'s under the pointer and the zoom level.', sw('status', 'Info at the bottom of the map')));
+  sec('controls',
+    row('Default tool', 'The tool when the app opens, and after you finish stamping, pasting or moving. Pan: dragging moves the map and a tap shows details. Select: dragging moves items or selects an area.', seg('tool', [['pan', 'Pan'], ['select', 'Select']], 'Default tool')),
+    row('Mouse wheel', 'Scrolls: the wheel moves the map, and Ctrl + wheel or a touchpad pinch zooms.', seg('wheel', [['zoom', 'Zooms'], ['pan', 'Scrolls']], 'Mouse wheel')),
+    row('Tooltips', 'A tip when you point at a button with the mouse or long-press it. Off: only the ⓘ buttons show tips.', sw('tips', 'Tooltips')),
+    row('Vibration', 'A short buzz on Android when you pick up a Pokémon to drag it.', sw('buzz', 'Vibration')),
+    h('details', null, h('summary', null, 'Keyboard shortcuts'), h('div', { class: 'keys' }, KEYS.flatMap(([k, t]) => [h('span', null, k.split('|').map(p => p === ' ' ? ' ' : ['+', '/', 'drag'].includes(p) ? ' ' + p + ' ' : h('kbd', null, p))), h('span', null, t)]))));
+  sec('notices',
+    row('How long notices stay', 'Notices with a button, such as Undo, stay longer either way, and pointing at one keeps it open.', seg('toast', [['short', 'Short'], ['normal', 'Normal'], ['long', 'Long']], 'How long notices stay'), h('button', { class: 'btn sm', type: 'button', onclick: () => toast('This is how long a notice stays', 2400, null, 'try') }, 'Try it')),
+    row('Celebrate new habitats', 'Sparkles on the map when a habitat forms or a house becomes habitable. The notice shows either way.', sw('party', 'Celebrate new habitats')));
+  sec('layout',
+    row('Panel side', 'On wide screens, such as a PC or a tablet held sideways.', seg('side', [['left', 'Left'], ['right', 'Right']], 'Panel side')),
+    row('Panel width', 'On wide screens.', seg('width', [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']], 'Panel width')),
+    row('Phone panel', 'On phones and narrow windows: how far the panel opens when you tap a tab.', seg('sheet', [['half', 'Halfway'], ['full', 'Full height']], 'Phone panel')),
+    row('Open on', 'The tab that shows when the app opens.', seg('start', [['last', 'Last tab used'], ['build', 'Build']], 'Open on')));
+  sec('updates',
+    row('New versions', 'Ask me: a notice with Open it. Straight away: the new version opens as soon as it\'s ready, unless you\'re in the middle of something.', seg('updates', [['ask', 'Ask me'], ['auto', 'Straight away']], 'New versions')),
+    row('Version ' + appVersion(), 'Looks for a newer version now.', h('button', { class: 'btn sm', type: 'button', onclick: updateNow }, 'Check for updates')),
+    row('Save pictures for offline use', h('span', null, h('span', { class: 'note picline' }), h('span', { id: 'setsPicN', class: 'acts', style: 'margin-top:6px' })), sw('offline', 'Save pictures for offline use')));
+  sec('data',
+    row('Storage', h('span', { class: 'note', id: 'setsUse' }, 'Checking…')),
+    h('div', { id: 'setsKeep' }),
+    row('Plans, backups and sync', 'Export, import and Google sync are in the Plans tab.', h('button', { class: 'btn sm', type: 'button', onclick: () => closeSettings(() => { showTab('plans'); if (innerWidth < 900 && sheetState === 'peek') setSheet(S.sheet); }) }, icon('map'), 'Open Plans')),
+    row('Reset settings', 'Puts everything on this page back as it was at the start. Your plans stay as they are.', h('button', { class: 'btn sm danger', type: 'button', onclick: resetSettingsDialog }, 'Reset')));
+  let cur = '';
+  const spy = () => { const r = scroll.getBoundingClientRect(), t = r.top + 48, end = scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 4; let now = SET_SECS[0][0]; for (const [id] of SET_SECS) { const s = document.getElementById('sets-' + id); if (s && s.getBoundingClientRect().top <= t) now = id; } if (end && scroll.scrollTop > 0) { const w = setsWant && document.getElementById('sets-' + setsWant); now = w && w.getBoundingClientRect().top < r.bottom ? setsWant : SET_SECS[SET_SECS.length - 1][0]; } if (now === cur) return; cur = now; for (const b of nav.children) { const on = b.dataset.sec === now; b.setAttribute('aria-current', on ? 'true' : 'false'); if (on && nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: b.offsetLeft - 8, behavior: calm() ? 'auto' : 'smooth' }); } };
+  scroll.addEventListener('scroll', spy, { passive: true }); scroll.addEventListener('pointerdown', () => { setsWant = null; }); scroll.addEventListener('wheel', () => { setsWant = null; }, { passive: true }); setsWant = null;
+  scroll.scrollTop = top; spy(); picUI(); setsPics(); setsStore();
+}
+async function setsPics() {
+  const el = document.getElementById('setsPicN'); if (!el) return;
+  let n = 0; try { if ('caches' in window && !S.offline) n = (await (await caches.open(PIC_CACHE)).keys()).length; } catch (e) { }
+  el.textContent = ''; if (!S.offline && n) el.append(h('button', { class: 'btn sm danger', type: 'button', onclick: dropPics }, icon('trash'), 'Remove ' + fmt(n) + ' saved pictures'));
+}
+async function dropPics() { picFill.force = false; try { await caches.delete(PIC_CACHE); } catch (e) { } picFill.done = 0; picFill.total = 0; picUI(); setsPics(); setsStore(); toast('Saved pictures removed. They load again when you\'re online.'); }
+async function setsStore() {
+  const use = document.getElementById('setsUse'), keep = document.getElementById('setsKeep'), st = navigator.storage; if (!use) return;
+  let txt = 'Plans are saved in this browser.', kept = null;
+  try { if (st && st.estimate) { const e = await st.estimate(); if (e && e.usage != null) txt = 'About ' + fmt(Math.max(1, Math.round(e.usage / 1e6))) + ' MB on this device: the app, your plans and saved pictures.'; } } catch (e) { }
+  try { if (st && st.persisted) kept = await st.persisted(); } catch (e) { }
+  use.textContent = txt; if (!keep) return; keep.textContent = ''; if (kept === null) return;
+  keep.append(h('div', { class: 'srow' }, h('div', { class: 'stxt' }, h('b', null, 'Keep saved data safe'), h('span', { class: 'note' }, kept ? 'On: the browser won\'t clear your plans to free up space.' : 'Off: if the device runs low on space, the browser may clear what\'s saved here. Export or sync your plans as a backup.')),
+    h('div', { class: 'sctl' }, kept ? h('span', { class: 'chip good' }, '✓ On') : h('button', { class: 'btn sm', type: 'button', onclick: async () => { let ok = false; try { ok = await st.persist(); } catch (e) { } toast(ok ? 'Saved data is kept safe' : 'The browser said no for now. Installing the app usually allows it.', 4000); setsStore(); } }, 'Turn on'))));
+}
+function resetSettingsDialog() {
+  modal('Reset settings?', (box) => box.append(h('p', { class: 'sub' }, 'Every setting goes back as it was at the start. Your plans stay as they are.')), 'Reset', () => {
+    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); setShowAreas(false); $('#status').hidden = !S.status; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast('Settings reset');
+  }, true);
+}
+$('#setBtn').onclick = () => openSettings();
 
 let modalOk = null;
 function modal(title, build, okLabel, onOk, danger, tip) {
@@ -4453,7 +4648,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T16:10';
+const APP_BUILD = '2026-11-21T19:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
@@ -4473,7 +4668,7 @@ function initSW() {
   const hadController = !!navigator.serviceWorker.controller; let pending = false;
   const reloadNow = () => { try { persistNow(); } catch (e) { } location.reload(); };
   navigator.serviceWorker.register('sw.js').then(r => { r.update().catch(() => { }); }).catch(() => { });
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; if (updateWanted) { reloadNow(); return; } toast('New version ready', 20000, { label: 'Open it', fn: reloadNow }, 'upd'); });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; if (updateWanted || (S.updates === 'auto' && !busyNow())) { reloadNow(); return; } toast('New version ready', 20000, { label: 'Open it', fn: reloadNow }, 'upd'); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (pending) reloadNow(); else checkForUpdate(); });
   setInterval(checkForUpdate, 30 * 60 * 1000);
 }
@@ -4493,14 +4688,14 @@ async function boot() {
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);
   if (!p) { p = makeExample(); exampleUntouched = true; LS.set(LSK + 'example', p.id + ':' + p.updated); }
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
-  selectItem('Field grass', false); setTool('select'); setShowAreas(showAreas);
-  showTab(VALID_TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'build', true);
+  selectItem('Field grass', false); setTool(S.tool); setShowAreas(showAreas); $('#status').hidden = !S.status;
+  { const want = location.hash.slice(1), last = LS.get(LSK + 'tab'); showTab(VALID_TABS.includes(want) ? want : S.start === 'last' && VALID_TABS.includes(last) ? last : 'build', true); }
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
-  idle(initSW, 2500); setTimeout(() => idle(() => fillPictures(), 4000), 2500);
+  idle(initSW, 2500); if (S.offline) setTimeout(() => idle(() => fillPictures(), 4000), 2500);
   const startSync = () => { if (syncOn() && !fbLoading) loadFirebase().catch(() => { if (navigator.onLine) { syncErr = 'Couldn\'t load Google sign-in. Retrying when online.'; syncUI(); } }); };
   if (syncOn()) idle(startSync, 1200);
-  addEventListener('online', () => { if (picFill.done < picFill.total) fillPictures(); startSync(); syncErr = ''; scheduleSync(500); syncUI(); });
+  addEventListener('online', () => { if (S.offline && picFill.done < picFill.total) fillPictures(); startSync(); syncErr = ''; scheduleSync(500); syncUI(); });
   addEventListener('offline', () => { syncSettled(); });
   addEventListener('storage', otherWindow);
   const leaving = () => { if (dirty) persistNow(true); if (syncOn() && syncPending()) reconcile(); };
