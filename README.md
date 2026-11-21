@@ -12,9 +12,18 @@ The planner opens on **Select**. Tap any square of an item to select it, and dra
 
 In **Decorate**, tapping a suggestion folds the window into a small bar under the map and centres the house, so you can see where the item goes. Once you've placed it, the window opens again where you left it. The bar's buttons bring it back early or close it.
 
-## Levels
+## Levels and layers
 
 Items can sit on top of other things, as in the game. Pick a lamp, a plant or any other item and tap a wall, fence, block, table, counter, shelf or chest: it goes on top, drawn a little smaller with a shadow and a **+1** badge. Anything fits on a wall or block; furniture tops take items one tile big. The outline shows where it will land before you tap.
+
+Blocks stack. Tap a block, wall, fence or hedge onto another one and it goes on top, one level up, so tapping the same square three times builds a wall three high. Dragging puts one block on each square you pass over. Anything sitting on the block, such as a lamp, is lifted onto the new one. Raised blocks are drawn full size with a shadow, and the first block of each run carries its level badge.
+
+**Layers** works like the layers in a drawing app. Every level, from 0 (standing on the ground) up to 9, is a layer, with the rugs and the ground below them. Open it from its tab, from the layers button by the zoom controls, or with L.
+
+- Tap the eye to hide or show a layer. Hidden layers aren't drawn and can't be tapped, selected or erased, but they still count for houses, habitats and comfort. The layers button gets a dot while anything is hidden. Each device remembers what you hid in each plan.
+- Tap a level to work on it. Place and Fill then put everything on that level, even in mid-air; Erase only takes items from it; Select picks its items first. Tap it again, or tap **On top**, to go back to stacking. The **Level** menu in the Place and Fill bar is the same choice.
+- On a chosen level, **Keep** leaves what's already on that level and skips those squares, and **Replace** takes it away. Squares that will be replaced show red in the outline. Whenever something is in the way, the message offers **Replace** for the squares it skipped.
+- Copy, Clear and Up/Down on a selected area leave hidden layers alone, and a saved picture leaves them out.
 
 Select an item and use **Up** and **Down** to change its level, for a loft or something hung up high. Select an area to move everything in it up or down together. Tap a selected item again to select what's under it. Moving a table or a wall carries what's on it. Erase takes the top item first. Taking away what's underneath leaves the item where it was, floating, as the game does.
 
