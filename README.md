@@ -8,9 +8,23 @@ The screen keeps to a few words. Most buttons are icons: hover over one, or long
 
 Notices appear at the bottom of the screen and stack: a new one slides in underneath and pushes the others up, so none hides another. Up to four show at once. Notices with a button, such as **Undo** or **Open it** for a new version, stay longest and are the last to make room, and pointing at one with the mouse keeps it open.
 
+## Settings
+
+The ⚙ button at the top right opens Settings; Plans has a Settings button too. Changes apply at once and are saved on this device only, so a phone and a PC can each be set up their own way. On a phone, Back closes Settings.
+
+- **Appearance**: light, dark or system theme; an accent colour (purple, blue, teal, pink or orange); animations on, off or as the device sets them.
+- **Map**: grid lines (all, every 8 tiles, none), height shading, pictures or simple shapes, portraits on homes, labels on zones and houses, every home's active area, and the info chips at the bottom.
+- **Controls**: the default tool (Pan or Select), whether the mouse wheel zooms or scrolls (Ctrl + wheel zooms when it scrolls), tooltips on hover and long-press, vibration on Android, and a list of keyboard shortcuts.
+- **Notices**: how long they stay (short, normal or long), and whether new habitats sparkle.
+- **Layout**: the panel on the left or right and narrow, normal or wide on big screens; how far it opens on a phone when you tap a tab; and whether the app opens on the last tab you used or on Build.
+- **Updates and offline**: ask before opening a new version, or open it straight away unless you're in the middle of something; check for updates; and whether pictures are saved for offline use, with a button to remove them and free up space.
+- **Data**: how much space the app uses, a way to ask the browser to keep your plans safe when space runs low, a shortcut to Plans for backups and sync, and **Reset settings**.
+
 ## Moving things
 
-The planner opens on **Select**. Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. An item that rests on a block keeps resting on whatever is highest where you drop it; one floating in mid-air keeps its level. Dragging from an empty square still selects an area.
+The planner opens on **Pan**: drag to move around the map, pinch or use the mouse wheel to zoom, and tap anything to see its details. Tap it again to reach what's under it, and double-click a house to decorate inside. To open on Select instead, change **Default tool** in Settings.
+
+To move things, pick **Select** (V). Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool except Pan, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. An item that rests on a block keeps resting on whatever is highest where you drop it; one floating in mid-air keeps its level. Dragging from an empty square still selects an area.
 
 In **Decorate**, tapping a suggestion folds the window into a small bar under the map and centres the house, so you can see where the item goes. Once you've placed it, the window opens again where you left it. The bar's buttons bring it back early or close it.
 
