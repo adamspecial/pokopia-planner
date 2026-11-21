@@ -2595,12 +2595,14 @@ function drawLook(c, it, x, y, s, wc = 1, hc = 1) {
   const k = s / sp.sb; c.drawImage(sp.cv, x - sp.pad * k, y - sp.pad * k, sp.cv.width / dpr * k, sp.cv.height / dpr * k);
   return true;
 }
+function lookPlate(c, lk, x, y, W, H, s) { const al = c.globalAlpha; c.globalAlpha = al * 0.24; c.fillStyle = lum(lk.a) > 0.7 ? shade(lk.a, -0.35) : lk.a; roundRect(c, x + 1, y + 1, W - 2, H - 2, Math.min(8, s * 0.2)); c.fill(); c.globalAlpha = al; }
 function drawLookRaw(c, it, x, y, s, wc = 1, hc = 1) {
   const lk = it.look;
-  if (!LOOKS[lk.k]) { if (lk.k === it.sh) { drawItem(c, it, x, y, s, wc, hc, false); return true; } if (structural(it)) { drawStructure(c, it, x, y, s, wc, hc, null); return true; } if (FURN_KINDS.some(f => f[0] === lk.k)) { drawFurniture(c, it, lk.k, x, y, s, wc, hc); return true; } }
+  if (!LOOKS[lk.k]) { if (lk.k === it.sh) { if (wc * hc > 1) lookPlate(c, lk, x, y, wc * s, hc * s, s); drawItem(c, it, x, y, s, wc, hc, false); return true; } if (structural(it)) { drawStructure(c, it, x, y, s, wc, hc, null); return true; } if (FURN_KINDS.some(f => f[0] === lk.k)) { drawFurniture(c, it, lk.k, x, y, s, wc, hc); return true; } }
   const W = wc * s, H = hc * s, m = Math.min(W, H), d = lookDef(lk.k), pal = lookPal(lk), px = m * dpr;
   if (d.g && px < 9) { c.fillStyle = lk.a; c.fillRect(x, y, W + 0.6, H + 0.6); return true; }
   if (px < 11 && !d.g) { const q = d.big >= 0 ? d.p[d.big][2] : 0, g = m * 0.12; c.fillStyle = pal.f[q] || lk.a; roundRect(c, x + g, y + g, W - 2 * g, H - 2 * g, m * 0.2); c.fill(); return true; }
+  if (!d.f && Math.abs(W - H) > 0.5 && it.c !== 'Kits') lookPlate(c, lk, x, y, W, H, s);
   const fine = px >= 26, edge = px >= 16, rot = d.r && H > W;
   let bx = x, by = y, bw = W, bh = H; if (!d.f) { bx = x + (W - m) / 2; by = y + (H - m) / 2; bw = bh = m; }
   const su = (rot ? bh : bw) / 100, sv = (rot ? bw : bh) / 100, k = Math.min(su, sv), lw = Math.max(0.8, m * 0.035), turn = rot ? Math.PI / 2 : 0;
@@ -5083,7 +5085,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T23:00';
+const APP_BUILD = '2026-11-21T23:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
