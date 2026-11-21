@@ -68,6 +68,6 @@ Plans → **Sync between devices** → **Sign in with Google**, once on each dev
 
 The plans are stored in Firestore, in the free Firebase project GM Companion already uses (`my-gm-companion`), under `users/<you>/pokopiaPlans` and `users/<you>/pokopiaMeta`, apart from GM Companion's data; its existing rules let only you read and write them. One-time step: Firebase console → Authentication → Settings → Authorized domains → add `adamspecial.github.io`.
 
-If the same plan is changed on two devices before they sync, the newer version keeps the plan and the other is kept as a copy, so nothing is lost.
+If the same plan is changed on two devices before they sync, the newer version keeps the plan and the other is kept as a copy named "from another device" or "from this device", so nothing is lost. No copy is made when both versions are the same, or when the other version is one this device sent itself. Windows of the planner open on the same device keep each other up to date. When there are copies, **Plans** shows how many, and **Remove copies** deletes the ones older than their plan, on every synced device. Copies newer than their plan, or with no plan left under that name, stay.
 
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item pictures from Serebii.net.

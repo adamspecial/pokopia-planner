@@ -3312,6 +3312,7 @@ function renderPlans() {
   root.append(h('p', { class: 'note', id: 'picLine', style: 'margin:4px 0' })); picUI();
   root.append(h('p', { class: 'note', style: 'margin:4px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, 'Version ' + appVersion(), h('button', { class: 'btn sm', onclick: updateNow }, 'Check for updates')));
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
+  { const cp = syncCopies(); if (cp.length) root.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, cp.length + ' sync ' + (cp.length === 1 ? 'copy' : 'copies')), tipBtn('When a plan changed in two places before they synced, the older version was set aside as a copy named “from another device” or “from this device”. The plan under its own name has the newest version.'), h('button', { class: 'btn sm', style: 'margin-left:auto', onclick: tidyCopiesDialog }, icon('trash'), 'Remove copies')))); }
   for (const p of [...plansIndex].sort((a, b) => b.updated - a.updated)) {
     const cur = p.id === plan.id;
     root.append(h('div', { class: 'card', style: cur ? 'border-color:var(--accent)' : '' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.name), cur ? h('span', { class: 'chip', style: 'margin-left:auto' }, 'Open') : ''), h('div', { class: 'note' }, p.area + ' · ' + p.w + '×' + p.h + ' · ' + new Date(p.updated).toLocaleString()), cur ? '' : h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: () => openPlan(p.id) }, 'Open'), ibtn('trash', 'Delete plan', () => deletePlanDialog(p.id), 'sm danger'))));
@@ -3532,6 +3533,8 @@ function syncOffDialog() {
 function scheduleSync(ms) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(reconcile, ms == null ? 2500 : ms); }
 const localPlanRaw = (id) => { try { return JSON.parse(LS.get(LSK + 'plan:' + id) || 'null'); } catch (e) { return null; } };
 function storeRaw(s) { LS.set(LSK + 'plan:' + s.id, JSON.stringify(s)); plansIndex = plansIndex.filter(p => p.id !== s.id); plansIndex.push({ id: s.id, name: s.name, area: s.area, w: s.w, h: s.h, updated: s.updated }); }
+const planCore = (s) => { if (!s) return ''; const o = Object.assign({}, s); delete o.updated; delete o.id; return JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]])); };
+const sameData = (a, b) => !!a && !!b && planCore(a) === planCore(b);
 const isPristineExample = (id, upd) => { const [eid, eu] = (LS.get(LSK + 'example') || '').split(':'); return id === eid && String(upd) === eu; };
 const sizesStamp = () => +LS.get(LSK + 'sizesUpdated') || 0;
 function syncPending() {
@@ -3570,6 +3573,7 @@ function reconcile() {
   });
   const put = (s, expect) => {
     const json = JSON.stringify(s); if (json.length > 900000) { syncErr = '“' + s.name + '” is too big to sync.'; return; }
+    const sent = sync.sent || (sync.sent = {}); sent[s.id] = [s.updated, ...(sent[s.id] || []).filter(t => t !== s.updated)].slice(0, 6); saveSync();
     send(s.id, () => guarded(ref(s.id), expect, s.updated, tx => tx.set(ref(s.id), { name: s.name, updated: s.updated, data: json })), () => { sync.base[s.id] = s.updated; });
   };
   const push = (id, R) => { const s = localPlanRaw(id); if (s) { s.id = id; put(s, R ? R.updated : null); } };
@@ -3577,7 +3581,7 @@ function reconcile() {
   const keepCopy = (s, label) => { if (!s) return; const c = JSON.parse(JSON.stringify(s)); c.id = uid(); c.name = s.name + ' (' + label + ')'; storeRaw(c); put(c, null); };
   for (const id of new Set([...plansIndex.map(p => p.id), ...remote.keys(), ...gone])) {
     if (remotePending.has(id) || inflight.has(id)) continue;
-    const L = plansIndex.find(p => p.id === id), R = remote.get(id), B = sync.base[id];
+    const L = plansIndex.find(p => p.id === id), R = remote.get(id), B = R && sync.sent && (sync.sent[id] || []).includes(R.updated) ? R.updated : sync.base[id];
     if (gone.has(id)) {
       if (R && B != null && R.updated !== B) { pull(id, R); sync.gone = sync.gone.filter(x => x !== id); }
       else if (R) send(id, () => guarded(ref(id), R.updated, null, (tx, cur) => { if (cur !== null) tx.delete(ref(id)); }), () => { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); });
@@ -3589,7 +3593,9 @@ function reconcile() {
       if (L.updated === R.updated) { sync.base[id] = R.updated; continue; }
       const lCh = L.updated !== B, rCh = R.updated !== B;
       if (lCh && rCh) {
-        if (L.updated > R.updated) { try { keepCopy(JSON.parse(R.data), 'from another device'); } catch (e) { } push(id, R); } else { keepCopy(localPlanRaw(id), 'from this device'); pull(id, R); }
+        let rs = null; try { rs = JSON.parse(R.data); } catch (e) { }
+        if (rs && sameData(localPlanRaw(id), rs)) pull(id, R);
+        else if (L.updated > R.updated) { keepCopy(rs, 'from another device'); sync.base[id] = R.updated; push(id, R); } else { keepCopy(localPlanRaw(id), 'from this device'); pull(id, R); }
       } else if (lCh) push(id, R); else pull(id, R);
     } else if (L) {
       if (isPristineExample(id, L.updated)) { if (remote.size) removed.push(id); continue; }
@@ -3641,6 +3647,30 @@ function syncCard() {
   return card;
 }
 function syncUI() { const old = document.getElementById('syncCard'); if (old) old.replaceWith(syncCard()); }
+function otherWindow(e) {
+  if (!e.key || !e.key.startsWith(LSK)) return;
+  if (e.key === LSK + 'index') { loadLocalPlans(); if (activeTab === 'plans') renderPlans(); return; }
+  if (e.key === LSK + 'sync') { try { const s = JSON.parse(e.newValue || 'null'); if (s && sync && s.uid === sync.uid) sync = Object.assign(s, { on: sync.on }); } catch (er) { } return; }
+  if (plan && e.key === LSK + 'plan:' + plan.id && !dirty && e.newValue) { try { const s = JSON.parse(e.newValue); if ((s.updated || 0) > (plan.updated || 0)) { const v = { ...view }; installPlan(deserialize(s)); Object.assign(view, v); requestDraw(); } } catch (er) { } }
+}
+const COPY_TAG = / \((from another device|from this device)\)$/;
+const copyBase = (n) => { while (COPY_TAG.test(n)) n = n.replace(COPY_TAG, ''); return n; };
+function syncCopies() { const orig = new Map(); for (const p of plansIndex) if (!COPY_TAG.test(p.name) && (!orig.has(p.name) || orig.get(p.name).updated < p.updated)) orig.set(p.name, p); return plansIndex.filter(p => { if (!COPY_TAG.test(p.name)) return false; const o = orig.get(copyBase(p.name)); return !!o && p.updated <= o.updated; }); }
+function tidyCopiesDialog() {
+  const list = syncCopies(); if (!list.length) return; const n = list.length, word = n === 1 ? 'copy' : 'copies';
+  modal('Remove ' + n + ' sync ' + word + '?', (box) => {
+    box.append(h('p', { class: 'sub' }, 'Older versions the sync set aside. The plans under their own names stay as they are' + (syncOn() ? ', and the copies go from your other devices too' : '') + '. This can\'t be undone.'));
+    const by = new Map(); for (const p of list) { const b = copyBase(p.name); by.set(b, (by.get(b) || 0) + 1); }
+    box.append(h('p', { class: 'note' }, [...by].map(([b, c]) => c + ' × ' + b).join(' · ')));
+  }, 'Remove', async () => {
+    const ids = new Set(list.map(p => p.id));
+    plansIndex = plansIndex.filter(p => !ids.has(p.id)); for (const id of ids) LS.del(LSK + 'plan:' + id); saveIndex();
+    if (cloud) for (const id of ids) { try { await cloud.col.doc(id).delete(); } catch (e) { } }
+    if (sync) { sync.gone = [...new Set([...(sync.gone || []), ...ids])]; saveSync(); scheduleSync(300); }
+    if (ids.has(plan.id)) { const keep = plansIndex.find(p => p.name === copyBase(plan.name)) || plansIndex[0]; if (keep) openPlan(keep.id); else installPlan(makeExample()); persistNow(); }
+    renderPlans(); toast(ids.size + ' ' + word + ' removed');
+  }, true);
+}
 
 function makeExample() {
   const p = newPlan({ name: 'Example: Wasteland starter', area: 'Withered Wasteland', w: 56, h: 40, fill: 'Ordinary soil' });
@@ -3665,7 +3695,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; if (!fits(p, x, y, w, hh)) { if (it.sg && fits(p, x, y, hh, w)) [w, hh] = [hh, w]; else if (it.sg && fits(p, x, y, 1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T02:00';
+const APP_BUILD = '2026-11-21T02:54';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
@@ -3714,6 +3744,7 @@ async function boot() {
   if (syncOn()) idle(startSync, 1200);
   addEventListener('online', () => { if (picFill.done < picFill.total) fillPictures(); startSync(); syncErr = ''; scheduleSync(500); syncUI(); });
   addEventListener('offline', () => { syncSettled(); });
+  addEventListener('storage', otherWindow);
   const leaving = () => { if (dirty) persistNow(true); if (syncOn() && syncPending()) reconcile(); };
   addEventListener('pagehide', leaving);
   document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); else syncUI(); });
