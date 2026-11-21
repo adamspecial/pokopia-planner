@@ -210,6 +210,7 @@ table.mats input{width:62px;text-align:right;border:1px solid var(--line);border
 .leftn{color:var(--ink);font-weight:700}
 .reqs{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}
 .req{display:inline-flex;align-items:center;gap:4px;font-size:12px;border-radius:7px;padding:2px 7px;background:var(--paper);border:1px solid var(--line)}
+button.req.kind{font:inherit;font-size:12px;color:var(--ink);cursor:pointer;padding:2px 7px 2px 3px}button.req.kind:hover{border-color:var(--accent)}button.req.kind .swatch{width:20px;height:20px;border-radius:5px}
 .req b{font-variant-numeric:tabular-nums}
 .req.ok{border-color:color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--paper))}
 .req.miss{border-color:color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
@@ -559,6 +560,11 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
     <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
     <symbol id="i-rotate" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+    <symbol id="i-rotl" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 11a8 8 0 1 1 2.3 5.7M4 4v7h7"/></symbol>
+    <symbol id="i-fliph" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v18M9 6 3 18h6zM15 6l6 12h-6z"/></symbol>
+    <symbol id="i-flipv" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 12h18M6 9 18 3v6zM6 15l12 6v-6z"/></symbol>
+    <symbol id="i-dup" viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M19 9v10a2 2 0 0 1-2 2H9M15 18v-6M12 15h6"/></symbol>
+    <symbol id="i-multi" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity=".35"/><rect x="3" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M17 3.5v6M14 6.5h6"/></symbol>
     <symbol id="i-sofa" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M5 11V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM6 18v2M18 18v2"/></symbol>
     <symbol id="i-resize" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></symbol>
     <symbol id="i-useradd" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M3 20a6 6 0 0 1 12 0M18.5 8v6M15.5 11h6"/></symbol>
@@ -925,8 +931,9 @@ function reveal(key) { if (!hidden.has(key)) return; setHidden(key, false); toas
 function setLayerZ(z) { if (z != null) z = clamp(Math.round(+z) || 0, ZMIN, ZMAX); if (z === layerZ) return; layerZ = z; layersChanged(); }
 
 let tx = null; const undoStack = [], redoStack = [];
-function beginTx() { if (!tx) tx = { g: new Map(), add: [], del: [], z: null, in: null, r: null }; }
+function beginTx() { if (!tx) tx = { g: new Map(), add: [], del: [], z: null, in: null, r: null, f: null }; }
 function setRes(next) { beginTx(); if (!tx.r) tx.r = [plan.res || []]; plan.res = next; tx.r[1] = next; }
+function setRoofs(next) { beginTx(); if (!tx.f) tx.f = [plan.roofs || []]; plan.roofs = next; tx.f[1] = next; }
 function setTerr(k, z, v) { if (!v && !terrAt(plan, k, z)) return; const T = tLayer(plan, z); if (T[k] === v) return; beginTx(); const key = (z - ZMIN) * plan.w * plan.h + k; if (!tx.g.has(key)) tx.g.set(key, [T[k], v]); else tx.g.get(key)[1] = v; T[k] = v; }
 let userSizes = {}; try { userSizes = JSON.parse(LS.get('pokopia-planner:sizes') || '{}') || {}; } catch (e) { userSizes = {}; }
 const saveUserSizes = () => { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); LS.set(LSK + 'sizesUpdated', String(Date.now())); scheduleSync(); };
@@ -1031,15 +1038,6 @@ function shiftLevel(ob, dz) {
   for (const r of riders) delObj(r); delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z, htOf(ob)); if (n && ob.int) n.int = ob.int; carry(riders, 0, 0, dz);
   commitTx(dz > 0 ? 'Up a level' : 'Down a level'); if (n) { selection = { obj: n }; showObjInspector(n); reveal(z); }
 }
-function shiftRegion(r, dz) {
-  const list = [], seen = new Set();
-  for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; for (const ob of shownStack(y * plan.w + x)) if (!seen.has(ob.id)) { seen.add(ob.id); if (ob.x >= r.x && ob.y >= r.y && ob.x + ob.w <= r.x + r.w && ob.y + ob.h <= r.y + r.h && ITEMS[ob.i].c !== 'Kits') list.push(ob); } }
-  list.sort((a, b) => (zOf(b) - zOf(a)) * dz); let moved = 0; const to = new Set();
-  for (const ob of list) { const z = zOf(ob) + dz; if (!fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, z, htOf(ob))) continue; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z, htOf(ob)); if (n && ob.int) n.int = ob.int; moved++; to.add(z); }
-  if (!moved) { toast(list.length ? (dz > 0 ? 'No room above them' : 'No room below them') : 'No items here'); return; }
-  for (const z of to) if (hidden.has(z)) { hidden.delete(z); saveLayers(); layersChanged(); }
-  commitTx(dz > 0 ? 'Up a level' : 'Down a level'); toast(moved + ' item' + (moved === 1 ? '' : 's') + ' moved ' + (dz > 0 ? 'up' : 'down') + (moved < list.length ? ', ' + (list.length - moved) + ' had no room' : '')); showRegionInspector();
-}
 function moveCtx(ob) { const ign = ob.rug ? null : new Set([ob.id, ...ridersOf(ob).map(r => r.id)]); return { ign, rest: autoZ(ITEMS[ob.i], ob.x, ob.y, ob.w, ob.h, ign) === zOf(ob) }; }
 function moveLevel(ob, x, y, w, h, ctx = moveCtx(ob)) { return ctx.rest ? autoZ(ITEMS[ob.i], x, y, w, h, ctx.ign) : zOf(ob); }
 function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'No room here'; if (b === 'edge') return where + ': off the edge'; if (b === 'top' || b === 'bottom') return where + ': too ' + (b === 'top' ? 'high' : 'low'); const qi = ITEMS[b.i]; return where + ': ' + qi.n + ' is in the way' + (structural(qi) && !inWall(it) ? ' (only doors and windows go into walls)' : ''); }
@@ -1047,7 +1045,7 @@ function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.de
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
   if (!tx) return null; const t = tx; tx = null;
-  if (!t.g.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r) return null;
+  if (!t.g.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r && !t.f) return null;
   t.label = label; undoStack.push(t); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; changed(); return t;
 }
 function applyTx(t, dir) {
@@ -1059,6 +1057,7 @@ function applyTx(t, dir) {
   if (t.z) plan.zones = t.z[bi];
   if (t.in) t.in[0].int = t.in[bi + 1];
   if (t.r) plan.res = t.r[bi];
+  if (t.f) plan.roofs = t.f[bi];
 }
 function undo() { if (tx) commitTx(); const t = undoStack.pop(); if (!t) return; applyTx(t, -1); redoStack.push(t); selection = null; closeInspector(); changed(); }
 function redo() { const t = redoStack.pop(); if (!t) return; applyTx(t, 1); undoStack.push(t); changed(); }
@@ -2787,7 +2786,7 @@ function draw(t, c = ctx) {
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
   if (pkDrag && c === ctx) drawPkDrop(c, s);
   if (selection && ((selection.obj && plan.objs.has(selection.obj.id)) || (selection.rug && plan.rugs.has(selection.rug.id)))) { const ob = selection.obj || selection.rug; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
-  if (selection && selection.rect) { const r = selection.rect; c.strokeStyle = theme.accent; c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.08; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; }
+  if (selection && selection.group && !(drag && drag.kind === 'grpmove' && drag.moved)) drawGroupSel(c, s, selection.group);
   if (drag && drag.rect) { const r = normRect(drag.rect); c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); c.strokeRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.setLineDash([]); c.fillStyle = theme.accent; c.globalAlpha = 0.12; c.fillRect(view.px + r.x * s, view.py + r.y * s, r.w * s, r.h * s); c.globalAlpha = 1; c.fillStyle = theme.ink; c.font = '700 12px sans-serif'; c.fillText(r.w + ' × ' + r.h, view.px + (r.x + r.w) * s + 6, view.py + r.y * s + 8); }
   if (hover && !drag && plan) {
     const [hx, hy] = hover; const it = currentItem();
@@ -2799,13 +2798,15 @@ function draw(t, c = ctx) {
       if ((terr || rug) && s >= 18 && lz <= ZMAX && lz >= ZMIN) lvBadge(c, lz, view.px + hx * s, view.py + hy * s, s);
       if (chk && ((chk.gone && chk.gone.length) || (chk.goneT && chk.goneT.length))) { c.globalAlpha = 0.3; c.fillStyle = theme.bad; for (const q of chk.gone) for (let y = Math.max(q.y, hy); y < Math.min(q.y + q.h, hy + ph); y++) for (let x = Math.max(q.x, hx); x < Math.min(q.x + q.w, hx + pw); x++) c.fillRect(view.px + x * s, view.py + y * s, s, s); for (const [k] of chk.goneT) c.fillRect(view.px + (k % plan.w) * s, view.py + ((k / plan.w) | 0) * s, s, s); c.globalAlpha = 1; }
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
-    } else if (tool === 'move' && moving && inB(plan, hx, hy)) drawMovePreview(c, s, moving, fitMove(moving, hx, hy, 0, 0));
-    else if ((tool === 'stamp' || tool === 'paste') && inB(plan, hx, hy)) {
-      const fw = tool === 'paste' ? clip.w : 5, fh = tool === 'paste' ? clip.h : 5;
-      c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = tool === 'stamp' ? hx - 2 : hx, oy = tool === 'stamp' ? hy - 2 : hy; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
+    } else if (tool === 'move' && moving && inB(plan, hx, hy)) { if (moving.grp) { const [ox, oy] = grpMoveOrigin(moving, hx, hy); drawSnapPreview(c, s, moving.sn, snapPlanAt(moving.sn, ox, oy, true), moving.F); } else drawMovePreview(c, s, moving, fitMove(moving, hx, hy, 0, 0)); }
+    else if (tool === 'paste' && clip && inB(plan, hx, hy)) drawSnapPreview(c, s, clip, snapPlanAt(clip, hx, hy, false), null);
+    else if (tool === 'stamp' && inB(plan, hx, hy)) {
+      const fw = 5, fh = 5;
+      c.strokeStyle = theme.accent; c.lineWidth = 2; c.setLineDash([4, 3]); const ox = hx - 2, oy = hy - 2; c.strokeRect(view.px + ox * s, view.py + oy * s, fw * s, fh * s); c.setLineDash([]);
     } else if (inB(plan, hx, hy) && s >= 8) { const g = grabAt(hx, hy), [gx, gy, gw, gh] = g ? [g.x, g.y, g.w, g.h] : [hx, hy, brushFor(), brushFor()]; c.strokeStyle = theme.accent; c.lineWidth = 1.5; c.strokeRect(view.px + gx * s + 0.5, view.py + gy * s + 0.5, s * gw - 1, s * gh - 1); }
   }
   if (drag && drag.kind === 'objmove' && drag.moved && drag.fit) drawMovePreview(c, s, drag.ob, drag.fit);
+  if (drag && drag.kind === 'grpmove' && drag.moved && drag.P) drawSnapPreview(c, s, drag.sn, drag.P, drag.F);
   if (sparkles.length) {
     const now = performance.now();
     for (let i = sparkles.length - 1; i >= 0; i--) {
@@ -2892,7 +2893,7 @@ function normRect(r) { const x = Math.min(r.x0, r.x1), y = Math.min(r.y0, r.y1);
 function setTool(t) {
   if (tool === 'stamp' && t !== 'stamp') stampHab = null; if (t !== 'move') moving = null;
   tool = t; $$('.tbtn[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t ? 'true' : 'false'));
-  if (t !== 'select') { if (selection && selection.rect) selection = null; }
+  if (!['select', 'pan', 'move', 'paste'].includes(t) && selection && selection.group) closeInspector();
   renderOptbar(); requestDraw();
 }
 function selectItem(name, switchTool = true) {
@@ -2945,7 +2946,7 @@ function fillRect(r) {
 }
 
 function onDown(e) {
-  if (!plan) return; stopGlide(); cv.setPointerCapture(e.pointerId);
+  if (!plan) return; stopGlide(); cv.setPointerCapture(e.pointerId); downMod = e.shiftKey || e.ctrlKey || e.metaKey;
   pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
   if (pointers.size === 2) {
     if (drag) { if (drag.kind === 'stroke') commitTx(drag.label); drag = null; requestDraw(); }
@@ -2956,6 +2957,7 @@ function onDown(e) {
   if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, px: view.px, py: view.py, cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
   if (e.button === 2) return;
   const gob = grabAt(cx, cy);
+  if (gob && gob.grp) { drag = { kind: 'grpmove', G: selection.group, F: grpFrame(selection.group), sn: null, P: null, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false }; return; }
   if (gob) { drag = { kind: 'objmove', ob: gob, gx: cx - gob.x, gy: cy - gob.y, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false, fit: null }; return; }
   if (e.pointerType === 'touch' && !drag) { drag = { kind: 'pending', cx, cy, sx: e.offsetX, sy: e.offsetY }; return; }
   startAction(cx, cy, e.offsetX, e.offsetY);
@@ -2986,6 +2988,11 @@ function onMove(e) {
   const [cx, cy] = toCell(e.offsetX, e.offsetY);
   if (!hover || hover[0] !== cx || hover[1] !== cy) { hover = [cx, cy]; updateStatus(); requestDraw(); if (!drag) cv.style.cursor = grabAt(cx, cy) ? 'grab' : ''; }
   if (!drag) return;
+  if (drag.kind === 'grpmove') {
+    if (!drag.moved) { if (Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) < 6) return; drag.moved = true; cv.style.cursor = 'grabbing'; drag.sn = grpSnap(drag.G, drag.F); }
+    if (!drag.P || drag.fx !== cx || drag.fy !== cy) { drag.fx = cx; drag.fy = cy; drag.P = snapPlan(drag.sn, drag.F.x + cx - drag.cx, drag.F.y + cy - drag.cy, true); requestDraw(); }
+    return;
+  }
   if (drag.kind === 'objmove') {
     if (!drag.moved) { if (Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) < 6) return; drag.moved = true; cv.style.cursor = 'grabbing'; }
     if (!drag.fit || drag.fx !== cx || drag.fy !== cy) { drag.fx = cx; drag.fy = cy; drag.fit = fitMove(drag.ob, cx, cy, drag.gx, drag.gy); requestDraw(); }
@@ -3007,11 +3014,16 @@ function onUp(e) {
   if (!drag) return;
   if (drag.kind === 'pending') { const p = drag; drag = null; startAction(p.cx, p.cy, p.sx, p.sy); if (!drag) return; }
   const d = drag; drag = null; cv.style.cursor = '';
-  if (d.kind === 'pan') { if (d.tap && !d.moved && e.type !== 'pointercancel') { view.px = d.px; view.py = d.py; tapSelect(d.cx, d.cy); requestDraw(); } return; }
+  if (d.kind === 'pan') { if (d.tap && !d.moved && e.type !== 'pointercancel') { view.px = d.px; view.py = d.py; pickTap(d.cx, d.cy); requestDraw(); } return; }
+  if (d.kind === 'grpmove') {
+    if (e.type === 'pointercancel') { requestDraw(); return; }
+    if (d.moved) { if (d.P && (d.P.ox !== d.F.x || d.P.oy !== d.F.y)) { const g = grpPut(d.sn, d.P, true, 'Move'); if (g) grpSelect(g); } requestDraw(); return; }
+    pickTap(d.cx, d.cy); requestDraw(); return;
+  }
   if (d.kind === 'objmove') {
     if (e.type === 'pointercancel') { requestDraw(); return; }
     if (d.moved) { if (d.fit) doMove(d.ob, d.fit); requestDraw(); return; }
-    if (tool === 'select') { tapSelect(d.cx, d.cy); requestDraw(); return; }
+    if (tool === 'select' || downMod || multiPick) { pickTap(d.cx, d.cy); requestDraw(); return; }
     startAction(d.cx, d.cy, d.sx, d.sy); const d2 = drag; drag = null; if (d2) finishDrag(d2); return;
   }
   finishDrag(d);
@@ -3023,14 +3035,14 @@ function finishDrag(d) {
     const r = normRect(d.rect);
     if (tool === 'rect') { fillRect(r); placedFromDecor(commitTx('Fill ' + curItem)); placeReport(); }
     else if (tool === 'zone') { if (!d.moved && r.w === 1 && r.h === 1) { const z = zoneAt(r.x, r.y); if (z) { selectZone(z); } else toast('Drag to draw a zone'); } else createZone(r); }
-    else if (tool === 'select') { if (!d.moved) tapSelect(r.x, r.y); else { selection = { rect: r }; showRegionInspector(); } }
+    else if (tool === 'select') { if (!d.moved) pickTap(r.x, r.y); else grpSelect(boxGroup(r, downMod || multiPick ? grpOf() : null)); }
     requestDraw(); return;
   }
   if (d.kind === 'tap') {
     if (tool === 'pick') pickAt(d.x, d.y);
     else if (tool === 'stamp' && stampHab) { stampHabitat(stampHab, d.x, d.y); }
     else if (tool === 'paste' && clip) { pasteAt(d.x, d.y); }
-    else if (tool === 'move' && moving) { moveObjTo(moving, d.x, d.y); }
+    else if (tool === 'move' && moving) { if (moving.grp) grpMoveTo(d.x, d.y); else moveObjTo(moving, d.x, d.y); }
   }
 }
 let spaceDown = false;
@@ -3061,6 +3073,12 @@ addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (e.key === ' ') { spaceDown = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
+  const G0 = plan ? grpOf() : null, ctl = e.ctrlKey || e.metaKey, kl = e.key.toLowerCase(), noText = !String(getSelection ? getSelection() : '');
+  if (ctl && kl === 'a' && plan) { e.preventDefault(); grpSelect(boxGroup({ x: 0, y: 0, w: plan.w, h: plan.h })); return; }
+  if (ctl && kl === 'c' && G0 && noText) { e.preventDefault(); grpCopy(G0); return; }
+  if (ctl && kl === 'v' && clip) { e.preventDefault(); selection = null; closeInspector(); setTool('paste'); return; }
+  if (ctl && kl === 'd' && G0) { e.preventDefault(); grpDup(G0); return; }
+  if (e.key.startsWith('Arrow') && G0 && !ctl && !e.altKey) { e.preventDefault(); const st = e.shiftKey ? 5 : 1; grpRun(G0, { dx: e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy: e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0 }); return; }
   const map = { h: 'pan', b: 'place', r: 'rect', e: 'erase', v: 'select', z: 'zone', i: 'pick' };
   if (map[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) setTool(map[e.key.toLowerCase()]);
   if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) $('#zarea').click();
@@ -3068,9 +3086,10 @@ addEventListener('keydown', e => {
   if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); setLayerZ((layerZ == null ? 0 : layerZ) + (e.key === 'PageUp' ? 1 : -1)); toast('Working on level ' + lvNum(layerZ), 2400, null, 'level'); }
   if (e.key === '[') { brush = Math.max(1, brush - 1); renderOptbar(); }
   if (e.key === ']') { brush = Math.min(5, brush + 1); renderOptbar(); }
-  if (e.key === 'Escape') { if (drag && drag.kind === 'objmove') { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool(S.tool); requestDraw(); }
+  if (e.key === 'Escape') { if (drag && (drag.kind === 'objmove' || drag.kind === 'grpmove')) { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); if (multiPick) { multiPick = false; renderOptbar(); } if (['stamp', 'paste', 'move'].includes(tool)) setTool(S.tool); requestDraw(); }
   if ((e.key === 'Delete' || e.key === 'Backspace') && selection) { deleteSelection(); }
-  if (e.key.toLowerCase() === 'q' && tool === 'place') { rotated = !rotated; renderOptbar(); requestDraw(); }
+  if (kl === 'q' && !ctl) { if (tool === 'place') { rotated = !rotated; renderOptbar(); requestDraw(); } else if (tool === 'paste' && clip) clipTurn(e.shiftKey ? 'ccw' : 'cw'); else if (G0) grpRun(G0, e.shiftKey ? 'ccw' : 'cw'); }
+  if (kl === 'f' && !ctl) { if (tool === 'paste' && clip) clipTurn(e.shiftKey ? 'fy' : 'fx'); else if (G0 && selection.group) grpRun(G0, e.shiftKey ? 'fy' : 'fx'); }
 });
 addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; cv.style.cursor = ''; } });
 
@@ -3417,6 +3436,7 @@ function segmented(opts, value, onPick, label) {
   for (const [v, t] of opts) g.append(h('button', { 'aria-pressed': v === value ? 'true' : 'false', onclick: () => onPick(v) }, t));
   return g;
 }
+const pickBtn = () => h('button', { class: 'btn sm' + (multiPick ? ' primary' : ''), type: 'button', 'aria-pressed': multiPick ? 'true' : 'false', 'data-tip': multiPick ? 'Stop picking' : 'Pick several: tap items to add them to the selection or take them away', onclick: () => { multiPick = !multiPick; renderOptbar(); } }, icon('multi'), multiPick ? 'Done' : 'Several');
 function renderOptbar() {
   const ob = $('#optbar'); ob.textContent = '';
   const it = currentItem();
@@ -3439,13 +3459,13 @@ function renderOptbar() {
   } else if (tool === 'zone') {
     ob.append(h('span', { class: 'pill' }, segmented([['habitat', 'Habitat'], ['label', 'Label']], zoneKind, v => { zoneKind = v; renderOptbar(); }, 'Zone type'), tipBtn('Drag to draw a zone. Houses you build from walls are found automatically: no zone needed.')));
   } else if (tool === 'select') {
-    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to inspect · drag to move'), tipBtn('Drag an item to move it. Drag from an empty square to select an area. Tap a selected item or rug again to select what\'s under it.')));
+    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, multiPick ? 'Tap to add or take away · drag to add an area' : 'Tap to inspect · drag to move'), tipBtn('Drag an item to move it. Drag from an empty square to select an area, then drag any of it to move it all. Tap a selected item or rug again to select what\'s under it. Pick several, or Shift with the mouse, adds items and areas to the selection.'), pickBtn()));
     ob.append(layerChip());
   } else if (tool === 'pick') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap an item to reuse it')));
-  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Drag to pan · tap to inspect'), tipBtn('Drag to move around the map; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside.')));
+  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, multiPick ? 'Tap to add or take away' : 'Drag to pan · tap to inspect'), tipBtn('Drag to move around the map; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside. Pick several lets you tap more items into the selection.'), pickBtn()));
   else if (tool === 'stamp' && stampHab) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap the map to place'), h('b', null, stampHab.n), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
-  else if (tool === 'paste' && clip) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to paste ' + clip.w + '×' + clip.h), tipBtn('Where you tap is its top-left corner.'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Done')));
-  else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
+  else if (tool === 'paste' && clip) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to paste ' + clip.w + '×' + clip.h), tipBtn('Where you tap is its top-left corner. Red means something is in the way. Q turns it and F flips it.'), ibtn('rotate', 'Turn (Q)', () => clipTurn('cw'), 'sm'), ibtn('fliph', 'Flip (F)', () => clipTurn('fx'), 'sm'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Done')));
+  else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, moving.grp ? 'Tap where they should go' : 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
 }
 
 function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Working on'), h('b', null, 'Level ' + lvNum(layerZ)), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
@@ -3459,6 +3479,7 @@ function levelPill(it) {
   return p;
 }
 function zoneAt(x, y) { for (let i = plan.zones.length - 1; i >= 0; i--) { const z = plan.zones[i]; if (x >= z.x && y >= z.y && x < z.x + z.w && y < z.y + z.h) return z; } return null; }
+const pickTap = (x, y) => (downMod || multiPick) && plan ? grpToggleAt(x, y) : tapSelect(x, y);
 function tapSelect(x, y) {
   if (!inB(plan, x, y)) { closeInspector(); return; }
   const k = y * plan.w + x, z = zoneAt(x, y), hs = houseAt(x, y) || autoHouses.find(q => q.doors.has(k));
@@ -3476,7 +3497,7 @@ function showRugInspector(r) {
   box.append(recipeChips(it));
   const acts = box.acts;
   acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n, 2400, null, 'placing'); }));
-  acts.append(ibtn('move', 'Move', () => { moving = r; setTool('move'); }));
+  acts.append(ibtn('move', 'Move', () => { moving = r; setTool('move'); }), ibtn('multi', 'Pick several', pickMore));
   acts.append(ibtn('up', 'Up a level', () => shiftRug(r, 1), '', { disabled: zOf(r) >= ZMAX }), ibtn('down', 'Down a level', () => shiftRug(r, -1), '', { disabled: zOf(r) <= ZMIN }));
   if (r.w !== r.h) acts.append(ibtn('rotate', 'Rotate', () => { const b = rugBlocker(r, r.x, r.y, r.h, r.w); if (b) { toast(whyNot(b, r.h, r.w, it).replace('No room here', 'Can\'t turn it')); return; } delRug(r); const n = addRug(r.i, r.x, r.y, r.h, r.w, zOf(r)); commitTx('Rotate'); showRugInspector(n); }));
   acts.append(ibtn('info', 'About', () => showItemInfo(it)));
@@ -3489,7 +3510,7 @@ function shiftRug(r, dz) {
   if (b || solid) { toast(b === 'top' ? 'That\'s as high as it goes' : b === 'bottom' ? 'That\'s as low as it goes' : (solid || ITEMS[b.i]).n + ' is in the way ' + (dz > 0 ? 'above' : 'below')); return; }
   delRug(r); const n = addRug(r.i, r.x, r.y, r.w, r.h, z); commitTx(dz > 0 ? 'Up a level' : 'Down a level'); reveal(z); showRugInspector(n);
 }
-function closeInspector() { $('#inspector').classList.remove('open'); $('#inspector').textContent = ''; if (selection && !selection.rect) selection = null; requestDraw(); }
+function closeInspector() { $('#inspector').classList.remove('open'); $('#inspector').textContent = ''; selection = null; requestDraw(); }
 let inspMin = LS.get('pokopia-planner:inspmin') === '1';
 function setInspMin(on) { inspMin = on; LS.set('pokopia-planner:inspmin', on ? '1' : '0'); const box = $('#inspector'); box.classList.toggle('min', on); const b = box.querySelector('.insp-min'); if (b) { b.setAttribute('aria-expanded', on ? 'false' : 'true'); b.title = on ? 'Show details' : 'Hide details'; b.setAttribute('aria-label', b.title); } }
 function inspectorShell(title, sw, sub, tip) {
@@ -3534,7 +3555,7 @@ function showObjInspector(ob) {
   const acts = box.acts;
   if (it.cap) { acts.append(ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'primary')); const hm = kitHome(ob); if (residentsOf(hm).length < hm.cap) acts.append(ibtn('useradd', 'Add resident', () => residentPicker(hm))); }
   acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n, 2400, null, 'placing'); }));
-  acts.append(ibtn('move', 'Move', () => { moving = ob; setTool('move'); }));
+  acts.append(ibtn('move', 'Move', () => { moving = ob; setTool('move'); }), ibtn('multi', 'Pick several', pickMore));
   if (it.c !== 'Kits') acts.append(ibtn('up', 'Up a level', () => shiftLevel(ob, 1), '', { disabled: z >= ZMAX }), ibtn('down', 'Down a level', () => shiftLevel(ob, -1), '', { disabled: z <= ZMIN }));
   if (ob.w !== ob.h) acts.append(ibtn('rotate', 'Rotate', () => { const r = reshapeObj(ob, ob.x, ob.y, ob.h, ob.w); if (r.ob) { commitTx('Rotate'); selection = { obj: r.ob }; showObjInspector(r.ob); } else toast(whyNot(r.err, ob.h, ob.w, ITEMS[ob.i]).replace('No room here', 'Can\'t turn it')); }));
   acts.append(ibtn('resize', 'Resize', () => resizeObjDialog(ob)));
@@ -3643,6 +3664,7 @@ function itemSizeDialog(it) {
 }
 function grabAt(x, y) {
   if (!plan || !inB(plan, x, y) || tool === 'pan') return null;
+  if (tool === 'select' && selection && selection.group && grpAt(selection.group, x, y)) return Object.assign({ grp: true }, grpFrame(selection.group));
   const k = y * plan.w + x, pile = shownStack(k), mine = selection && selection.obj && pile.find(q => q.id === selection.obj.id);
   if (mine) return mine;
   if (selection && selection.rug && rugShown(selection.rug) && plan.rugs.has(selection.rug.id) && overlaps(selection.rug, x, y, 1, 1)) return selection.rug;
@@ -3702,14 +3724,7 @@ function pickAt(x, y) {
 }
 function shownTerr(k) { const out = []; if (hidden.has('g')) return out; for (let j = 0; j < plan.tz.length; j++) { const z = plan.tz[j]; if (hidden.has(z)) continue; const v = plan.tt[j][k]; if (v) out.push([z, v]); } return out; }
 
-function showRegionInspector() {
-  const r = selection.rect; let objs = 0, ground = 0; const seen = new Set();
-  for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; ground += shownTerr(k).length; for (const q of shownStack(k)) if (!seen.has(q.id)) { seen.add(q.id); objs++; } }
-  const box = inspectorShell('Area ' + r.w + ' × ' + r.h, null, objs + ' items · ' + ground + ' terrain blocks' + (hidden.size ? ' · hidden layers left alone' : ''));
-  const acts = box.acts;
-  acts.append(ibtn('copy', 'Copy', () => copyRegion(r)), ibtn('zone', 'Make a zone', () => createZone(r)), ibtn('up', 'Items up a level', () => shiftRegion(r, 1)), ibtn('down', 'Items down a level', () => shiftRegion(r, -1)), ibtn('trash', 'Clear items', () => clearRegion(r, true), 'danger'), ibtn('erase', 'Clear everything, terrain too', () => clearRegion(r, false), 'danger'));
-}
-function deleteSelection() { if (!selection) return; if (selection.obj) { deleteObjNow(selection.obj); return; } if (selection.rug) { delRug(selection.rug); commitTx('Delete ' + ITEMS[selection.rug.i].n); selection = null; closeInspector(); return; } if (selection.zone) { confirmDeleteZone(selection.zone); return; } if (selection.house) { const hs = houseById.get(selection.house); if (hs) confirmDeleteHouse(hs); return; } if (selection.rect) clearRegion(selection.rect, true); selection = null; closeInspector(); }
+function deleteSelection() { if (!selection) return; if (selection.obj) { deleteObjNow(selection.obj); return; } if (selection.rug) { delRug(selection.rug); commitTx('Delete ' + ITEMS[selection.rug.i].n); selection = null; closeInspector(); return; } if (selection.zone) { confirmDeleteZone(selection.zone); return; } if (selection.house) { const hs = houseById.get(selection.house); if (hs) confirmDeleteHouse(hs); return; } if (selection.group) { grpDelete(selection.group, false); return; } closeInspector(); }
 function choiceModal(title, intro, choices) {
   modal(title, (box) => {
     for (const p of [].concat(intro)) if (p) box.append(typeof p === 'string' ? h('p', { class: 'sub' }, p) : p);
@@ -3780,19 +3795,209 @@ function deleteZoneNow(z, withItems) {
   setZones(plan.zones.filter(q => q.id !== cur.id)); commitTx(cur.kind === 'habitat' ? 'Delete habitat' : 'Delete zone'); selection = null; closeInspector();
   undoToast((cur.name || 'Zone') + ' deleted' + (n ? ' with ' + n + ' item' + (n > 1 ? 's' : '') : ''));
 }
-function clearRegion(r, itemsOnly) { const seen = new Set(); for (const q of rugsOf(plan).filter(q => rugShown(q) && overlaps(q, r.x, r.y, r.w, r.h))) delRug(q); for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; for (const ob of shownStack(k)) if (!seen.has(ob.id)) { seen.add(ob.id); delObj(ob); } if (!itemsOnly) for (const [z] of shownTerr(k)) setTerr(k, z, 0); } commitTx('Clear area'); selection = null; closeInspector(); }
-function copyRegion(r) {
-  const c = { w: r.w, h: r.h, t: [], o: [], ht: lvShown('g') }; const seen = new Set();
-  for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) { const xx = r.x + x, yy = r.y + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; for (const [z, v] of shownTerr(k)) c.t.push([x, y, z, v]); for (const ob of shownStack(k)) if (!seen.has(ob.id)) { seen.add(ob.id); if (ob.x >= r.x && ob.y >= r.y && ob.x + ob.w <= r.x + r.w && ob.y + ob.h <= r.y + r.h) c.o.push([ob.i, ob.x - r.x, ob.y - r.y, ob.w, ob.h, ob.int ? cloneInt(ob.int) : null, zOf(ob), htOf(ob)]); } }
-  c.u = rugsOf(plan).filter(q => rugShown(q) && q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h).map(q => [q.i, q.x - r.x, q.y - r.y, q.w, q.h, zOf(q)]);
-  clip = c; selection = null; closeInspector(); setTool('paste'); toast('Copied. Tap the map to paste');
+let multiPick = false, grpGround = LS.get('pokopia-planner:grpground') !== '0', downMod = false, editSeq = 0;
+const newGrp = (G) => ({ ids: new Set(G ? G.ids : []), rugs: new Set(G ? G.rugs : []), boxes: G && G.boxes ? G.boxes.slice() : [] });
+function grpOf() { const s = selection; if (!s || !plan) return null; if (s.group) return s.group; if (s.obj && plan.objs.has(s.obj.id)) return { ids: new Set([s.obj.id]), rugs: new Set(), boxes: [] }; if (s.rug && plan.rugs.has(s.rug.id)) return { ids: new Set(), rugs: new Set([s.rug.id]), boxes: [] }; return null; }
+function grpCells(G) { const s = new Set(); for (const b of G.boxes) for (let y = Math.max(0, b.y); y < Math.min(plan.h, b.y + b.h); y++) for (let x = Math.max(0, b.x); x < Math.min(plan.w, b.x + b.w); x++) s.add(y * plan.w + x); return s; }
+function grpLive(G) { const objs = [], rugs = []; for (const id of G.ids) { const q = plan.objs.get(id); if (q) objs.push(q); } for (const id of G.rugs) { const q = plan.rugs.get(id); if (q) rugs.push(q); } return { objs, rugs }; }
+function grpFrame(G) {
+  const { objs, rugs } = grpLive(G); let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const q of [...objs, ...rugs, ...G.boxes]) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x + q.w); y1 = Math.max(y1, q.y + q.h); }
+  return x0 === Infinity ? null : { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
-function pasteAt(x0, y0) {
-  for (let y = 0; y < clip.h; y++) for (let x = 0; x < clip.w; x++) { const xx = x0 + x, yy = y0 + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; if (clip.ht) for (const [z] of shownTerr(k)) setTerr(k, z, 0); for (const ob of shownStack(k)) if (ob.w === 1 && ob.h === 1) delObj(ob); }
-  for (const [x, y, z, v] of clip.t || []) { const xx = x0 + x, yy = y0 + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; if (!occAt(plan, k, z)) setTerr(k, z, v); }
-  for (const [i, ox, oy, w, hh, z = 1] of clip.u || []) { const x = x0 + ox, y = y0 + oy; if (x + w > plan.w || y + hh > plan.h) continue; for (const q of rugsOf(plan).filter(q => zOf(q) === z && overlaps(q, x, y, w, hh))) delRug(q); addRug(i, x, y, w, hh, z); }
-  let skipped = 0; for (const [i, ox, oy, w, hh, ic, z, t] of clip.o) { const n = addObj(i, x0 + ox, y0 + oy, w, hh, z || 0, t || 1); if (!n) skipped++; else if (ic) n.int = cloneInt(ic); }
-  commitTx('Paste'); if (skipped) toast(skipped + ' item(s) did not fit');
+function grpAt(G, x, y) { const { objs, rugs } = grpLive(G); return [...objs, ...rugs, ...G.boxes].some(q => overlaps(q, x, y, 1, 1)); }
+function boxGroup(r, G) {
+  G = newGrp(G); const x0 = Math.max(0, r.x), y0 = Math.max(0, r.y), x1 = Math.min(plan.w, r.x + r.w), y1 = Math.min(plan.h, r.y + r.h); if (x1 <= x0 || y1 <= y0) return G;
+  const inR = (q) => q.x >= x0 && q.y >= y0 && q.x + q.w <= x1 && q.y + q.h <= y1;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) for (const ob of shownStack(y * plan.w + x)) if (inR(ob)) G.ids.add(ob.id);
+  for (const q of plan.rugs.values()) if (rugShown(q) && inR(q)) G.rugs.add(q.id);
+  G.boxes.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }); return G;
+}
+function houseGroup(hs) {
+  const p = houseParts(hs), G = newGrp(null), O = hs.area.outer;
+  for (const ob of [...p.walls, ...p.inside]) if (obShown(ob)) G.ids.add(ob.id);
+  for (const r of plan.rugs.values()) if (rugShown(r) && r.x >= O.x && r.y >= O.y && r.x + r.w <= O.x + O.w && r.y + r.h <= O.y + O.h) G.rugs.add(r.id);
+  G.boxes.push({ x: O.x, y: O.y, w: O.w, h: O.h }); return G;
+}
+function restZ(it, x, y, w, h, ign) {
+  if (inWall(it)) return autoZ(it, x, y, w, h, ign);
+  let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { if (!inB(plan, xx, yy)) continue; const b = thingTop(yy * plan.w + xx, ign, true); z = Math.max(z, b == null ? 1 : b + 1); }
+  return z === -Infinity ? 1 : z;
+}
+function grpSnap(G, F = grpFrame(G)) {
+  const { objs, rugs } = grpLive(G), all = new Map();
+  for (const ob of objs) { all.set(ob.id, ob); for (const r of ridersOf(ob)) all.set(r.id, r); }
+  const ign = new Set(all.keys()), sn = { pid: plan.id, w: F.w, h: F.h, objs: [], rugs: [], ground: [], zones: [], res: [], roofs: [], boxes: G.boxes.map(b => ({ x: b.x - F.x, y: b.y - F.y, w: b.w, h: b.h })), bg: null, ign, rign: new Set(rugs.map(r => r.id)), pc: null };
+  const side = (ob) => [[ob.x - 1, ob.y], [ob.x + ob.w, ob.y], [ob.x, ob.y - 1], [ob.x, ob.y + ob.h]].some(([x, y]) => { const q = lineAt(x, y, zOf(ob)); return q && !ign.has(q.id); });
+  for (const ob of all.values()) { const it = ITEMS[ob.i]; sn.objs.push({ src: ob, i: ob.i, x: ob.x - F.x, y: ob.y - F.y, w: ob.w, h: ob.h, z: zOf(ob), t: htOf(ob), int: ob.int || null, g: zOf(ob) === restZ(it, ob.x, ob.y, ob.w, ob.h, ign), close: inWall(it) && side(ob) }); }
+  for (const r of rugs) sn.rugs.push({ src: r, i: r.i, x: r.x - F.x, y: r.y - F.y, w: r.w, h: r.h, z: zOf(r), g: zOf(r) === rugLevel(plan, r.x, r.y, r.w, r.h) });
+  const cells = G.boxes.length ? grpCells(G) : null;
+  if (cells && cells.size) {
+    if (grpGround && lvShown('g')) {
+      const n = new Map();
+      for (const k of cells) { const x = k % plan.w, y = (k / plan.w) | 0; for (const [xx, yy] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) { if (!inB(plan, xx, yy)) continue; const j = yy * plan.w + xx; if (cells.has(j)) continue; const tz = topTerrShown(j); if (tz != null) { const v = terrAt(plan, j, tz); n.set(v, (n.get(v) || 0) + 1); } } }
+      let best = 0; for (const [v, c] of n) if (c > best) { best = c; sn.bg = v; }
+      for (const k of cells) { const tz = topTerrShown(k); if (tz == null) continue; const v = terrAt(plan, k, tz); if (v !== sn.bg) sn.ground.push({ k, x: k % plan.w - F.x, y: ((k / plan.w) | 0) - F.y, z: tz, v }); }
+    }
+    for (const z of plan.zones) { let inside = true; for (let y = z.y; y < z.y + z.h && inside; y++) for (let x = z.x; x < z.x + z.w; x++) if (!cells.has(y * plan.w + x)) { inside = false; break; } if (inside) sn.zones.push({ src: z, x: z.x - F.x, y: z.y - F.y, w: z.w, h: z.h }); }
+  }
+  const hm = new Map(), moves = (hs) => { if (!hs || hs.enclosure) return false; if (!hm.has(hs.id)) { const p = houseParts(hs); hm.set(hs.id, p.walls.length > 0 && p.walls.every(w => ign.has(w.id))); } return hm.get(hs.id); };
+  for (const r of plan.res || []) { const home = homeAt(r.x, r.y, r.k); if (home && (home.kind === 'kit' ? ign.has(home.ob.id) : moves(home.hs))) sn.res.push({ r, x: r.x - F.x, y: r.y - F.y }); }
+  for (const r of plan.roofs || []) if (moves(houseAt(r.x, r.y))) sn.roofs.push({ r, x: r.x - F.x, y: r.y - F.y });
+  return sn;
+}
+function snapTurn(sn, op) {
+  const W = sn.w, H = sn.h, rot = op === 'cw' || op === 'ccw';
+  const pt = op === 'cw' ? (u, v) => [H - 1 - v, u] : op === 'ccw' ? (u, v) => [v, W - 1 - u] : op === 'fx' ? (u, v) => [W - 1 - u, v] : (u, v) => [u, H - 1 - v];
+  const rc = (o) => { const a = pt(o.x, o.y), b = pt(o.x + o.w - 1, o.y + o.h - 1); return Object.assign({}, o, { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(a[0] - b[0]) + 1, h: Math.abs(a[1] - b[1]) + 1 }); };
+  const pp = (o) => { const a = pt(o.x, o.y); return Object.assign({}, o, { x: a[0], y: a[1] }); };
+  return Object.assign({}, sn, { w: rot ? H : W, h: rot ? W : H, objs: sn.objs.map(rc), rugs: sn.rugs.map(rc), zones: sn.zones.map(rc), boxes: sn.boxes.map(rc), ground: sn.ground.map(pp), res: sn.res.map(pp), roofs: sn.roofs.map(pp), pc: null });
+}
+function snapPlan(sn, ox, oy, moving) {
+  const ign = moving ? sn.ign : new Set();
+  if (ox < 0 || oy < 0 || ox + sn.w > plan.w || oy + sn.h > plan.h) return { ox, oy, objs: [], rugs: [], gone: new Set(), put: [], err: 'edge', bad: null, dz: 0 };
+  const wt = new Map(); let top = null;
+  const vote = (d, n) => { wt.set(d, (wt.get(d) || 0) + n); top = top == null ? d : Math.max(top, d); };
+  for (const o of sn.objs) if (o.g) vote(restZ(ITEMS[o.i], ox + o.x, oy + o.y, o.w, o.h, ign) - o.z, o.w * o.h);
+  if (!wt.size) for (const r of sn.rugs) if (r.g) vote(rugLevel(plan, ox + r.x, oy + r.y, r.w, r.h) - r.z, r.w * r.h);
+  let dz = 0, best = -1; for (const [d, n] of wt) if (n > best || (n === best && d > dz)) { best = n; dz = d; }
+  const P = snapPlanZ(sn, ox, oy, moving, dz);
+  if (P.err && P.err.terr && top != null && top !== dz) { const Q = snapPlanZ(sn, ox, oy, moving, top); if (!Q.err) return Q; }
+  return P;
+}
+function snapPlanZ(sn, ox, oy, moving, dz) {
+  const own = sn.pid === plan.id, ign = moving ? sn.ign : new Set(), rign = moving ? sn.rign : new Set();
+  const P = { ox, oy, objs: [], rugs: [], gone: new Set(), put: [], err: null, bad: null, dz };
+  const fail = (err, x, y, w, h) => { P.err = err; P.bad = x == null ? null : { x, y, w, h }; return P; };
+  for (const o of sn.objs) {
+    const it = ITEMS[o.i], x = ox + o.x, y = oy + o.y, z = o.z + dz, b = blocker(it, x, y, o.w, o.h, ign, z, o.t);
+    if (b) return fail(b, x, y, o.w, o.h);
+    for (let lz = z; lz < z + o.t; lz++) for (let yy = y; yy < y + o.h; yy++) for (let xx = x; xx < x + o.w; xx++) { const id = occAt(plan, yy * plan.w + xx, lz); if (!id || ign.has(id)) continue; if (own && sn.ign.has(id)) return fail(plan.objs.get(id), x, y, o.w, o.h); P.gone.add(plan.objs.get(id)); }
+    P.objs.push({ o, x, y, z });
+  }
+  for (const r of sn.rugs) {
+    const x = ox + r.x, y = oy + r.y, z = r.z + dz;
+    if (z < ZMIN || z > ZMAX) return fail(z < ZMIN ? 'bottom' : 'top', x, y, r.w, r.h);
+    for (const q of plan.rugs.values()) if (!rign.has(q.id) && zOf(q) === z && overlaps(q, x, y, r.w, r.h)) return fail(q, x, y, r.w, r.h);
+    for (let yy = y; yy < y + r.h; yy++) for (let xx = x; xx < x + r.w; xx++) { const v = terrAt(plan, yy * plan.w + xx, z); if (v) return fail({ i: v - 1, terr: 1 }, x, y, r.w, r.h); }
+    P.rugs.push({ r, x, y, z });
+  }
+  for (const g of sn.ground) {
+    const x = ox + g.x, y = oy + g.y, k = y * plan.w + x, tz = topTerrShown(k), L = tz == null ? g.z + dz : tz, id = occAt(plan, k, L);
+    if (L < ZMIN || L > ZMAX || (id && !ign.has(id))) continue;
+    P.put.push([k, L, g.v]);
+  }
+  return P;
+}
+function snapPlanAt(sn, ox, oy, moving) { const key = ox + ',' + oy + ',' + moving + ',' + editSeq; if (sn.pc && sn.pc.key === key) return sn.pc.P; const P = snapPlan(sn, ox, oy, moving); sn.pc = { key, P }; return P; }
+function snapApply(sn, P, moving) {
+  if (moving) { for (const o of sn.objs) delObj(o.src); for (const r of sn.rugs) delRug(r.src); }
+  for (const q of P.gone) if (q && plan.objs.has(q.id)) delObj(q);
+  if (moving && sn.bg != null) for (const g of sn.ground) setTerr(g.k, g.z, sn.bg);
+  const G = { ids: new Set(), rugs: new Set(), boxes: sn.boxes.map(b => ({ x: P.ox + b.x, y: P.oy + b.y, w: b.w, h: b.h })) }, lv = new Set(); let miss = 0;
+  for (const e of P.objs) { const n = addObj(e.o.i, e.x, e.y, e.o.w, e.o.h, e.z, e.o.t); if (!n) { miss++; continue; } G.ids.add(n.id); lv.add(e.z); if (e.o.int) n.int = moving ? e.o.int : cloneInt(e.o.int); }
+  for (const e of P.rugs) { G.rugs.add(addRug(e.r.i, e.x, e.y, e.r.w, e.r.h, e.z).id); lv.add(e.z); }
+  for (const [k, L, v] of P.put) if (!occAt(plan, k, L)) setTerr(k, L, v);
+  const at = (e) => ({ x: P.ox + e.x, y: P.oy + e.y });
+  if (moving) {
+    for (const o of sn.objs) if (o.close) closeWall(o.src);
+    if (sn.zones.length) { const m = new Map(sn.zones.map(q => [q.src.id, q])); setZones(plan.zones.map(z => { const q = m.get(z.id); return q ? Object.assign({}, z, at(q), { w: q.w, h: q.h }) : z; })); }
+    if (sn.res.length) { const m = new Map(sn.res.map(e => [e.r, e])); setRes((plan.res || []).map(r => m.has(r) ? Object.assign({}, r, at(m.get(r))) : r)); }
+    if (sn.roofs.length) { const m = new Map(sn.roofs.map(e => [e.r, e])); setRoofs((plan.roofs || []).map(r => m.has(r) ? Object.assign({}, r, at(m.get(r))) : r)); }
+  } else if (sn.zones.length) setZones([...plan.zones, ...sn.zones.map(q => Object.assign({}, q.src, at(q), { id: uid(), w: q.w, h: q.h }))]);
+  if (P.dz) for (const z of lv) if (hidden.has(z)) { hidden.delete(z); saveLayers(); layersChanged(); }
+  return { G, miss };
+}
+function grpWhy(P, label) { const b = P.err, where = label === 'Turn' ? 'Can\'t turn them here' : label === 'Flip' ? 'Can\'t flip them here' : 'No room there'; if (b === 'edge') return where + ': off the edge'; if (b === 'top' || b === 'bottom') return where + ': too ' + (b === 'top' ? 'high' : 'low'); return where + ': ' + ITEMS[b.i].n + ' is in the way'; }
+function grpPut(sn, P, moving, label) {
+  if (P.err) { toast(grpWhy(P, label)); return null; }
+  const r = snapApply(sn, P, moving); commitTx(label); if (r.miss) toast(r.miss + ' item' + (r.miss > 1 ? 's' : '') + ' didn\'t fit');
+  return r.G;
+}
+function grpRun(G, op) {
+  const F = grpFrame(G); if (!F) return false; let sn = grpSnap(G, F), ox = F.x, oy = F.y;
+  const turn = op === 'cw' || op === 'ccw', label = typeof op === 'string' ? (turn ? 'Turn' : 'Flip') : 'Move';
+  if (typeof op === 'string') { sn = snapTurn(sn, op); if (turn) { ox = clamp(F.x + Math.trunc((F.w - F.h) / 2), 0, Math.max(0, plan.w - sn.w)); oy = clamp(F.y + Math.trunc((F.h - F.w) / 2), 0, Math.max(0, plan.h - sn.h)); } }
+  else { ox += op.dx; oy += op.dy; }
+  const g = grpPut(sn, snapPlan(sn, ox, oy, true), true, label); if (g) grpSelect(g); return !!g;
+}
+function grpDup(G) {
+  const F = grpFrame(G); if (!F) return; const sn = grpSnap(G, F);
+  for (const [dx, dy] of [[F.w + 1, 0], [0, F.h + 1], [-F.w - 1, 0], [0, -F.h - 1]]) { const P = snapPlan(sn, F.x + dx, F.y + dy, false); if (P.err) continue; const g = grpPut(sn, P, false, 'Duplicate'); if (g) { grpSelect(g); toast('Copy placed next to the original'); } return; }
+  clip = sn; selection = null; closeInspector(); setTool('paste'); toast('No room next to it. Tap where the copy should go');
+}
+function grpCopy(G) { const F = grpFrame(G); if (!F) return; clip = grpSnap(G, F); selection = null; closeInspector(); setTool('paste'); toast('Copied. Tap the map to paste'); }
+function clipTurn(op) { if (!clip) return; clip = snapTurn(clip, op); renderOptbar(); requestDraw(); }
+function pasteAt(x0, y0) { const P = snapPlan(clip, x0, y0, false); if (P.err) { toast(grpWhy(P, 'Paste')); return; } const r = snapApply(clip, P, false); commitTx('Paste'); if (r.miss) toast(r.miss + ' item' + (r.miss > 1 ? 's' : '') + ' didn\'t fit'); }
+function grpMoveTool(G) { const F = grpFrame(G); if (!F) return; moving = { grp: G, F, sn: grpSnap(G, F) }; setTool('move'); }
+const grpMoveOrigin = (m, x, y) => [x - Math.floor(m.sn.w / 2), y - Math.floor(m.sn.h / 2)];
+function grpMoveTo(x, y) { const m = moving, [ox, oy] = grpMoveOrigin(m, x, y), P = snapPlan(m.sn, ox, oy, true); if (P.err) { toast(grpWhy(P, 'Move')); return; } moving = null; setTool(S.tool); const g = grpPut(m.sn, P, true, 'Move'); if (g) grpSelect(g); }
+function grpShift(G, dz) {
+  const { objs, rugs } = grpLive(G), list = objs.filter(ob => ITEMS[ob.i].c !== 'Kits').sort((a, b) => (zOf(b) - zOf(a)) * dz), N = new Map(), to = new Set(); let moved = 0;
+  for (const ob of list) { const z = zOf(ob) + dz; if (!fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, z, htOf(ob))) continue; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z, htOf(ob)); if (n) { if (ob.int) n.int = ob.int; N.set(ob.id, n.id); moved++; to.add(z); } }
+  for (const r of [...rugs].sort((a, b) => (zOf(b) - zOf(a)) * dz)) { const z = zOf(r) + dz; let solid = false; for (let y = r.y; y < r.y + r.h && !solid; y++) for (let x = r.x; x < r.x + r.w; x++) if (terrAt(plan, y * plan.w + x, z)) { solid = true; break; } if (solid || rugBlocker(r, r.x, r.y, r.w, r.h, z)) continue; delRug(r); N.set(r.id, addRug(r.i, r.x, r.y, r.w, r.h, z).id); moved++; to.add(z); }
+  const all = list.length + rugs.length;
+  if (!moved) { toast(all ? (dz > 0 ? 'No room above them' : 'No room below them') : 'No items here'); return; }
+  for (const z of to) if (hidden.has(z)) { hidden.delete(z); saveLayers(); layersChanged(); }
+  commitTx(dz > 0 ? 'Up a level' : 'Down a level'); toast(moved + ' item' + (moved === 1 ? '' : 's') + ' moved ' + (dz > 0 ? 'up' : 'down') + (moved < all ? ', ' + (all - moved) + ' had no room' : ''));
+  const g = newGrp(G); g.ids = new Set([...G.ids].map(id => N.get(id) || id)); g.rugs = new Set([...G.rugs].map(id => N.get(id) || id)); grpSelect(g);
+}
+function grpDelete(G, terrToo) {
+  const { objs, rugs } = grpLive(G), F = grpFrame(G); if (!F) return; const who = [...new Set(grpSnap(G, F).res.map(e => e.r.p))], n = objs.length + rugs.length;
+  for (const ob of objs) if (!inWall(ITEMS[ob.i])) delObj(ob); for (const ob of objs) if (inWall(ITEMS[ob.i])) removeObj(ob); for (const r of rugs) delRug(r);
+  if (terrToo) for (const k of grpCells(G)) for (const [z] of shownTerr(k)) setTerr(k, z, 0);
+  moveOut(who); const t = commitTx(terrToo ? 'Clear area' : 'Delete'); selection = null; closeInspector();
+  if (t) undoToast((n ? n + ' item' + (n > 1 ? 's' : '') + ' deleted' : 'Area cleared') + (who.length ? '. ' + listNames(who) + ' moved out' : ''));
+}
+function grpToggleAt(x, y) {
+  if (!inB(plan, x, y)) return; const k = y * plan.w + x, G = newGrp(grpOf());
+  const pile = [...shownStack(k).map(q => ({ q, key: topOf(q), lv: zOf(q) })), ...rugsOf(plan).filter(r => rugShown(r) && overlaps(r, x, y, 1, 1)).map(q => ({ q, key: zOf(q) - 0.5, lv: zOf(q) }))].sort((a, b) => b.key - a.key);
+  const at = layerZ != null ? pile.findIndex(e => e.lv === layerZ) : -1; if (at > 0) pile.unshift(pile.splice(at, 1)[0]);
+  const set = (q) => q.rug ? G.rugs : G.ids, mem = pile.find(e => set(e.q).has(e.q.id));
+  if (mem) set(mem.q).delete(mem.q.id); else if (pile.length) set(pile[0].q).add(pile[0].q.id); else return;
+  grpSelect(G);
+}
+function grpSelect(G) {
+  const { objs, rugs } = grpLive(G); G.ids = new Set(objs.map(q => q.id)); G.rugs = new Set(rugs.map(q => q.id));
+  if (!G.boxes.length && objs.length + rugs.length <= 1) { if (objs.length) { selection = { obj: objs[0] }; showObjInspector(objs[0]); } else if (rugs.length) showRugInspector(rugs[0]); else closeInspector(); return; }
+  selection = { group: G }; showGroupInspector();
+}
+function pickMore() { multiPick = true; renderOptbar(); toast('Tap more items to add them, or a picked one to take it away', 3200, null, 'pick'); }
+function showGroupInspector() {
+  const G = selection && selection.group; if (!G) return; const { objs, rugs } = grpLive(G), F = grpFrame(G); if (!F) { closeInspector(); return; }
+  const n = objs.length + rugs.length, area = G.boxes.length > 0, ground = area && grpGround && lvShown('g') ? grpSnap(G, F).ground.length : 0, kinds = new Map();
+  for (const q of [...objs, ...rugs]) kinds.set(q.i, (kinds.get(q.i) || 0) + 1);
+  const fine = matchMedia('(pointer: fine)').matches;
+  const box = inspectorShell(n ? n + ' item' + (n > 1 ? 's' : '') : 'Area ' + F.w + ' × ' + F.h, null, F.w + ' × ' + F.h + (rugs.length ? ' · ' + rugs.length + ' rug' + (rugs.length > 1 ? 's' : '') : '') + (ground ? ' · ' + ground + ' ground tile' + (ground > 1 ? 's' : '') : '') + (hidden.size ? ' · hidden layers left alone' : ''), 'Drag them, or use Move, to move them together. Residents, roofs and zones inside go with them. ' + (fine ? 'Shift-click adds or takes away an item and Shift-drag adds an area. Arrow keys nudge, Q turns, F flips, Ctrl+D duplicates. ' : '') + 'Pick several lets you tap items in or out.');
+  const acts = box.acts, none = { disabled: !n };
+  acts.append(ibtn('move', 'Move', () => grpMoveTool(G), 'primary'), ibtn('rotl', 'Turn left', () => grpRun(G, 'ccw')), ibtn('rotate', 'Turn right', () => grpRun(G, 'cw')), ibtn('fliph', 'Flip left to right', () => grpRun(G, 'fx')), ibtn('flipv', 'Flip top to bottom', () => grpRun(G, 'fy')), ibtn('dup', 'Duplicate', () => grpDup(G)), ibtn('copy', 'Copy', () => grpCopy(G)), ibtn('multi', 'Pick several', pickMore), ibtn('up', 'Up a level', () => grpShift(G, 1), '', none), ibtn('down', 'Down a level', () => grpShift(G, -1), '', none), ibtn('zone', 'Make a zone', () => createZone(F)), ibtn('trash', n ? 'Delete' : 'Nothing to delete', () => grpDelete(G, false), 'danger', none));
+  if (area) acts.append(ibtn('erase', 'Clear everything, terrain too', () => grpDelete(G, true), 'danger'));
+  if (area) box.append(h('label', { class: 'toggle', style: 'margin:6px 0 2px' }, h('input', { type: 'checkbox', checked: grpGround, onchange: (e) => { grpGround = e.target.checked; LS.set('pokopia-planner:grpground', grpGround ? '1' : '0'); showGroupInspector(); } }), 'Ground too', tipBtn('Moving, turning, duplicating and copying take the floors, paths and water in the area along, and fill the gap with the ground around it. Ground that matches its surroundings stays where it is.')));
+  if (kinds.size) {
+    const list = [...kinds].sort((a, b) => b[1] - a[1] || ITEMS[a[0]].n.localeCompare(ITEMS[b[0]].n)), w = h('div', { class: 'reqs' });
+    for (const [i, c] of list.slice(0, 40)) w.append(h('button', { class: 'req kind', type: 'button', 'data-tip': 'Leave out ' + ITEMS[i].n, 'aria-label': 'Leave out ' + ITEMS[i].n, onclick: () => { const g = newGrp(G); for (const q of objs) if (q.i === i) g.ids.delete(q.id); for (const q of rugs) if (q.i === i) g.rugs.delete(q.id); grpSelect(g); } }, swatchEl(ITEMS[i]), h('b', null, c + '×'), ITEMS[i].n));
+    if (list.length > 40) w.append(h('span', { class: 'note' }, '+' + (list.length - 40) + ' more kinds'));
+    box.append(h('div', { class: 'note', style: 'margin-top:6px' }, 'Tap a kind to leave it out'), w);
+  }
+  requestDraw();
+}
+function drawGroupSel(c, s, G) {
+  const { objs, rugs } = grpLive(G), F = grpFrame(G); if (!F) return; const X = (x) => view.px + x * s, Y = (y) => view.py + y * s;
+  c.save(); c.fillStyle = theme.accent; c.globalAlpha = 0.08; for (const b of G.boxes) c.fillRect(X(b.x), Y(b.y), b.w * s, b.h * s);
+  c.globalAlpha = 1; c.strokeStyle = theme.accent; c.lineWidth = 2; for (const q of [...rugs, ...objs]) c.strokeRect(X(q.x) + 1, Y(q.y) + 1, q.w * s - 2, q.h * s - 2);
+  c.setLineDash([5, 4]); c.strokeRect(X(F.x) - 2, Y(F.y) - 2, F.w * s + 4, F.h * s + 4); c.restore();
+}
+function drawSnapPreview(c, s, sn, P, from) {
+  const X = (x) => view.px + x * s, Y = (y) => view.py + y * s; c.save();
+  if (from) { c.setLineDash([3, 3]); c.lineWidth = 1.5; c.strokeStyle = theme.muted; c.strokeRect(X(from.x) + 0.5, Y(from.y) + 0.5, from.w * s - 1, from.h * s - 1); c.setLineDash([]); }
+  if (!P.err) {
+    c.globalAlpha = 0.55;
+    if (P.put.length <= 4000) for (const [k, , v] of P.put) drawGroundCell(c, ITEMS[v - 1], X(k % plan.w), Y((k / plan.w) | 0), s);
+    for (const e of P.rugs) { const it = ITEMS[e.r.i]; if (!drawRug(c, it, X(e.x), Y(e.y), s, e.r.w, e.r.h) && !drawLook(c, it, X(e.x), Y(e.y), s, e.r.w, e.r.h)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(X(e.x), Y(e.y), e.r.w * s, e.r.h * s); } }
+    for (const e of [...P.objs].sort((a, b) => a.z - b.z)) drawGhost(c, ITEMS[e.o.i], e.x, e.y, e.o.w, e.o.h, e.z, s);
+    c.globalAlpha = 0.28; c.fillStyle = theme.bad; for (const q of P.gone) if (q) c.fillRect(X(q.x), Y(q.y), q.w * s, q.h * s);
+  } else if (P.bad) { c.globalAlpha = 0.3; c.fillStyle = theme.bad; c.fillRect(X(P.bad.x), Y(P.bad.y), P.bad.w * s, P.bad.h * s); }
+  c.globalAlpha = 1; c.setLineDash([6, 4]); c.lineWidth = 2; c.strokeStyle = P.err ? theme.bad : theme.accent; c.strokeRect(X(P.ox) + 1, Y(P.oy) + 1, sn.w * s - 2, sn.h * s - 2); c.restore();
 }
 
 function createZone(r) {
@@ -3809,12 +4014,12 @@ function selectHouse(hs) {
   selection = { house: hs.id };
   if (hs.enclosure) {
     const box = inspectorShell('Walled enclosure', null, hs.w + '×' + hs.h + ' · ' + hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : ''), 'Too big to be a house itself (a house is at most 9×10 inside), but kit homes can sit inside it. Each one stays a home of its own, with its own residents and interior.');
-    box.acts.append(ibtn('trash', 'Delete enclosure', () => confirmDeleteHouse(hs), 'danger'));
+    box.acts.append(ibtn('select', 'Select all of it', () => { const cur = houseById.get(hs.id); if (cur) grpSelect(houseGroup(cur)); }), ibtn('trash', 'Delete enclosure', () => confirmDeleteHouse(hs), 'danger'));
     box.append(kitHomesList(hs)); requestDraw(); return;
   }
   const box = inspectorShell('House you built', null, hs.w + '×' + hs.h + ' inside · ' + hs.interior + ' tiles', 'Found automatically: walls or fences all round, a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Walls can be 1 block high; make them 3 or more to walk inside.');
   { const hm = houseHome(hs), n = residentsOf(hm).length; if (n < hm.cap) box.acts.append(ibtn('useradd', 'Add resident', () => residentPicker(hm), 'primary')); if (n) box.acts.append(ibtn('sofa', 'Decorate for them', () => decorModal(hm))); }
-  box.acts.append(ibtn('trash', 'Delete house', () => confirmDeleteHouse(hs), 'danger'));
+  box.acts.append(ibtn('select', 'Select all of it', () => { const cur = houseById.get(hs.id); if (cur) grpSelect(houseGroup(cur)); }), ibtn('trash', 'Delete house', () => confirmDeleteHouse(hs), 'danger'));
   const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓' : '✗') + t);
   box.append(h('div', { class: 'reqs' }, hs.ok ? h('span', { class: 'chip good', 'data-tip': 'Up to 4 Pokémon can live here' }, h('span', { class: 'dot' }), 'Habitable') : h('span', { class: 'chip warn', 'data-tip': 'Not a home yet: ' + houseIssues(hs).join(', ') }, h('span', { class: 'dot' }), 'Not a home yet'),
     ck(true, 'Walls', 'Closed in by walls or fences'), ck(hs.clearDoors > 0, 'Door', !hs.doors.size ? 'Add a door or gate in the wall' : hs.clearDoors ? 'A door or gate, with the way in clear' : 'Clear the block just outside the door'), ck(hs.sizeOk, 'Size', 'Inside must be 2×2 to 9×10'), ck(hs.furn >= 3, 'required (' + hs.furn + '/3)', 'Kinds of furniture inside, standing at the door\'s level: a house needs 3. Things higher up, on the walls or just outside still count for comfort.')));
@@ -3854,7 +4059,7 @@ function selectZone(z) {
   }
   if (r.area) { const ct = areaContents(r.area); box.append(h('div', { class: 'note hrow', style: 'margin-top:6px' }, icon('area'), 'Area ' + r.area.rect.w + '×' + r.area.rect.h + ' · ' + ct.n + ' other item' + (ct.n === 1 ? '' : 's'), tipBtn(areaSummary(r.area) + ' Favourite things placed in it raise comfort; anything outside has no effect.' + (ct.n ? ' In it: ' + [...ct.out].map(([c, n]) => n + ' ' + c).join(', ') + '.' : '')))); }
   if (z.kind === 'habitat' && (z.target || (r.near && !r.ok))) box.acts.append(ibtn('stamp', 'Add the missing items', () => fillZoneMissing(z), 'primary'));
-  box.acts.append(ibtn('trash', z.kind === 'habitat' ? 'Delete habitat' : 'Delete zone', () => confirmDeleteZone(z), 'danger'));
+  box.acts.append(ibtn('select', 'Select what\'s in it', () => grpSelect(boxGroup(z))), ibtn('trash', z.kind === 'habitat' ? 'Delete habitat' : 'Delete zone', () => confirmDeleteZone(z), 'danger'));
   requestDraw();
 }
 
@@ -4641,7 +4846,7 @@ function deletePlanDialog(id) {
 
 const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['data', 'Data', 'list']];
 const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
-const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn the item you\'re placing'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['L', 'Layers'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['L', 'Layers'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
 let setsBack = null, setsAfter = null, setsWant = null;
 const setsOpen = () => !$('#sets').hidden;
 function applyLook() { pokopiaLook(S); readTheme(); }
@@ -4713,7 +4918,7 @@ function renderSettings() {
     row('Mouse wheel', 'Scrolls: the wheel moves the map, and Ctrl + wheel or a touchpad pinch zooms.', seg('wheel', [['zoom', 'Zooms'], ['pan', 'Scrolls']], 'Mouse wheel')),
     row('Tooltips', 'A tip when you point at a button with the mouse or long-press it. Off: only the ⓘ buttons show tips.', sw('tips', 'Tooltips')),
     row('Vibration', 'A short buzz on Android when you pick up a Pokémon to drag it.', sw('buzz', 'Vibration')),
-    h('details', null, h('summary', null, 'Keyboard shortcuts'), h('div', { class: 'keys' }, KEYS.flatMap(([k, t]) => [h('span', null, k.split('|').map(p => p === ' ' ? ' ' : ['+', '/', 'drag'].includes(p) ? ' ' + p + ' ' : h('kbd', null, p))), h('span', null, t)]))));
+    h('details', null, h('summary', null, 'Keyboard shortcuts'), h('div', { class: 'keys' }, KEYS.flatMap(([k, t]) => [h('span', null, k.split('|').map(p => p === ' ' ? ' ' : ['+', '/', 'drag', 'click'].includes(p) ? ' ' + p + ' ' : h('kbd', null, p))), h('span', null, t)]))));
   sec('notices',
     row('How long notices stay', 'Notices with a button, such as Undo, stay longer either way, and pointing at one keeps it open.', seg('toast', [['short', 'Short'], ['normal', 'Normal'], ['long', 'Long']], 'How long notices stay'), h('button', { class: 'btn sm', type: 'button', onclick: () => toast('This is how long a notice stays', 2400, null, 'try') }, 'Try it')),
     row('Celebrate new habitats', 'Sparkles on the map when a habitat forms or a house becomes habitable. The notice shows either way.', sw('party', 'Celebrate new habitats')));
@@ -4772,7 +4977,7 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeM
 addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 let exampleUntouched = false, dirty = false, saveTimer = null, saveState = 'local', cloud = null, downloads = null, cloudErr = '';
-function changed() { exampleUntouched = false; evaluateAll(); markDirty(); requestDraw(); if (activeTab !== 'build') renderPanel(); $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (selection && selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selection.zone = z; } if (selection && selection.house && $('#inspector').classList.contains('open')) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
+function changed() { editSeq++; exampleUntouched = false; evaluateAll(); markDirty(); requestDraw(); if (activeTab !== 'build') renderPanel(); $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (selection && selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selection.zone = z; } if (selection && selection.house && $('#inspector').classList.contains('open')) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
 function markDirty() { dirty = true; plan.updated = Date.now(); setSave('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(persistNow, 1200); }
 function saveIndex() { LS.set(LSK + 'index', JSON.stringify(plansIndex)); }
 function indexEntry(p) { return { id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, updated: p.updated }; }
@@ -5085,7 +5290,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T23:30';
+const APP_BUILD = '2026-11-22T00:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
