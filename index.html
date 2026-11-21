@@ -1496,6 +1496,29 @@ function resChip(home, r, onChange) {
   return h('span', { class: 'res' + (big ? ' bad' : ''), 'data-tip': big ? 'Too big to live in a den' : null }, pkFace(p || r.p, 24), flBtn, r.p, p && p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p ? sizeBadge(p, onChange) : '', big ? h('span', { class: 'szb big' }, 'Too big') : '', h('button', { 'aria-label': 'Move ' + r.p + ' out', 'data-tip': 'Move out', onclick: () => { removeResident(r.p); onChange(); } }, icon('close')));
 }
 function floorHasRoomFor(home, f, name) { if (!home.pf) return true; return residentsOf(home, f).filter(r => r.p !== name).length < home.pf; }
+function bigWay(hs) {
+  const Wd = plan.w, L = hs.level, cells = hs.cells;
+  const pass = (k) => { if (!cells.has(k) || terrAt(plan, k, L)) return false; const o = objAtLv(k, L); if (!o) return true; const it = ITEMS[o.i]; return isDoor(it) || it.tg === 'Road'; };
+  const sq = (k) => { const x = k % Wd; return x + 1 < Wd && pass(k) && pass(k + 1) && pass(k + Wd) && pass(k + Wd + 1); };
+  const seen = new Set(), q = [];
+  for (const k of cells) if (sq(k) && [k, k + 1, k + Wd, k + Wd + 1].filter(c => hs.doors.has(c)).length >= 2) { seen.add(k); q.push(k); }
+  const door = q.length > 0;
+  while (q.length) { const k = q.pop(), x = k % Wd; for (const n of [x > 0 ? k - 1 : -1, x + 1 < Wd ? k + 1 : -1, k - Wd, k + Wd]) if (n >= 0 && !seen.has(n) && sq(n)) { seen.add(n); q.push(n); } }
+  const near = new Set(); for (const k of seen) for (const c of [k, k + 1, k + Wd, k + Wd + 1]) { const x = c % Wd; near.add(c); if (x > 0) near.add(c - 1); if (x + 1 < Wd) near.add(c + 1); near.add(c - Wd); near.add(c + Wd); }
+  const objs = new Map(); for (const k of cells) { const o = objAtLv(k, L); if (o && zOf(o) === L) objs.set(o.id, o); }
+  const reach = (o) => { for (let y = o.y; y < o.y + o.h; y++) for (let x = o.x; x < o.x + o.w; x++) if (near.has(y * Wd + x)) return true; return false; };
+  return { door, objs: [...objs.values()], reach };
+}
+function bigWayNotes(hs, pks) {
+  const big = pks.filter(tooBig); if (!big.length || !hs) return [];
+  const W = bigWay(hs), names = listNames(big.map(p => p.n)), one = big.length === 1;
+  if (!W.door) return [names + (one ? ' needs' : ' need') + ' a door 2 wide'];
+  const out = [], beds = W.objs.filter(o => isRest(ITEMS[o.i]) && restClass(o.w, o.h) === 'large');
+  if (beds.length && !beds.some(W.reach)) out.push(names + ' can\'t get to ' + (beds.length > 1 ? 'a large rest item' : 'the ' + ITEMS[beds[0].i].n) + ': paths need to be 2 tiles wide');
+  const jobs = [['Gather', /community box/i], ['Burn', /smelting furnace/i]];
+  for (const [sp, re] of jobs) { const who = big.filter(p => p.s.includes(sp)); if (!who.length) continue; const cut = W.objs.filter(o => re.test(ITEMS[o.i].n) && !W.reach(o)); if (cut.length) out.push(listNames(who.map(p => p.n)) + ' can\'t get to ' + (cut.length > 1 ? cut.length + ' ' + ITEMS[cut[0].i].n.toLowerCase().replace(/(x|s|ch|sh)$/, '$1e') + 's' : 'the ' + ITEMS[cut[0].i].n) + ': paths need to be 2 tiles wide'); }
+  return out;
+}
 function residentsSection(home) {
   const wrap = h('div', { class: 'section', 'data-home': home.key }); const list = residentsOf(home); const pks = list.map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
   const refresh = () => afterResChange(home);
@@ -1504,6 +1527,7 @@ function residentsSection(home) {
   for (const r of list) chips.append(resChip(home, r, refresh));
   if (!list.length) chips.append(h('span', { class: 'note' }, 'Nobody yet'));
   wrap.append(chips);
+  if (home.kind === 'house') for (const t of bigWayNotes(home.hs, pks)) wrap.append(h('div', { class: 'note', style: 'color:var(--bad)', 'data-tip': 'Large Pokémon take 2×2 tiles: they need a door 2 wide and paths 2 tiles wide to reach what they use.' }, '⚠ ' + t));
   if (smallOnly(home)) { const big = pks.filter(tooBig); if (big.length) wrap.append(h('div', { class: 'note', style: 'color:var(--bad)', 'data-tip': 'Dens and the Poké Ball house take medium Pokémon or smaller: move ' + (big.length > 1 ? 'them' : 'it') + ' to a hut or bigger.' }, '⚠ Too big for a den: ' + listNames(big.map(p => p.n)))); }
   const reqs = trioChips(home), cv = favCoverage(home);
   if (home.kind === 'kit') { const n = kitFurniture(home.ob); reqs.prepend(h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, (n >= 3 ? '✓' : '✗') + 'required (' + n + '/3)')); }
@@ -5293,7 +5317,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T01:30';
+const APP_BUILD = '2026-11-22T02:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
