@@ -6,6 +6,8 @@ Open it at **https://adamspecial.github.io/pokopia-planner/** and, on a phone or
 
 The screen keeps to a few words. Most buttons are icons: hover over one, or long-press it on a phone, to see its name. Tap ⓘ, or a chip, to see the details behind it.
 
+Notices appear at the bottom of the screen and stack: a new one slides in underneath and pushes the others up, so none hides another. Up to four show at once. Notices with a button, such as **Undo** or **Open it** for a new version, stay longest and are the last to make room, and pointing at one with the mouse keeps it open.
+
 ## Moving things
 
 The planner opens on **Select**. Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. An item that rests on a block keeps resting on whatever is highest where you drop it; one floating in mid-air keeps its level. Dragging from an empty square still selects an area.

@@ -136,7 +136,6 @@ button{cursor:pointer}
 .choice{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .choice .btn{justify-content:flex-start;text-align:left;padding:8px 11px;flex-direction:column;align-items:flex-start;gap:2px}
 .choice .btn .note{font-weight:400}
-.toast.act{pointer-events:auto}
 .pic{display:block;width:64px;height:64px;border-radius:12px;object-fit:contain;background:#e9ebe6}
 .pic.big{width:112px;height:112px;margin:0 auto 8px;border-radius:14px}
 .szgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}
@@ -348,8 +347,11 @@ body.pkdragging .section[data-home]{outline:2px dashed var(--accent);outline-off
 .toggle{display:flex;align-items:center;gap:7px;font-size:13px}
 .empty{color:var(--muted);font-size:13px;padding:8px 4px}
 a{color:var(--accent)}
-.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,14px) scale(.96);background:var(--ink);color:var(--paper);padding:8px 15px;border-radius:999px;font-size:13.5px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transition:opacity .2s ease,transform .3s var(--ease),bottom .3s var(--ease-sheet);pointer-events:none;z-index:50;max-width:90vw;text-align:center}
-.toast.on{opacity:1;transform:translate(-50%,0)}
+.toasts{position:fixed;left:0;right:0;bottom:24px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;pointer-events:none;z-index:50;transition:bottom .3s var(--ease-sheet)}
+.toast{background:var(--ink);color:var(--paper);padding:8px 15px;border-radius:18px;font-size:13.5px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transform:translateY(14px) scale(.96);transition:opacity .2s ease,transform .3s var(--ease);pointer-events:none;max-width:min(560px,100%);text-align:center}
+.toast.on{opacity:1;transform:none}
+.toast.act.on{pointer-events:auto}
+.toast.out{opacity:0;transform:scale(.96);pointer-events:none}
 .modal{position:fixed;inset:0;background:rgba(10,15,12,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
 .modal.open{display:flex;animation:fade .18s ease-out}
 .modal.open .box{animation:pop .24s var(--ease)}
@@ -456,7 +458,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
   .hide-sm{display:none}
   .toolbar{padding:2px 6px}
 }
-@media (max-width: 899px){ .toast{bottom:calc(var(--sheet-h) + 60px)} html[data-sheet="full"] .toast{bottom:24px} }
+@media (max-width: 899px){ .toasts{bottom:calc(var(--sheet-h) + 60px)} html[data-sheet="full"] .toasts{bottom:24px} }
 @media (max-width: 599px){ .brand h1{display:none} .planname{max-width:46vw} .toolbar{gap:0;padding:2px 4px} .tbtn{flex:1 1 0;min-width:0;padding:3px 1px;font-size:10.5px} .tbtn.icononly{flex:0 0 34px;min-width:0} .sep{margin:0 2px} }
 @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation:none !important;transition:none !important} }
 </style>
@@ -575,7 +577,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
   </div>
 </div>
 <div class="ied" id="ied" hidden></div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <div class="modal" id="modal"><div class="box" id="modalBox" role="dialog" aria-modal="true"></div></div>
 
 <script>
@@ -654,8 +656,33 @@ const ibtn = (id, label, onclick, cls, attrs) => h('button', Object.assign({ cla
 const tipBtn = (text) => text ? h('button', { class: 'tipi', type: 'button', 'aria-label': text, 'data-tip': text }, icon('info')) : '';
 const fmt = (n) => Number.isInteger(n) ? n.toLocaleString() : n.toFixed(1);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-function toast(msg, ms = 2400, act) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('act', !!act); if (act) t.append(h('button', { onclick: () => { clearTimeout(toast._t); t.classList.remove('on', 'act'); act.fn(); } }, act.label)); t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on', 'act'), ms); }
-const undoToast = (msg) => toast(msg, 6000, { label: 'Undo', fn: () => undo() });
+const TOAST_MAX = 4;
+function toastFlip(fn) {
+  const box = $('#toasts'), was = new Map([...box.children].map(e => [e, e.getBoundingClientRect().top]));
+  fn();
+  if (calm()) return;
+  for (const e of box.children) {
+    const y = was.get(e); if (y == null) continue;
+    if (e._fl) { e._fl.cancel(); e._fl = null; }
+    const d = y - e.getBoundingClientRect().top;
+    if (Math.abs(d) > 0.5) e._fl = e.animate([{ translate: '0 ' + d + 'px' }, { translate: '0 0' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+}
+function toastTime(t, ms) { clearTimeout(t._t); t._end = Date.now() + ms; t._t = setTimeout(() => toastOff(t), ms); }
+function toastOff(t) { if (!t || t.classList.contains('out')) return; clearTimeout(t._t); t.classList.remove('on'); t.classList.add('out'); t.inert = true; setTimeout(() => toastFlip(() => t.remove()), calm() ? 0 : 220); }
+function toast(msg, ms = 2400, act, key = msg) {
+  const box = $('#toasts'), live = () => [...box.children].filter(e => !e.classList.contains('out')); let t;
+  toastFlip(() => {
+    t = live().find(e => e._key === key);
+    if (!t) { t = h('div', { class: 'toast' }); t._key = key; t.onpointerenter = () => clearTimeout(t._t); t.onpointerleave = () => { if (!t.classList.contains('out')) toastTime(t, Math.max(2000, t._end - Date.now())); }; }
+    if (t !== box.lastElementChild) box.append(t);
+    t.textContent = msg; t.classList.toggle('act', !!act);
+    if (act) t.append(h('button', { type: 'button', onclick: () => { toastOff(t); act.fn(); } }, act.label));
+    for (let n = live().length - TOAST_MAX; n > 0; n--) { const l = live().filter(e => e !== t); toastOff(l.find(e => !e.classList.contains('act')) || l[0]); }
+  });
+  void t.offsetWidth; t.classList.add('on'); toastTime(t, ms);
+}
+const undoToast = (msg, ms = 6000) => toast(msg, ms, { label: 'Undo', fn: () => undo() }, 'undo');
 const LS = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
@@ -2524,7 +2551,7 @@ addEventListener('keydown', e => {
   if (map[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) setTool(map[e.key.toLowerCase()]);
   if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) $('#zarea').click();
   if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey) openLayers();
-  if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); setLayerZ((layerZ == null ? 0 : layerZ) + (e.key === 'PageUp' ? 1 : -1)); toast('Working on level ' + lvNum(layerZ)); }
+  if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); setLayerZ((layerZ == null ? 0 : layerZ) + (e.key === 'PageUp' ? 1 : -1)); toast('Working on level ' + lvNum(layerZ), 2400, null, 'level'); }
   if (e.key === '[') { brush = Math.max(1, brush - 1); renderOptbar(); }
   if (e.key === ']') { brush = Math.min(5, brush + 1); renderOptbar(); }
   if (e.key === 'Escape') { if (drag && drag.kind === 'objmove') { drag = null; cv.style.cursor = ''; requestDraw(); return; } closeInspector(); selection = null; if (['stamp', 'paste', 'move'].includes(tool)) setTool('select'); requestDraw(); }
@@ -2935,7 +2962,7 @@ function showRugInspector(r) {
   const box = inspectorShell(it.n, swatchEl(it), 'Rug · ' + r.w + '×' + r.h + (zOf(r) !== rugLevel(plan, r.x, r.y, r.w, r.h) ? ' · level ' + lvNum(zOf(r)) : ''), 'Rugs lie flat: furniture stands on them. Drag it to move it. Tap again to select what\'s under it.');
   box.append(recipeChips(it));
   const acts = box.acts;
-  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n); }));
+  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n, 2400, null, 'placing'); }));
   acts.append(ibtn('move', 'Move', () => { moving = r; setTool('move'); }));
   acts.append(ibtn('up', 'Up a level', () => shiftRug(r, 1), '', { disabled: zOf(r) >= ZMAX }), ibtn('down', 'Down a level', () => shiftRug(r, -1), '', { disabled: zOf(r) <= ZMIN }));
   if (r.w !== r.h) acts.append(ibtn('rotate', 'Rotate', () => { const b = rugBlocker(r, r.x, r.y, r.h, r.w); if (b) { toast(whyNot(b, r.h, r.w, it).replace('No room here', 'Can\'t turn it')); return; } delRug(r); const n = addRug(r.i, r.x, r.y, r.h, r.w, zOf(r)); commitTx('Rotate'); showRugInspector(n); }));
@@ -2993,7 +3020,7 @@ function showObjInspector(ob) {
   }
   const acts = box.acts;
   if (it.cap) { acts.append(ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'primary')); const hm = kitHome(ob); if (residentsOf(hm).length < hm.cap) acts.append(ibtn('useradd', 'Add resident', () => residentPicker(hm))); }
-  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n); }));
+  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n, 2400, null, 'placing'); }));
   acts.append(ibtn('move', 'Move', () => { moving = ob; setTool('move'); }));
   if (it.c !== 'Kits') acts.append(ibtn('up', 'Up a level', () => shiftLevel(ob, 1), '', { disabled: z >= ZMAX }), ibtn('down', 'Down a level', () => shiftLevel(ob, -1), '', { disabled: z <= ZMIN }));
   if (ob.w !== ob.h) acts.append(ibtn('rotate', 'Rotate', () => { const r = reshapeObj(ob, ob.x, ob.y, ob.h, ob.w); if (r.ob) { commitTx('Rotate'); selection = { obj: r.ob }; showObjInspector(r.ob); } else toast(whyNot(r.err, ob.h, ob.w, ITEMS[ob.i]).replace('No room here', 'Can\'t turn it')); }));
@@ -3478,7 +3505,7 @@ function levelList(st) {
   return [...want].sort((a, b) => b - a);
 }
 function levelDialog() {
-  let inp; const go = () => { const v = Math.round(Number(inp.value)); if (inp.value.trim() === '' || !Number.isFinite(v) || v < ZMIN || v > ZMAX) { toast('Pick a level from ' + lvNum(ZMIN) + ' to ' + ZMAX); return false; } setLayerZ(v); toast('Working on level ' + lvNum(v)); };
+  let inp; const go = () => { const v = Math.round(Number(inp.value)); if (inp.value.trim() === '' || !Number.isFinite(v) || v < ZMIN || v > ZMAX) { toast('Pick a level from ' + lvNum(ZMIN) + ' to ' + ZMAX, 2400, null, 'level'); return false; } setLayerZ(v); toast('Working on level ' + lvNum(v), 2400, null, 'level'); };
   modal('Go to level', (box) => {
     inp = h('input', { type: 'number', id: 'lvGo', min: ZMIN, max: ZMAX, step: 1, value: layerZ == null ? 0 : layerZ, onkeydown: (e) => { if (e.key === 'Enter' && go() !== false) closeModal(); } });
     const step = (d) => { const v = clamp((Math.round(Number(inp.value)) || 0) + d, ZMIN, ZMAX); inp.value = v; };
@@ -3910,7 +3937,7 @@ function pkMoveIn(p, hm) {
   const from = homeOfPokemon(p.n), r = { p: p.n, x: hm.ax, y: hm.ay, k: hm.kind === 'kit' ? 'k' : 'h' }; if (hm.floors > 1 && !floorHasRoom(hm, 0)) r.f = 1;
   setRes((plan.res || []).filter(q => q.p !== p.n).concat([r])); commitTx(p.n + ' moved in');
   if ($('#inspector').classList.contains('open') && selection && selection.obj && plan.objs.has(selection.obj.id) && ITEMS[selection.obj.i].cap) showObjInspector(selection.obj);
-  toast(p.n + (from ? ' moved to ' : ' moved into ') + hm.label, 4200, { label: 'Undo', fn: undo });
+  undoToast(p.n + (from ? ' moved to ' : ' moved into ') + hm.label, 4200);
   return true;
 }
 function pkHomeChooser(p) {
@@ -3929,7 +3956,7 @@ function pkHomeChooser(p) {
       l.append(h('button', { class: 'row', type: 'button', disabled: !x.c.ok, style: 'align-items:flex-start', onclick: () => { closeModal(); pkMoveIn(p, x.hm); } }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, x.hm.label), h('div', { class: 'ds', style: 'white-space:normal' }, bits.join(' · ')), x.names.length ? pkChips(x.names, 20) : '')));
     }
     box.append(l);
-    if (cur) box.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { closeModal(); moveOut([p.n]); commitTx(p.n + ' moved out'); toast(p.n + ' moved out of ' + cur.label, 4200, { label: 'Undo', fn: undo }); } }, 'Move out')));
+    if (cur) box.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { closeModal(); moveOut([p.n]); commitTx(p.n + ' moved out'); undoToast(p.n + ' moved out of ' + cur.label, 4200); } }, 'Move out')));
   }, null, null, false, 'Homes with room come first, then the best housemates: shared likes and an ideal habitat that doesn\'t clash. You can also drag ' + p.n + ' from the list onto a home on the map.');
 }
 let pkDrag = null, pkPend = null, pkQuiet = 0;
@@ -4426,18 +4453,18 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T14:20';
+const APP_BUILD = '2026-11-21T16:10';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
 function appVersion() { const d = new Date(APP_BUILD); return isNaN(d) ? APP_BUILD : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
 async function updateNow() {
   const reg = await swReg(); if (!reg) { location.reload(); return; }
-  if (!navigator.onLine) { toast('You\'re offline'); return; }
-  toast('Checking for updates…', 8000); updateWanted = true;
-  try { await reg.update(); } catch (e) { updateWanted = false; toast('Couldn\'t check. Try again soon.'); return; }
-  if (reg.installing || reg.waiting) { toast('Updating…', 15000); setTimeout(() => { if (updateWanted) location.reload(); }, 15000); }
-  else { updateWanted = false; toast('Up to date (' + appVersion() + ')'); }
+  if (!navigator.onLine) { toast('You\'re offline', 2400, null, 'upd'); return; }
+  toast('Checking for updates…', 8000, null, 'upd'); updateWanted = true;
+  try { await reg.update(); } catch (e) { updateWanted = false; toast('Couldn\'t check. Try again soon.', 2400, null, 'upd'); return; }
+  if (reg.installing || reg.waiting) { toast('Updating…', 15000, null, 'upd'); setTimeout(() => { if (updateWanted) location.reload(); }, 15000); }
+  else { updateWanted = false; toast('Up to date (' + appVersion() + ')', 2400, null, 'upd'); }
 }
 const idle = (fn, ms) => 'requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: ms }) : setTimeout(fn, Math.min(ms, 1500));
 let swStarted = false;
@@ -4446,7 +4473,7 @@ function initSW() {
   const hadController = !!navigator.serviceWorker.controller; let pending = false;
   const reloadNow = () => { try { persistNow(); } catch (e) { } location.reload(); };
   navigator.serviceWorker.register('sw.js').then(r => { r.update().catch(() => { }); }).catch(() => { });
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; if (updateWanted) { reloadNow(); return; } toast('New version ready', 10000, { label: 'Open it', fn: reloadNow }); });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || pending) return; pending = true; if (updateWanted) { reloadNow(); return; } toast('New version ready', 20000, { label: 'Open it', fn: reloadNow }, 'upd'); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; if (pending) reloadNow(); else checkForUpdate(); });
   setInterval(checkForUpdate, 30 * 60 * 1000);
 }
