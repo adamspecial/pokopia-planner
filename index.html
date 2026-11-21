@@ -2287,6 +2287,40 @@ const LOOKS = {
   vine: 'q0,8,10,24,50,64,90,30 o1,26,30,10 o1,50,50,11 o1,74,34,10 ~o1,62,60,8 ~o1,36,48,8',
   wallclock: 'o0,50,50,38 o1,50,50,30 l2,5,50,50,50,30 l2,5,50,50,64,58',
   toolboard: 'r0,10,10,80,80,4 l1,6,28,24,28,74 l1,6,50,24,50,60 l1,6,72,24,72,70 ~r1,42,64,16,12,2',
+  cart: 'o1,28,78,9 o1,72,78,9 r0,14,22,72,50,6 l2,5,86,30,94,14 ~r3,22,30,56,14,3',
+  stand: 'r0,14,14,72,72,8 r1,26,26,48,48,5',
+  hammock: '!f !r l2,4,2,50,16,50 l2,4,84,50,98,50 e0,50,50,36,32 ~l1,3,22,40,78,40 ~l1,3,22,60,78,60',
+  mirror: 'r0,24,8,52,84,22 r1,30,14,40,72,18 ~l6,4,38,26,48,42',
+  safe: 'r0,14,14,72,72,6 o1,50,50,17 ~l4,4,50,50,60,42 ~r2,76,34,6,10,1 ~r2,76,56,6,10,1',
+  pod: 'o0,50,50,40 o1,50,50,28 ~o6,40,40,8',
+  flag: 'l2,5,24,92,24,10 p0,26,12,82,26,26,50 ~o1,44,26,5',
+  workbench: '!f r0,4,14,92,72,6 r1,10,22,28,18,2 l1,5,54,30,84,30 ~o1,70,58,7 ~l2,3,20,62,44,62',
+  cutboard: 'r0,10,24,76,52,8 o2,80,50,4 ~r1,28,40,34,8,3 ~l1,5,62,44,74,44',
+  pan: 'l1,10,64,50,94,50 o0,38,50,32 o2,38,50,23 ~o6,30,42,6',
+  pot: 'r1,4,42,16,14,5 r1,80,42,16,14,5 o0,50,50,36 o3,50,50,26 o1,50,50,7',
+  furnace: 'r0,14,10,72,80,10 r2,28,44,44,34,12 p1,36,78,42,56,50,66,58,52,64,78 ~r3,26,18,48,10,4',
+  mixdrum: '!f r1,72,34,24,32,4 o0,44,50,38 o3,44,50,24 ~l2,4,28,34,60,66',
+  rail: '!f !r !n r0,8,8,14,84,2 r0,43,8,14,84,2 r0,78,8,14,84,2 r1,0,24,100,8,0 r1,0,68,100,8,0',
+  crossing: '!f !r o0,10,50,10 r1,18,44,78,12,4 ~r0,32,44,10,12,0 ~r0,56,44,10,12,0 ~r0,80,44,10,12,0',
+  handcar: 'o1,26,20,10 o1,74,20,10 o1,26,80,10 o1,74,80,10 r0,14,22,72,56,6 l1,6,30,50,70,50 ~o2,50,50,6',
+  platform: '!f r0,6,6,88,88,6 r1,16,16,68,68,4 ~l2,3,16,16,84,84 ~l2,3,84,16,16,84',
+  register: 'r0,12,42,76,46,6 r0,20,14,60,32,4 r1,26,20,48,18,2 ~r2,24,56,52,8,1',
+  sprinkler: '!n o0,50,50,22 o1,50,50,9 ~a1,3,50,50,36,200,250 ~a1,3,50,50,36,290,340 ~a1,3,50,50,36,20,70 ~a1,3,50,50,36,110,160',
+  floodgate: 'r0,10,10,16,80,2 r0,74,10,16,80,2 r1,26,30,48,56,2 ~l4,3,30,46,70,46 ~l4,3,30,62,70,62',
+  pole: 'l1,7,10,44,90,44 o0,50,56,18 ~o1,22,44,5 ~o1,78,44,5',
+  transmitter: 'r0,30,44,40,46,6 l0,6,50,44,50,22 o1,50,18,12 ~a1,3,50,18,22,200,340',
+  switch: 'r0,24,24,52,52,8 r1,38,32,24,36,6 ~r4,42,36,16,12,3',
+  generator: 'r0,10,22,80,56,8 o1,34,50,16 ~o4,34,50,6 ~r2,58,34,22,8,2 ~r2,58,50,22,8,2',
+  floorswitch: 'r0,14,14,72,72,10 o1,50,50,22 ~o6,44,44,6',
+  cardreader: 'r0,24,10,52,80,8 r1,32,20,36,22,3 ~r2,34,56,32,6,2',
+  laser: 'l1,3,50,50,98,50 r0,26,26,48,48,8 o1,50,50,12',
+  planet: 'o0,50,50,28 l1,7,6,62,94,38 ~o6,40,40,7',
+  discoball: 'l1,3,50,0,50,14 o0,50,52,36 ~l2,2,14,52,86,52 ~l2,2,50,16,50,88 ~l2,2,22,32,78,32 ~l2,2,22,72,78,72 ~o6,40,40,8',
+  mat: 'r0,8,8,84,84,10 o1,40,66,12 l1,7,50,64,50,26 l1,7,50,26,66,34',
+  blender: 'r0,26,62,48,28,6 p1,30,14,70,14,66,62,34,62 ~l6,3,40,22,40,54',
+  bubbles: 'r0,18,48,64,40,8 o1,30,28,10 o1,56,20,8 o1,72,36,11 ~o1,44,10,5',
+  steps: '!f r2,8,8,84,28,2 r0,8,36,84,28,2 r3,8,64,84,28,2',
+  microwave: 'r0,8,22,84,56,6 r1,16,30,50,40,3 ~o2,78,40,4 ~o2,78,56,4',
 };
 const lookDefs = new Map(), LOOK_D = Math.PI / 180;
 function lookDef(k) {
@@ -2310,6 +2344,7 @@ function lookPal(lk) {
 }
 function drawLook(c, it, x, y, s, wc = 1, hc = 1) {
   const lk = it.look; if (!lk) return false;
+  if (!LOOKS[lk.k] && FURN_KINDS.some(f => f[0] === lk.k)) { drawFurniture(c, it, lk.k, x, y, s, wc, hc); return true; }
   const W = wc * s, H = hc * s, m = Math.min(W, H), d = lookDef(lk.k), pal = lookPal(lk), px = m * dpr;
   if (px < 11) { const q = d.big >= 0 ? d.p[d.big][2] : 0, g = m * 0.12; c.fillStyle = pal.f[q] || lk.a; roundRect(c, x + g, y + g, W - 2 * g, H - 2 * g, m * 0.2); c.fill(); return true; }
   const fine = px >= 26, edge = px >= 16, rot = d.r && H > W;
@@ -2953,9 +2988,9 @@ const FURN_KINDS = [
   ['table', /\btable\b(?! (lamp|setting))|\bdesk\b(?! light)|\bcounter\b/i],
 ];
 const FURN_SKIP = new Set(['Special', 'Kits', 'Nature', 'Poster', 'Wallpaper', 'Rug', 'Terrain', 'Blocks', 'Buildings']);
-const furnKind = (it) => { if (it.fk === undefined) { const k = it.L === 'o' && !FURN_SKIP.has(it.c) && !structural(it) && !/music box/i.test(it.n) && FURN_KINDS.find(([, re]) => re.test(it.n)); it.fk = k ? k[0] : null; } return it.fk; };
+const furnKind = (it) => { if (it.fk === undefined) { const k = it.L === 'o' && !FURN_SKIP.has(it.c) && !structural(it) && !(it.look && LOOKS[it.look.k]) && !/music box/i.test(it.n) && FURN_KINDS.find(([, re]) => re.test(it.n)); it.fk = k ? k[0] : null; } return it.fk; };
 function drawFurniture(c, it, kind, x, y, s, wc, hc) {
-  const W = wc * s, H = hc * s, col = itemColour(it), dk = shade(col, -0.55), lt = shade(col, 0.35), lw = Math.max(1, s * 0.05), horiz = W > H, vert = H > W;
+  const W = wc * s, H = hc * s, col = itemColour(it), alt = it.look && it.look.b, dk = shade(col, -0.55), lt = shade(col, 0.35), lw = Math.max(1, s * 0.05), horiz = W > H, vert = H > W;
   const P = (f) => Math.min(W, H) * f, big = Math.min(W, H) * dpr >= 28, cx = x + W / 2, cy = y + H / 2, water = '#cde8f2';
   const shape = (bx, by, bw, bh, r, fill, stroke = dk) => { roundRect(c, bx, by, Math.max(1, bw), Math.max(1, bh), Math.max(0, Math.min(r, bw / 2, bh / 2))); c.fillStyle = fill; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw; c.stroke(); } };
   const shadow = (bx, by, bw, bh, r) => { c.fillStyle = 'rgba(0,0,0,.16)'; roundRect(c, bx + s * 0.04, by + s * 0.06, bw, bh, Math.min(r, bw / 2, bh / 2)); c.fill(); };
@@ -2965,26 +3000,26 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
   c.save();
   switch (kind) {
     case 'bed': {
-      const p = P(0.07), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p, r = P(0.12), m = P(0.08), pil = '#f6f2e9';
-      shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, shade(col, -0.25));
+      const p = P(0.07), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p, r = P(0.12), m = P(0.08), pil = shade(alt || col, 0.72);
+      shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, alt || shade(col, -0.25));
       const across = horiz ? hc : wc, pils = Math.max(1, across), len = horiz ? bw : bh, wid = horiz ? bh : bw, hd = len * 0.3, g = m * 0.6;
       if (!horiz) shape(bx + m, by + hd, bw - 2 * m, bh - hd - m, r * 0.6, col); else shape(bx + hd, by + m, bw - hd - m, bh - 2 * m, r * 0.6, col);
       c.fillStyle = lt; if (!horiz) c.fillRect(bx + m, by + hd, bw - 2 * m, Math.max(2, len * 0.1)); else c.fillRect(bx + hd, by + m, Math.max(2, len * 0.1), bh - 2 * m);
       for (let i = 0; i < pils; i++) { const pw = (wid - 2 * m - g * (pils - 1)) / pils, o = m + i * (pw + g); if (!horiz) shape(bx + o, by + m, pw, hd - m * 1.6, P(0.1), pil, shade(pil, -0.35)); else shape(bx + m, by + o, hd - m * 1.6, pw, P(0.1), pil, shade(pil, -0.35)); }
       break;
     }
-    case 'table': { const [bx, by, bw, bh] = body(0.1, P(0.14)); if (big) { c.strokeStyle = lt; c.lineWidth = lw; roundRect(c, bx + P(0.09), by + P(0.09), bw - P(0.18), bh - P(0.18), P(0.08)); c.stroke(); } break; }
+    case 'table': { const [bx, by, bw, bh] = body(0.1, P(0.14)); if (big) { c.strokeStyle = alt || lt; c.lineWidth = lw * (alt ? 1.6 : 1); roundRect(c, bx + P(0.09), by + P(0.09), bw - P(0.18), bh - P(0.18), P(0.08)); c.stroke(); } break; }
     case 'chair': {
-      const p = P(0.13), bk = P(0.19);
-      if (horiz) { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p + bk * 0.6, y + p, W - 2 * p - bk * 0.6, H - 2 * p, P(0.1), col); shape(x + p, y + p - P(0.03), bk, H - 2 * p + P(0.06), P(0.06), shade(col, -0.28)); }
-      else if (vert) { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p, y + p + bk * 0.6, W - 2 * p, H - 2 * p - bk * 0.6, P(0.1), col); shape(x + p - P(0.03), y + p, W - 2 * p + P(0.06), bk, P(0.06), shade(col, -0.28)); }
-      else { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p, y + p + bk * 0.55, W - 2 * p, H - 2 * p - bk * 0.55, P(0.1), col); shape(x + p - P(0.03), y + p, W - 2 * p + P(0.06), bk, P(0.06), shade(col, -0.28)); }
+      const p = P(0.13), bk = P(0.19), back = alt || shade(col, -0.28);
+      if (horiz) { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p + bk * 0.6, y + p, W - 2 * p - bk * 0.6, H - 2 * p, P(0.1), col); shape(x + p, y + p - P(0.03), bk, H - 2 * p + P(0.06), P(0.06), back); }
+      else if (vert) { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p, y + p + bk * 0.6, W - 2 * p, H - 2 * p - bk * 0.6, P(0.1), col); shape(x + p - P(0.03), y + p, W - 2 * p + P(0.06), bk, P(0.06), back); }
+      else { shadow(x + p, y + p, W - 2 * p, H - 2 * p, P(0.1)); shape(x + p, y + p + bk * 0.55, W - 2 * p, H - 2 * p - bk * 0.55, P(0.1), col); shape(x + p - P(0.03), y + p, W - 2 * p + P(0.06), bk, P(0.06), back); }
       break;
     }
-    case 'stool': { const r = Math.min(W, H) * 0.3; c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.arc(cx + s * 0.04, cy + s * 0.06, r, 0, 7); c.fill(); dot(cx, cy, r, col, dk); if (big) dot(cx, cy, r * 0.55, lt); break; }
+    case 'stool': { const r = Math.min(W, H) * 0.3; c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.arc(cx + s * 0.04, cy + s * 0.06, r, 0, 7); c.fill(); dot(cx, cy, r, col, dk); if (big) dot(cx, cy, r * 0.55, alt || lt); break; }
     case 'sofa': {
-      const p = P(0.08), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p, r = P(0.14), back = (vert ? bw : bh) * 0.3, arm = P(0.16), cush = shade(col, 0.22);
-      shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, shade(col, -0.22));
+      const p = P(0.08), bx = x + p, by = y + p, bw = W - 2 * p, bh = H - 2 * p, r = P(0.14), back = (vert ? bw : bh) * 0.3, arm = P(0.16), cush = alt ? col : shade(col, 0.22);
+      shadow(bx, by, bw, bh, r); shape(bx, by, bw, bh, r, alt || shade(col, -0.22));
       if (!vert) { shape(bx + arm, by + back, bw - 2 * arm, bh - back - P(0.04), P(0.08), cush); c.strokeStyle = dk; c.lineWidth = lw; for (let i = 1; i < wc; i++) { const lx = bx + arm + (bw - 2 * arm) * i / wc; c.beginPath(); c.moveTo(lx, by + back); c.lineTo(lx, by + bh - P(0.04)); c.stroke(); } }
       else { shape(bx + back, by + arm, bw - back - P(0.04), bh - 2 * arm, P(0.08), cush); c.strokeStyle = dk; c.lineWidth = lw; for (let i = 1; i < hc; i++) { const ly = by + arm + (bh - 2 * arm) * i / hc; c.beginPath(); c.moveTo(bx + back, ly); c.lineTo(bx + bw - P(0.04), ly); c.stroke(); } }
       break;
@@ -2997,30 +3032,30 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
     }
     case 'storage': {
       const [bx, by, bw, bh] = body(0.1, P(0.08)); c.strokeStyle = shade(col, -0.35); c.lineWidth = lw;
-      if (!vert) { c.beginPath(); c.moveTo(bx + lw, by + bh * 0.3); c.lineTo(bx + bw - lw, by + bh * 0.3); c.stroke(); shape(cx - P(0.08), by + bh * 0.3 - P(0.06), P(0.16), P(0.14), P(0.03), '#e7c35a', '#7a5a12'); }
-      else { c.beginPath(); c.moveTo(bx + bw * 0.3, by + lw); c.lineTo(bx + bw * 0.3, by + bh - lw); c.stroke(); shape(bx + bw * 0.3 - P(0.06), cy - P(0.08), P(0.14), P(0.16), P(0.03), '#e7c35a', '#7a5a12'); }
+      if (!vert) { c.beginPath(); c.moveTo(bx + lw, by + bh * 0.3); c.lineTo(bx + bw - lw, by + bh * 0.3); c.stroke(); shape(cx - P(0.08), by + bh * 0.3 - P(0.06), P(0.16), P(0.14), P(0.03), alt || '#e7c35a', shade(alt || '#e7c35a', -0.55)); }
+      else { c.beginPath(); c.moveTo(bx + bw * 0.3, by + lw); c.lineTo(bx + bw * 0.3, by + bh - lw); c.stroke(); shape(bx + bw * 0.3 - P(0.06), cy - P(0.08), P(0.14), P(0.16), P(0.03), alt || '#e7c35a', shade(alt || '#e7c35a', -0.55)); }
       break;
     }
     case 'shelf': {
       const d = (vert ? W : H) * 0.56, bx = x + P(0.06), by = y + P(0.06), bw = vert ? d : W - P(0.12), bh = vert ? H - P(0.12) : d;
       shadow(bx, by, bw, bh, P(0.05)); shape(bx, by, bw, bh, P(0.05), col);
-      if (big) { const books = ['#d9534a', '#4f8fd0', '#e3b341', '#5cae6a', '#9a6bc4'], n = Math.max(3, Math.round((vert ? bh : bw) / (s * 0.16)));
+      if (big) { const books = alt ? [alt, shade(alt, 0.35), shade(alt, -0.25)] : ['#d9534a', '#4f8fd0', '#e3b341', '#5cae6a', '#9a6bc4'], n = Math.max(3, Math.round((vert ? bh : bw) / (s * 0.16)));
         for (let i = 0; i < n; i++) { c.fillStyle = books[i % books.length]; const f = (i + 0.2) / n, g = 0.6 / n; if (vert) c.fillRect(bx + bw * 0.55, by + bh * f, bw * 0.32, bh * g); else c.fillRect(bx + bw * f, by + bh * 0.55, bw * g, bh * 0.32); } }
       break;
     }
     case 'lamp': {
       const R = Math.min(W, H) * 0.5, g = c.createRadialGradient(cx, cy, 0, cx, cy, R); g.addColorStop(0, 'rgba(255,214,90,.9)'); g.addColorStop(0.55, 'rgba(255,214,90,.45)'); g.addColorStop(1, 'rgba(255,214,90,0)');
-      c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.fill(); dot(cx, cy, P(0.27), col, dk); dot(cx, cy, P(0.13), '#fff3b0', shade('#fff3b0', -0.4));
+      c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, 7); c.fill(); dot(cx, cy, P(0.27), col, dk); const bulb = alt && lum(alt) > 0.6 ? alt : '#fff3b0'; dot(cx, cy, P(0.13), bulb, shade(bulb, -0.4));
       if (big) { c.strokeStyle = 'rgba(170,120,20,.7)'; c.lineWidth = lw; c.beginPath(); for (let a = 0; a < 8; a++) { const an = a * Math.PI / 4; c.moveTo(cx + Math.cos(an) * P(0.33), cy + Math.sin(an) * P(0.33)); c.lineTo(cx + Math.cos(an) * P(0.44), cy + Math.sin(an) * P(0.44)); } c.stroke(); } break;
     }
-    case 'fridge': { const [bx, by, bw, bh] = body(0.12, P(0.06)); c.strokeStyle = dk; c.lineWidth = lw; c.beginPath(); c.moveTo(bx, by + bh * 0.38); c.lineTo(bx + bw, by + bh * 0.38); c.stroke(); c.fillStyle = dk; c.fillRect(bx + bw * 0.78, by + bh * 0.14, Math.max(1.5, bw * 0.07), bh * 0.16); c.fillRect(bx + bw * 0.78, by + bh * 0.48, Math.max(1.5, bw * 0.07), bh * 0.28); break; }
-    case 'stove': { const [bx, by, bw, bh] = body(0.08, P(0.06)); const r = Math.min(bw, bh) * 0.15; for (const [fx, fy] of [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]]) dot(bx + bw * fx, by + bh * fy, r, '#3a3a3a', '#8a8a8a'); break; }
-    case 'sink': { const [bx, by, bw, bh] = body(0.08, P(0.08)); shape(bx + bw * 0.18, by + bh * 0.26, bw * 0.64, bh * 0.58, P(0.12), water); dot(cx, by + bh * 0.14, P(0.06), '#9aa6ad', dk); break; }
-    case 'washer': { const [bx, by, bw, bh] = body(0.08, P(0.08)); dot(cx, cy + P(0.04), Math.min(bw, bh) * 0.3, water, dk); dot(cx, cy + P(0.04), Math.min(bw, bh) * 0.16, shade(water, 0.3)); break; }
+    case 'fridge': { const [bx, by, bw, bh] = body(0.12, P(0.06)); c.strokeStyle = dk; c.lineWidth = lw; c.beginPath(); c.moveTo(bx, by + bh * 0.38); c.lineTo(bx + bw, by + bh * 0.38); c.stroke(); c.fillStyle = alt || dk; c.fillRect(bx + bw * 0.78, by + bh * 0.14, Math.max(1.5, bw * 0.07), bh * 0.16); c.fillRect(bx + bw * 0.78, by + bh * 0.48, Math.max(1.5, bw * 0.07), bh * 0.28); break; }
+    case 'stove': { const [bx, by, bw, bh] = body(0.08, P(0.06)); const r = Math.min(bw, bh) * 0.15; for (const [fx, fy] of [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]]) dot(bx + bw * fx, by + bh * fy, r, alt || '#3a3a3a', shade(alt || '#3a3a3a', 0.4)); break; }
+    case 'sink': { const [bx, by, bw, bh] = body(0.08, P(0.08)); shape(bx + bw * 0.18, by + bh * 0.26, bw * 0.64, bh * 0.58, P(0.12), water); dot(cx, by + bh * 0.14, P(0.06), alt || '#9aa6ad', dk); break; }
+    case 'washer': { const [bx, by, bw, bh] = body(0.08, P(0.08)); dot(cx, cy + P(0.04), Math.min(bw, bh) * 0.3, alt || water, dk); dot(cx, cy + P(0.04), Math.min(bw, bh) * 0.16, shade(alt || water, 0.3)); break; }
     case 'toilet': { const t = P(0.24); shadow(x + P(0.22), y + P(0.08), W - P(0.44), H * 0.8, P(0.08)); shape(x + P(0.2), y + P(0.08), W - P(0.4), t, P(0.06), col); c.beginPath(); c.ellipse(cx, y + H * 0.62, W * 0.27, H * 0.3, 0, 0, 7); c.fillStyle = col; c.fill(); c.strokeStyle = dk; c.lineWidth = lw; c.stroke(); c.beginPath(); c.ellipse(cx, y + H * 0.64, W * 0.15, H * 0.18, 0, 0, 7); c.fillStyle = water; c.fill(); break; }
-    case 'bath': { const [bx, by, bw, bh] = body(0.06, P(0.2)); const m = P(0.14); shape(bx + m, by + m, bw - 2 * m, bh - 2 * m, P(0.16), water); dot(horiz ? bx + bw - m * 2 : cx, horiz ? cy : by + bh - m * 2, P(0.05), '#7d8a90'); break; }
+    case 'bath': { const [bx, by, bw, bh] = body(0.06, P(0.2)); const m = P(0.14); shape(bx + m, by + m, bw - 2 * m, bh - 2 * m, P(0.16), water); dot(horiz ? bx + bw - m * 2 : cx, horiz ? cy : by + bh - m * 2, P(0.05), alt || '#7d8a90'); break; }
     case 'shower': { const [bx, by, bw, bh] = body(0.08, P(0.06)); const m = P(0.12); shape(bx + m, by + m, bw - 2 * m, bh - 2 * m, P(0.04), water); c.strokeStyle = shade(water, -0.3); c.lineWidth = lw; c.beginPath(); c.moveTo(bx + m, by + m); c.lineTo(bx + bw - m, by + bh - m); c.moveTo(bx + bw - m, by + m); c.lineTo(bx + m, by + bh - m); c.stroke(); dot(bx + m * 1.6, by + m * 1.6, P(0.08), '#9aa6ad', dk); break; }
-    case 'tv': { const t = (vert ? W : H) * 0.3; const bx = vert ? cx - t / 2 : x + P(0.08), by = vert ? y + P(0.08) : cy - t / 2, bw = vert ? t : W - P(0.16), bh = vert ? H - P(0.16) : t; shadow(bx, by, bw, bh, P(0.03)); shape(bx, by, bw, bh, P(0.03), '#2c2f36', '#14161a'); c.fillStyle = '#6fc3ff'; if (vert) c.fillRect(bx + bw - Math.max(1.5, bw * 0.25), by + P(0.04), Math.max(1.5, bw * 0.25), bh - P(0.08)); else c.fillRect(bx + P(0.04), by + bh - Math.max(1.5, bh * 0.25), bw - P(0.08), Math.max(1.5, bh * 0.25)); break; }
+    case 'tv': { const t = (vert ? W : H) * 0.3; const bx = vert ? cx - t / 2 : x + P(0.08), by = vert ? y + P(0.08) : cy - t / 2, bw = vert ? t : W - P(0.16), bh = vert ? H - P(0.16) : t; shadow(bx, by, bw, bh, P(0.03)); shape(bx, by, bw, bh, P(0.03), it.look ? col : '#2c2f36', it.look ? dk : '#14161a'); c.fillStyle = alt || '#6fc3ff'; if (vert) c.fillRect(bx + bw - Math.max(1.5, bw * 0.25), by + P(0.04), Math.max(1.5, bw * 0.25), bh - P(0.08)); else c.fillRect(bx + P(0.04), by + bh - Math.max(1.5, bh * 0.25), bw - P(0.08), Math.max(1.5, bh * 0.25)); break; }
   }
   c.restore();
 }
@@ -4791,7 +4826,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T20:00';
+const APP_BUILD = '2026-11-21T20:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
