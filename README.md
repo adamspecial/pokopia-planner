@@ -46,6 +46,16 @@ Height decides what counts:
 
 ## Pokémon and homes
 
+Every Pokémon has its picture from the game, the 3D model the Pokédex shows. The planner uses one of three sizes, depending on the room:
+
+- **Full picture and name:** Pokédex cards, the resident picker, the home chooser, the size dialog and the residents in Decorate.
+- **Portrait and name:** list rows, resident chips, habitat lists, the house and kit home lists, the housemate groups and the drag label. A portrait is a circle cropped around the face.
+- **Portrait only:** where there is no room for names. That means the small bubbles on homes on the map (from about 10 pixels per tile), the drop tray and stacks of more than a few faces. Hovering or long-pressing them shows the names.
+
+Names without a picture stay only inside sentences, such as warnings, decorating tips, toasts and tooltips, where a picture would break the line of text.
+
+The planner frames each portrait automatically around the face. It looks for the eyes (a dark pupil next to a bright highlight) and for the eyes and mouth standing out from the smooth body, preferring the top of the Pokémon. That works for most of them but not all. To fix one, tap its picture on a Pokédex card: drag the circle onto the face and zoom with the slider, the mouse wheel or two fingers. **Automatic framing** puts it back. Your framing applies to all your plans and syncs with your sizes.
+
 The **Pokémon** tab lists every Pokémon in the game. Search it by name, type, specialty, likes, ideal habitat, flavour or Pokédex number. Every word you type has to match. To search one thing only, start a word with `type:`, `spec:`, `likes:`, `ideal:`, `flavour:`, `hab:` (habitat), `home:` (the home it lives in), `size:` or `no:`. "Quotes" keep a phrase together, and `-` in front of a word leaves those Pokémon out. For example, `type:water -spec:water` finds Water types that can't water plants.
 
 **Filters** narrow the list by:
@@ -60,13 +70,13 @@ Each choice shows how many Pokémon it would leave. You can sort by number, name
 
 To move a Pokémon into a home, drag it onto the home. Drag by the dots beside its name, or drag the whole card with a mouse. On a phone you can also long-press a card. Drop it on a kit house or a house you built on the map, or on a home in the tray that opens at the bottom of the map. On a phone the panel slides down while you drag and comes back afterwards. A green outline means it fits; red means the home is full, it lives there already, or it's too big for a den. Tap the dots instead to pick a home from a list, with the best housemates first. Undo puts it back.
 
-## Item pictures
+## Pictures
 
 Furniture, storage, shelves, lamps and appliances show on the map, and in kit rooms, as top-down symbols of their kind (a bed with its pillows, a sofa with its cushions, a stove with its burners), in the colour of their pictures. Decorations, dolls, fossils, plants, kits and other one-off items show as their own pictures. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint, with the floor kept under it and furniture standing on it. Rug sizes are guesses until you set them with **Change**, which can also resize the rugs already placed. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
 
-The pictures live in `pics/` inside the app, so they show without internet. The first time the planner opens, it saves all of them on the device in the background (about 7 MB); the Plans tab shows how far it has got.
+The pictures live in `pics/` inside the app, so they show without internet: items in `pics/`, floor tiles in `pics/top/` and Pokémon in `pics/pk/`. The first time the planner opens, it saves all of them on the device in the background (about 11 MB). The Plans tab shows how far it has got.
 
-`tools/pictures.py` copies them from Serebii and makes the floor tiles (`pics/top/`) from them in one batch. Most floor pictures are the same 3D cube drawn from the same angle, so one calibration unwarps the top face of all of them; water is cropped instead. In `data.json`, an item's `im` is `1` when Serebii names the picture after the item, or Serebii's own file name when that differs, such as `stylishwall(upper)`. GitHub runs the tool for you (`.github/workflows/pictures.yml`) whenever `data.json` changes, once a week to retry any that failed, or from **Actions → Item pictures → Run workflow**.
+`tools/pictures.py` copies them from Serebii and makes the floor tiles (`pics/top/`) from them in one batch. Most floor pictures are the same 3D cube drawn from the same angle, so one calibration unwarps the top face of all of them; water is cropped instead. In `data.json`, an item's `im` is `1` when Serebii names the picture after the item, or Serebii's own file name when that differs, such as `stylishwall(upper)`. A Pokémon's `im` is Serebii's file name for it, usually its National Dex number (`001`), or a form such as `978-tatsugiridroopyform`. The tool saves Pokémon pictures as WebP and works out each portrait's automatic framing, kept in `pics/index.json` as the centre and size of the circle in thousandths of the picture. GitHub runs the tool for you (`.github/workflows/pictures.yml`) whenever `data.json` changes, once a week to retry any that failed, or from **Actions → Pictures → Run workflow**.
 
 ## Light, warmth and humidity
 
@@ -105,4 +115,4 @@ The plans are stored in Firestore, in the free Firebase project GM Companion alr
 
 If the same plan is changed on two devices before they sync, the newer version keeps the plan and the other is kept as a copy named "from another device" or "from this device", so nothing is lost. No copy is made when both versions are the same, or when the other version is one this device sent itself. Windows of the planner open on the same device keep each other up to date. When there are copies, **Plans** shows how many, and **Remove copies** deletes the ones older than their plan, on every synced device. Copies newer than their plan, or with no plan left under that name, stay.
 
-Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item pictures from Serebii.net.
+Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item and Pokémon pictures from Serebii.net.

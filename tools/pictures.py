@@ -11,12 +11,15 @@ import unicodedata
 import urllib.error
 import urllib.request
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PICS = os.path.join(ROOT, 'pics')
 TOP = os.path.join(PICS, 'top')
 SOURCE = os.environ.get('PIC_SOURCE', 'https://www.serebii.net/pokemonpokopia/items/')
+PK_DIR = os.path.join(PICS, 'pk')
+PK_SOURCE = os.environ.get('PK_SOURCE', 'https://www.serebii.net/pokemonpokopia/pokemon/')
+FRAME_V = 1
 MAX_SIDE = 256
 UA = 'Mozilla/5.0 (compatible; pokopia-planner picture sync; +https://github.com/adamspecial/pokopia-planner)'
 
@@ -57,6 +60,21 @@ def wanted():
     return remote, ground, rugs
 
 
+def wanted_pokemon():
+    with open(os.path.join(ROOT, 'data.json'), encoding='utf-8') as f:
+        mons = json.load(f)['pokemon']
+    remote = {}
+    for p in mons:
+        im = p.get('im')
+        if not im:
+            continue
+        r = str(im)
+        k = pic_key(r)
+        if remote.setdefault(k, r) != r:
+            raise SystemExit('Two Pokémon pictures would both be saved as %s: %s and %s' % (k, remote[k], r))
+    return remote
+
+
 def fetch(url):
     last = None
     for attempt in range(3):
@@ -91,6 +109,126 @@ def to_webp(png):
     if max(im.size) > MAX_SIDE:
         im.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
     return encode(im)
+
+
+def photo_webp(png):
+    im = Image.open(io.BytesIO(png))
+    im.load()
+    im = im.convert('RGBA')
+    if max(im.size) > MAX_SIDE:
+        im.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, 'WEBP', quality=90, method=6)
+    return buf.getvalue()
+
+
+def get_pokemon(job):
+    key, remote = job
+    try:
+        data = photo_webp(fetch(PK_SOURCE + urllib.request.quote(remote) + '.png'))
+    except urllib.error.HTTPError as e:
+        return key, None, 'HTTP %d' % e.code
+    except Exception as e:
+        return key, None, (type(e).__name__ + ': ' + str(e))[:120]
+    with open(os.path.join(PK_DIR, key + '.webp'), 'wb') as f:
+        f.write(data)
+    return key, short_hash(data), None
+
+
+def framing(path, k=0.68, eye_weight=3, bias=0.45, win=0.34):
+    im = Image.open(path).convert('RGBA')
+    W, H = im.size
+    a = im.getchannel('A')
+    sil = a.point(lambda v: 255 if v > 60 else 0)
+    box = sil.getbbox()
+    if not box:
+        return [500, 500, 1000]
+    x0, y0, x1, y1 = box
+    bw, bh = x1 - x0, y1 - y0
+    side = max(bw, bh)
+    S = min(W, max(k * side, 0.44 * W))
+    inner = a.point(lambda v: 255 if v > 220 else 0).filter(ImageFilter.MinFilter(7))
+    lum = Image.new('RGB', im.size, (128, 128, 128))
+    lum.paste(im.convert('RGB'), mask=a)
+    lum = lum.convert('L')
+    blur = lum.filter(ImageFilter.GaussianBlur(4))
+    det = ImageChops.multiply(ImageChops.difference(lum, blur).point(lambda v: 255 if v > 34 else 0), inner).load()
+    dark = lum.point(lambda v: 255 if v < 75 else 0)
+    bright = lum.point(lambda v: 255 if v > 215 else 0).filter(ImageFilter.MaxFilter(7))
+    eyes = ImageChops.multiply(ImageChops.multiply(dark, bright), inner).load()
+    t = [[0] * (W + 1) for _ in range(H + 1)]
+    for y in range(H):
+        row = 0
+        ir, ip = t[y + 1], t[y]
+        for x in range(W):
+            row += (1 if det[x, y] else 0) + (eye_weight if eyes[x, y] else 0)
+            ir[x + 1] = ip[x + 1] + row
+    w = max(16, int(win * side))
+    best, at = 0, None
+    for cy in range(y0 + w // 2, max(y0 + w // 2 + 1, y1 - w // 2 + 1), 3):
+        f = 1.0 - bias * (cy - y0) / max(1, bh)
+        ay, by = cy - w // 2, cy - w // 2 + w
+        for cx in range(x0 + w // 2, max(x0 + w // 2 + 1, x1 - w // 2 + 1), 3):
+            ax, bx = cx - w // 2, cx - w // 2 + w
+            v = (t[by][bx] - t[ay][bx] - t[by][ax] + t[ay][ax]) * f
+            if v > best:
+                best, at = v, (cx, cy)
+    if at and best > 0.004 * w * w:
+        fx, fy = at
+    else:
+        px = sil.load()
+        lim = y0 + max(1, int(0.45 * bh))
+        sx = n = 0
+        for y in range(y0, lim):
+            for x in range(x0, x1):
+                if px[x, y]:
+                    sx += x
+                    n += 1
+        fx = sx / n if n else (x0 + x1) / 2
+        fy = y0 + 0.4 * S
+    cx, cy = fx, fy + 0.04 * S
+    cx = min(max(cx, x0 + S / 2 - 0.08 * S), x1 - S / 2 + 0.08 * S) if bw > S else (x0 + x1) / 2
+    cy = min(max(cy, y0 + S / 2 - 0.1 * S), y1 - S / 2 + 0.08 * S) if bh > S else (y0 + y1) / 2
+    return [round(cx / W * 1000), round(cy / H * 1000), round(S / W * 1000)]
+
+
+def pokemon_pictures(index):
+    os.makedirs(PK_DIR, exist_ok=True)
+    remote = wanted_pokemon()
+    old = index.get('pk', {}) if index.get('fv') == FRAME_V else {}
+    have = index.get('pk', {})
+    pk, missing, todo = {}, {}, []
+    for k in sorted(remote):
+        path = os.path.join(PK_DIR, k + '.webp')
+        if os.path.exists(path):
+            if k in have:
+                pk[k] = have[k][0]
+            else:
+                with open(path, 'rb') as f:
+                    pk[k] = short_hash(f.read())
+        else:
+            todo.append((k, remote[k]))
+    print('%d Pokémon pictures wanted, %d already here, %d to download' % (len(remote), len(pk), len(todo)))
+    with cf.ThreadPoolExecutor(max_workers=4) as pool:
+        for k, h, err in pool.map(get_pokemon, todo):
+            if h:
+                pk[k] = h
+            else:
+                missing[k] = err
+    out, framed = {}, 0
+    for k in sorted(pk):
+        o = old.get(k)
+        if o and o[0] == pk[k]:
+            out[k] = o
+            continue
+        out[k] = [pk[k]] + framing(os.path.join(PK_DIR, k + '.webp'))
+        framed += 1
+    for name in os.listdir(PK_DIR):
+        if name.endswith('.webp') and name[:-5] not in out:
+            os.remove(os.path.join(PK_DIR, name))
+    size = sum(os.path.getsize(os.path.join(PK_DIR, k + '.webp')) for k in out)
+    print('%d Pokémon pictures in pics/pk/ (%.1f MB), %d missing, %d portraits framed this run' % (len(out), size / 1e6, len(missing), framed))
+    return out, missing, size
 
 
 def short_hash(data):
@@ -210,10 +348,11 @@ def main():
             if name.endswith('.webp') and name[:-5] not in keep:
                 os.remove(os.path.join(folder, name))
 
+    pk, pk_missing, pksize = pokemon_pictures(index)
     size = sum(os.path.getsize(os.path.join(PICS, k + '.webp')) for k in pics)
     tsize = sum(os.path.getsize(os.path.join(TOP, k + '.webp')) for k, t in top.items() if t[0])
-    out = {'v': 1, 'source': SOURCE, 'bytes': size + tsize, 'pics': dict(sorted(pics.items())), 'missing': dict(sorted(missing.items())),
-           'tv': TILE_V, 'top': dict(sorted(top.items()))}
+    out = {'v': 1, 'source': SOURCE, 'bytes': size + tsize + pksize, 'pics': dict(sorted(pics.items())), 'missing': dict(sorted(missing.items())),
+           'tv': TILE_V, 'top': dict(sorted(top.items())), 'fv': FRAME_V, 'pk': pk, 'pkmissing': dict(sorted(pk_missing.items()))}
     with open(index_path, 'w', encoding='utf-8') as f:
         json.dump(out, f, separators=(',', ':'), ensure_ascii=False)
         f.write('\n')
