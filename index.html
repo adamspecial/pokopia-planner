@@ -254,6 +254,8 @@ span[data-tip],b[data-tip],div[data-tip]{cursor:help}
 .field input,.field select{border:1px solid var(--line);border-radius:9px;padding:6px 9px;background:var(--paper);min-width:0;width:100%}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .grid2>*{min-width:0}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid3>*{min-width:0}
 .note{font-size:12px;color:var(--muted)}
 .toggle{display:flex;align-items:center;gap:7px;font-size:13px}
 .empty{color:var(--muted);font-size:13px;padding:8px 4px}
@@ -654,9 +656,9 @@ function serialize(p) {
   const dict = []; const dmap = new Map();
   const ref = (itemIdx) => { const name = ITEMS[itemIdx].n; if (!dmap.has(name)) { dmap.set(name, dict.length + 1); dict.push(name); } return dmap.get(name); };
   const tg = []; for (let j = 0; j < p.tz.length; j++) { const T = p.tt[j], g = new Uint16Array(T.length); let any = false; for (let k = 0; k < g.length; k++) if (T[k]) { g[k] = ref(T[k] - 1); any = true; } if (any || !p.tz[j]) tg.push([p.tz[j], rle(g)]); }
-  const o = [], ints = {}; for (const ob of p.objs.values()) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].concat(ob.z ? [ob.z] : []).map(v => v.toString(36)).join('.')); }
-  const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h].map(v => v.toString(36)).join('.'));
-  return { v: 2, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: tg, o: o.join(';'), u: u.join(';'),
+  const o = [], ints = {}; for (const ob of p.objs.values()) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].concat(htOf(ob) !== 1 ? [zOf(ob), htOf(ob)] : ob.z ? [ob.z] : []).map(v => v.toString(36)).join('.')); }
+  const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h, zOf(r)].map(v => v.toString(36)).join('.'));
+  return { v: 3, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: tg, o: o.join(';'), u: u.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
     invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), updated: p.updated || Date.now() };
 }
@@ -670,13 +672,18 @@ function deserialize(s) {
   else { unpack(s.g, p.ground); elev = unrle(s.e, w * h, Uint8Array); }
   const lift = (x, y, ow, oh) => { if (!elev) return 0; let e = 0; for (let yy = y; yy < Math.min(h, y + oh); yy++) for (let xx = x; xx < Math.min(w, x + ow); xx++) e = Math.max(e, elev[yy * w + xx]); return e + 1; };
   let ints = {}; try { ints = s.ints ? JSON.parse(s.ints) : {}; } catch (e) { ints = {}; }
+  const v3 = (s.v | 0) >= 3, grow = [], rugObs = [];
   if (s.o) s.o.split(';').forEach((tok, oi) => {
-    const [d, x, y, ow, oh, oz] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (!it) return;
+    const [d, x, y, ow, oh, oz, ot] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (!it) return;
     const ob = { id: p.nextId++, i: it.i, x, y, w: ow || it.w, h: oh || it.h }, zz = clamp((oz || 0) + lift(x, y, ob.w, ob.h), ZMIN, ZMAX); if (zz) ob.z = zz; if (ints[oi]) ob.int = intIn(ints[oi]);
+    if (isRug(it)) { rugObs.push({ id: ob.id, rug: 1, i: it.i, x, y, w: ob.w, h: ob.h, z: zz }); return; }
     if (elev && zz <= 0) for (let yy = y; yy < Math.min(h, y + ob.h); yy++) for (let xx = x; xx < Math.min(w, x + ob.w); xx++) if (terrAt(p, yy * w + xx, zz)) tLayer(p, zz)[yy * w + xx] = 0;
-    if (fits(p, ob.x, ob.y, ob.w, ob.h, 0, zOf(ob))) { p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
+    const want = v3 ? clamp(ot || 1, 1, HMAX) : 1; if (want > 1 && fits(p, ob.x, ob.y, ob.w, ob.h, 0, zOf(ob), want)) ob.t = want;
+    if (fits(p, ob.x, ob.y, ob.w, ob.h, 0, zOf(ob), htOf(ob))) { p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); if (!v3) grow.push(ob); }
   });
-  if (s.u) for (const tok of s.u.split(';')) { const [d, x, y, rw, rh] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (it && x >= 0 && y >= 0 && x + rw <= w && y + rh <= h) { const r = { id: p.nextId++, rug: 1, i: it.i, x, y, w: rw, h: rh }; p.rugs.set(r.id, r); } }
+  for (const ob of grow) { const want = heightOf(ITEMS[ob.i], p); for (let t = want; t > 1; t--) if (fits(p, ob.x, ob.y, ob.w, ob.h, ob.id, zOf(ob), t)) { ob.t = t; stampOcc(p, ob, ob.id); break; } }
+  if (s.u) for (const tok of s.u.split(';')) { const [d, x, y, rw, rh, rz] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (it && x >= 0 && y >= 0 && x + rw <= w && y + rh <= h) { const r = { id: p.nextId++, rug: 1, i: it.i, x, y, w: rw, h: rh }, z = Number.isFinite(rz) ? clamp(rz, ZMIN, ZMAX) : rugLevel(p, x, y, rw, rh); if (z) r.z = z; p.rugs.set(r.id, r); } }
+  for (const r of rugObs) { if (!r.z) delete r.z; if (![...p.rugs.values()].some(q => zOf(q) === zOf(r) && overlaps(q, r.x, r.y, r.w, r.h))) p.rugs.set(r.id, r); }
   rugCellsToRugs(p);
   if (elev) for (let k = 0; k < elev.length; k++) { const v = p.ground[k]; if (v && elev[k]) for (let z = 1; z <= Math.min(elev[k], ZMAX); z++) if (!occAt(p, k, z)) tLayer(p, z)[k] = v; }
   try { p.zones = (typeof s.z === 'string' ? JSON.parse(s.z) : (s.z || [])).map(z => ({ ...z, id: z.id || uid() })); } catch (e) { p.zones = []; }
@@ -687,9 +694,9 @@ function intOut(I) { const nm = (i) => i != null && ITEMS[i] ? ITEMS[i].n : unde
 function intIn(J) { const ix = (n) => { const it = n && BY_NAME.get(n); return it ? it.i : null; }; return { w: J.w || 0, h: J.h || 0, fl: J.fl || 0, f: (J.f || []).map(f => ({ o: (f.o || []).map(([n, x, y, w, hh]) => { const it = BY_NAME.get(n); return it ? (w > 1 || hh > 1 ? [it.i, x | 0, y | 0, w | 0, hh | 0] : [it.i, x | 0, y | 0]) : null; }).filter(Boolean), wp: ix(f.wp), fc: ix(f.fc) })) }; }
 function cloneInt(I) { return I ? { w: I.w || 0, h: I.h || 0, fl: I.fl || 0, f: (I.f || []).map(f => f ? { o: f.o.map(a => a.slice()), wp: f.wp, fc: f.fc } : { o: [], wp: null, fc: null }) } : { w: 0, h: 0, fl: 0, f: [] }; }
 function inB(p, x, y) { return x >= 0 && y >= 0 && x < p.w && y < p.h; }
-function fits(p, x, y, w, h, ignoreId, z = 1) { if (x < 0 || y < 0 || x + w > p.w || y + h > p.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const k = yy * p.w + xx, o = occAt(p, k, z); if ((o && o !== ignoreId) || terrAt(p, k, z)) return false; } return true; }
-function stampOcc(p, ob, val) { const L = layer(p, zOf(ob)); for (let yy = ob.y; yy < ob.y + ob.h; yy++) for (let xx = ob.x; xx < ob.x + ob.w; xx++) L[yy * p.w + xx] = val; }
-const ZMIN = -99, ZMAX = 99, zOf = (ob) => ob.z || 0;
+function fits(p, x, y, w, h, ignoreId, z = 1, t = 1) { if (x < 0 || y < 0 || x + w > p.w || y + h > p.h || z < ZMIN || z + t - 1 > ZMAX) return false; for (let lz = z; lz < z + t; lz++) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const k = yy * p.w + xx, o = occAt(p, k, lz); if ((o && o !== ignoreId) || terrAt(p, k, lz)) return false; } return true; }
+function stampOcc(p, ob, val) { for (let lz = zOf(ob); lz <= topOf(ob); lz++) { const L = layer(p, lz); for (let yy = ob.y; yy < ob.y + ob.h; yy++) for (let xx = ob.x; xx < ob.x + ob.w; xx++) L[yy * p.w + xx] = val; } }
+const ZMIN = -99, ZMAX = 99, zOf = (ob) => ob.z || 0, htOf = (ob) => ob.t == null ? 1 : ob.t, topOf = (ob) => zOf(ob) + htOf(ob) - 1;
 const lvTxt = (z) => z > 0 ? '+' + z : z < 0 ? '−' + -z : '0', lvNum = (z) => z < 0 ? '−' + -z : String(z);
 function layer(p, z) { if (!z) return p.occ; let L = p.up.get(z); if (!L) { L = new Int32Array(p.w * p.h); p.up.set(z, L); p.zs = [0, ...p.up.keys()].sort((a, b) => a - b); p.ls = p.zs.map(v => v ? p.up.get(v) : p.occ); } return L; }
 const occAt = (p, k, z) => { if (!z) return p.occ[k]; const L = p.up.get(z); return L ? L[k] : 0; };
@@ -700,7 +707,7 @@ const surfAt = (k, p = plan) => { const t = topTerr(k, p); return t == null ? 0 
 const standZ = (k, p = plan) => { const t = topTerr(k, p); return t == null ? 1 : t + 1; };
 function standOver(x, y, w, h) { let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inB(plan, xx, yy)) z = Math.max(z, standZ(yy * plan.w + xx)); return z === -Infinity ? 1 : z; }
 function terrCount(p = plan) { let n = 0; for (const T of p.tt) for (let k = 0; k < T.length; k++) if (T[k]) n++; return n; }
-function stackAt(k, p = plan) { const out = []; for (const L of p.ls) { const q = L[k]; if (q) out.push(p.objs.get(q)); } return out; }
+function stackAt(k, p = plan) { const out = []; let last = 0; for (const L of p.ls) { const q = L[k]; if (q && q !== last) out.push(p.objs.get(q)); last = q; } return out; }
 const topAt = (k) => { const s = stackAt(k); return s.length ? s[s.length - 1] : null; };
 const objAtLv = (k, z) => { const o = occAt(plan, k, z); return o ? plan.objs.get(o) : null; };
 let layerZ = null, layerReplace = false, hidden = new Set();
@@ -735,18 +742,18 @@ const sizeSet = (it) => userSizes[it.n] || (plan && plan.isz && plan.isz[it.n]) 
 const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
-function addObj(i, x, y, w, h, z = 1) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; if (!fits(plan, x, y, w, h, 0, z)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; if (z) ob.z = z; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
+const heightSet = (it, p = plan) => { const u = userSizes['ht:' + it.n]; return u != null ? u : p && p.isz && p.isz['ht:' + it.n] != null ? p.isz['ht:' + it.n] : null; };
+function heightOf(it, p = plan) { if (!it) return 1; if (isRug(it)) return 0; if (it.L === 'g' || structural(it)) return 1; const u = heightSet(it, p); return clamp(u != null ? u | 0 : it.ht == null ? 1 : it.ht, 1, HMAX); }
+const HMAX = 20, tall = (it) => !!it && !isRug(it) && it.L !== 'g' && !structural(it), heightGuessed = (it) => tall(it) && !!it.hg && heightSet(it) == null;
+function addObj(i, x, y, w, h, z = 1, t) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; t = Math.max(1, t == null ? heightOf(it) : t); if (!fits(plan, x, y, w, h, 0, z, t)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; if (z) ob.z = z; if (t !== 1) ob.t = t; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
 const inWall = (it) => isDoor(it) || isWindow(it);
 const structural = (it) => isWall(it) || inWall(it);
 function replaces(it, q) { if (q.w > 1 || q.h > 1 || q.i === it.i) return false; const qi = ITEMS[q.i]; if (inWall(it)) return true; if (isWall(it)) return !inWall(qi); return !structural(qi); }
 function terrBlock(k, z) { const v = terrAt(plan, k, z); return v ? { i: v - 1, terr: 1, k, z } : null; }
-function blocker(it, x, y, w, h, self, z = 1) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'edge'; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const k = yy * plan.w + xx, t = terrBlock(k, z); if (t) return t; const o = occAt(plan, k, z); if (!o || o === self) continue; const q = plan.objs.get(o); if (q && !replaces(it, q)) return q; } return null; }
-function clearFor(x, y, w, h, self, z = 1) { const gone = new Set(); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = occAt(plan, yy * plan.w + xx, z); if (o && o !== self) gone.add(plan.objs.get(o)); } for (const q of gone) if (q) delObj(q); }
-const SURFACE = /\b(tables?|desks?|counters?|stands?|washing machine|storage box|transmitter|shel(f|ves)|cabinet|chests?|dressers?|pedestal|display case|bookcase|cupboard)\b/i, NOT_SURFACE = /wall-mounted|wall storage|table setting|lamp|light|switch/i;
-const rides = (it) => !!it && it.L === 'o' && it.c !== 'Kits' && !structural(it);
-const holds = (q, w, h) => isWall(q) || (w === 1 && h === 1 && SURFACE.test(q.n) && !NOT_SURFACE.test(q.n));
-function supportTop(k, w, h, self) { const t = topTerr(k); let z = t == null ? null : t + 1; const st = stackAt(k); for (let j = st.length - 1; j >= 0; j--) { const q = st[j]; if (q && q.id !== self && holds(ITEMS[q.i], w, h)) { const qz = zOf(q) + 1; if (z == null || qz > z) z = qz; break; } } return z; }
-function levelFor(it, x, y, w, h, self) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 1; let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const t = supportTop(yy * plan.w + xx, w, h, self); z = Math.max(z, t == null ? 1 : t); } return z; }
+const skipId = (q, ign) => !!ign && (typeof ign === 'number' ? q.id === ign : ign.has(q.id));
+function blocker(it, x, y, w, h, self, z = 1, t = 1) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'edge'; if (z < ZMIN || z + t - 1 > ZMAX) return z < ZMIN ? 'bottom' : 'top'; for (let lz = z; lz < z + t; lz++) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const k = yy * plan.w + xx, b = terrBlock(k, lz); if (b) return b; const o = occAt(plan, k, lz); if (!o) continue; const q = plan.objs.get(o); if (q && !skipId(q, self) && !replaces(it, q)) return q; } return null; }
+function clearFor(x, y, w, h, self, z = 1, t = 1) { const gone = new Set(); for (let lz = z; lz < z + t; lz++) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const o = occAt(plan, yy * plan.w + xx, lz), q = o && plan.objs.get(o); if (q && !skipId(q, self)) gone.add(q); } for (const q of gone) delObj(q); }
+function thingTop(k, ign, blocksOnly) { let z = topTerr(k); const st = stackAt(k); for (let j = st.length - 1; j >= 0; j--) { const q = st[j]; if (!q || skipId(q, ign) || (blocksOnly && !structural(ITEMS[q.i]))) continue; const qt = topOf(q); if (z == null || qt > z) z = qt; break; } return z; }
 function lineAt(x, y, z = 1) { if (!inB(plan, x, y)) return null; const o = occAt(plan, y * plan.w + x, z); const q = o && plan.objs.get(o); return q && structural(ITEMS[q.i]) ? q : null; }
 function wallAlong(x, y, dx, dy, z) { for (let n = 0; n < 16; n++, x += dx, y += dy) { const q = lineAt(x, y, z); if (!q) return null; if (isWall(ITEMS[q.i]) && q.w === 1 && q.h === 1) return q.i; } return null; }
 function closeWall(r, keep) {
@@ -760,14 +767,14 @@ function closeWall(r, keep) {
 function wallTurn(it, x, y, w, h, z) { if (w === h || !inWall(it)) return [w, h]; if (z == null) z = placeZ(it, x, y, 1, 1); if (!lineAt(x, y, z)) return [w, h]; const across = lineAt(x - 1, y, z) || lineAt(x + 1, y, z), down = lineAt(x, y - 1, z) || lineAt(x, y + 1, z); return (down && !across && w > h) || (across && !down && h > w) ? [h, w] : [w, h]; }
 const isTerr = (it) => !!it && it.L === 'g' && !isRug(it);
 const stacker = (it) => isTerr(it) || (isWall(it) && !inWall(it));
-const leveled = (it) => !!it && it.c !== 'Kits' && !isRug(it);
+const leveled = (it) => !!it && it.c !== 'Kits';
 let terrMode = 'stack';
-function blockTop(k, self) { let z = topTerr(k); const st = stackAt(k); for (let j = st.length - 1; j >= 0; j--) { const q = st[j]; if (q && q.id !== self && structural(ITEMS[q.i])) { const qz = zOf(q); if (z == null || qz > z) z = qz; break; } } return z; }
-function autoZ(it, x, y, w, h, self) {
+function autoZ(it, x, y, w, h, ign) {
   if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 1;
-  if (stacker(it)) { let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const b = blockTop(yy * plan.w + xx, self); z = Math.max(z, b == null ? (isTerr(it) ? 0 : 1) : b + 1); } return z; }
-  if (rides(it)) return levelFor(it, x, y, w, h, self);
-  return standOver(x, y, w, h);
+  const st = stacker(it); let z = -Infinity;
+  if (inWall(it)) { const g = standOver(x, y, w, h); for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const q = objAtLv(yy * plan.w + xx, g); if (q && !skipId(q, ign) && isWall(ITEMS[q.i]) && !inWall(ITEMS[q.i])) return g; } }
+  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const b = thingTop(yy * plan.w + xx, ign, !st); z = Math.max(z, b == null ? (isTerr(it) ? 0 : 1) : b + 1); }
+  return z;
 }
 function placeZ(it, x, y, w, h) {
   if (layerZ != null && leveled(it)) return layerZ;
@@ -775,28 +782,24 @@ function placeZ(it, x, y, w, h) {
   return autoZ(it, x, y, w, h);
 }
 function placeCheck(it, x, y, w, h, z, force) {
+  const t = Math.max(1, heightOf(it));
   if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return { err: 'edge', z };
-  if (z > ZMAX) return { err: 'top', z };
+  if (z + t - 1 > ZMAX) return { err: 'top', z };
   if (z < ZMIN) return { err: 'bottom', z };
   const terr = isTerr(it), fixed = force || (layerZ != null && leveled(it)), paint = !fixed && terr && terrMode === 'paint', rep = force || (fixed && layerReplace) || paint;
-  const gone = new Set(), goneT = [], lift = [], moved = new Set();
-  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
-    const k = yy * plan.w + xx, tv = terrAt(plan, k, z);
-    if (tv) { if (terr && tv === it.i + 1) { if (w === 1 && h === 1) return { same: true, z }; continue; } if (rep) { goneT.push(k); continue; } return { err: { i: tv - 1, terr: 1, k, z }, z }; }
-    const o = occAt(plan, k, z), q = o && plan.objs.get(o); if (!q || gone.has(q) || moved.has(q.id)) continue;
-    if (!terr && q.i === it.i && q.x === x && q.y === y && q.w === w && q.h === h) return { same: true, z };
+  const gone = new Set(), goneT = [];
+  for (let lz = z; lz < z + t; lz++) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+    const k = yy * plan.w + xx, tv = terrAt(plan, k, lz);
+    if (tv) { if (terr && tv === it.i + 1) { if (w === 1 && h === 1) return { same: true, z }; continue; } if (rep) { goneT.push([k, lz]); continue; } return { err: { i: tv - 1, terr: 1, k, z: lz }, z }; }
+    const o = occAt(plan, k, lz), q = o && plan.objs.get(o); if (!q || gone.has(q)) continue;
+    if (!terr && q.i === it.i && q.x === x && q.y === y && q.w === w && q.h === h && zOf(q) === z) return { same: true, z };
     if (rep) { gone.add(q); continue; }
+    if (terr || stacker(it)) return { err: q, z };
     const qi = ITEMS[q.i];
-    if (!fixed && stacker(it)) {
-      const up = [q, ...ridersOf(q)], own = new Set(up.map(r => r.id)), within = q.x >= x && q.y >= y && q.x + q.w <= x + w && q.y + q.h <= y + h;
-      if (!structural(qi) && within && up.every(r => freeAt(r.x, r.y, r.w, r.h, zOf(r) + 1, own))) { lift.push(...up); for (const id of own) moved.add(id); continue; }
-      return { err: q, z };
-    }
-    if (terr) return { err: q, z };
     if (fixed ? inWall(it) && structural(qi) && q.w === 1 && q.h === 1 : replaces(it, q)) { gone.add(q); continue; }
     return { err: q, z };
   }
-  return { z, gone: [...gone], goneT, lift };
+  return { z, gone: [...gone], goneT };
 }
 let placeMiss = [], placeHit = 0;
 function putObj(it, x, y, w, h, force, z) {
@@ -804,47 +807,49 @@ function putObj(it, x, y, w, h, force, z) {
   const r = placeCheck(it, x, y, w, h, z, force);
   if (r.err) { placeMiss.push({ i: it.i, x, y, w, h, z, err: r.err }); return r; }
   placeHit++; if (r.same) return r;
-  for (const q of r.gone) delObj(q); for (const k of r.goneT) setTerr(k, z, 0); for (const q of r.lift) delObj(q);
+  for (const q of r.gone) delObj(q); for (const [k, lz] of r.goneT) setTerr(k, lz, 0);
   let ob = null; if (isTerr(it)) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) setTerr(yy * plan.w + xx, z, it.i + 1); reveal('g'); } else ob = addObj(it.i, x, y, w, h, z);
-  carry(r.lift, 0, 0, 1); if (ob || isTerr(it)) reveal(z); return { ob, ok: !!ob || isTerr(it) };
+  if (ob || isTerr(it)) reveal(z); return { ob, ok: !!ob || isTerr(it) };
 }
 function placeReport() {
   const miss = placeMiss, hit = placeHit; placeMiss = []; placeHit = 0; if (!miss.length) return;
   const objs = miss.filter(m => m.err && (m.err.id || m.err.terr)), m = objs[0] || miss[0];
-  const msg = m.err === 'top' ? 'That\'s as high as it goes: level ' + ZMAX + ' is the top' : m.err === 'bottom' ? 'That\'s as low as it goes: level ' + lvNum(ZMIN) + ' is the bottom' : m.err === 'edge' ? 'No room here: off the edge' : ITEMS[m.err.i].n + ' is in the way' + (m.z ? ' on level ' + lvNum(m.z) : '');
+  const onItem = m.err && m.err.id && !m.err.terr && !structural(ITEMS[m.err.i]) && !stacker(ITEMS[m.i]) && layerZ == null;
+  const msg = m.err === 'top' ? 'That\'s as high as it goes: level ' + ZMAX + ' is the top' : m.err === 'bottom' ? 'That\'s as low as it goes: level ' + lvNum(ZMIN) + ' is the bottom' : m.err === 'edge' ? 'No room here: off the edge' : ITEMS[m.err.i].n + ' is in the way' + (onItem ? ': items don\'t go on top of items' : m.z ? ' on level ' + lvNum(m.z) : '');
   const tail = hit ? ' · ' + miss.length + ' skipped' : '';
   if (objs.length) toast(msg + tail, 6000, { label: 'Replace', fn: () => replaceMissed(objs) }); else toast(msg + tail);
 }
 function replaceMissed(list) {
   placeMiss = []; placeHit = 0; let n = 0;
-  for (const m of list) { const it = ITEMS[m.i]; if (it && putObj(it, m.x, m.y, m.w, m.h, true, m.z).ok) n++; }
+  for (const m of list) { const it = ITEMS[m.i]; if (!it) continue; if (isRug(it)) { for (let yy = m.y; yy < m.y + m.h; yy++) for (let xx = m.x; xx < m.x + m.w; xx++) setTerr(yy * plan.w + xx, m.z, 0); for (const r of rugsOf(plan).filter(r => zOf(r) === m.z && overlaps(r, m.x, m.y, m.w, m.h))) delRug(r); addRug(it.i, m.x, m.y, m.w, m.h, m.z); n++; continue; } if (putObj(it, m.x, m.y, m.w, m.h, true, m.z).ok) n++; }
   placeMiss = []; placeHit = 0; if (commitTx('Replace')) toast(n + ' replaced'); requestDraw();
 }
-function reshapeObj(ob, x, y, w, h, z = zOf(ob)) {
-  const it = ITEMS[ob.i], b = blocker(it, x, y, w, h, ob.id, z); if (b) return { err: b };
-  delObj(ob); if (inWall(it)) closeWall(ob, { x, y, w, h }); clearFor(x, y, w, h, 0, z); const n = addObj(ob.i, x, y, w, h, z); if (n && ob.int) n.int = ob.int; return { ob: n };
+function reshapeObj(ob, x, y, w, h, z = zOf(ob), t = htOf(ob)) {
+  const it = ITEMS[ob.i], b = blocker(it, x, y, w, h, ob.id, z, t); if (b) return { err: b };
+  delObj(ob); if (inWall(it)) closeWall(ob, { x, y, w, h }); clearFor(x, y, w, h, 0, z, t); const n = addObj(ob.i, x, y, w, h, z, t); if (n && ob.int) n.int = ob.int; return { ob: n };
 }
 function removeObj(ob) { delObj(ob); if (inWall(ITEMS[ob.i])) closeWall(ob); }
-function ridersOf(ob) { const out = [], seen = new Set([ob.id]), q = [ob]; while (q.length) { const b = q.shift(), z = zOf(b) + 1; if (z > ZMAX) continue; for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { const r = objAtLv(y * plan.w + x, z); if (r && !seen.has(r.id) && r.x >= b.x && r.y >= b.y && r.x + r.w <= b.x + b.w && r.y + r.h <= b.y + b.h) { seen.add(r.id); out.push(r); q.push(r); } } } return out; }
-function carry(riders, dx, dy, dz) { for (const r of riders) { let n = null; const nz = zOf(r) + dz; if (nz >= ZMIN && nz <= ZMAX) n = addObj(r.i, r.x + dx, r.y + dy, r.w, r.h, nz); for (let z = zOf(r); !n && z <= ZMAX; z++) n = addObj(r.i, r.x, r.y, r.w, r.h, z); if (n && r.int) n.int = r.int; } }
-function freeAt(x, y, w, h, z, ids) { if (z < ZMIN || z > ZMAX || x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return false; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const k = yy * plan.w + xx, o = occAt(plan, k, z); if ((o && !ids.has(o)) || terrAt(plan, k, z)) return false; } return true; }
+function ridersOf(ob) { const out = [], seen = new Set([ob.id]), q = [ob]; while (q.length) { const b = q.shift(), z = topOf(b) + 1; if (z > ZMAX) continue; for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { const r = objAtLv(y * plan.w + x, z); if (r && !seen.has(r.id) && r.x >= b.x && r.y >= b.y && r.x + r.w <= b.x + b.w && r.y + r.h <= b.y + b.h) { seen.add(r.id); out.push(r); q.push(r); } } } return out; }
+function carry(riders, dx, dy, dz) { for (const r of riders) { let n = null; const nz = zOf(r) + dz, t = htOf(r); if (nz >= ZMIN && nz + t - 1 <= ZMAX) n = addObj(r.i, r.x + dx, r.y + dy, r.w, r.h, nz, t); for (let z = zOf(r); !n && z + t - 1 <= ZMAX; z++) n = addObj(r.i, r.x, r.y, r.w, r.h, z, t); if (n && r.int) n.int = r.int; } }
+function freeAt(x, y, w, h, z, ids, t = 1) { if (z < ZMIN || z + t - 1 > ZMAX || x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return false; for (let lz = z; lz < z + t; lz++) for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { const k = yy * plan.w + xx, o = occAt(plan, k, lz); if ((o && !ids.has(o)) || terrAt(plan, k, lz)) return false; } return true; }
 function shiftLevel(ob, dz) {
   const riders = ridersOf(ob), ids = new Set([ob.id, ...riders.map(r => r.id)]), z = zOf(ob) + dz;
-  if (!freeAt(ob.x, ob.y, ob.w, ob.h, z, ids) || riders.some(r => !freeAt(r.x, r.y, r.w, r.h, zOf(r) + dz, ids))) { toast(z < ZMIN ? 'That\'s as low as it goes' : z > ZMAX ? 'That\'s as high as it goes' : 'Something is in the way ' + (dz > 0 ? 'above' : 'below')); return; }
-  for (const r of riders) delObj(r); delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z); if (n && ob.int) n.int = ob.int; carry(riders, 0, 0, dz);
+  if (!freeAt(ob.x, ob.y, ob.w, ob.h, z, ids, htOf(ob)) || riders.some(r => !freeAt(r.x, r.y, r.w, r.h, zOf(r) + dz, ids, htOf(r)))) { toast(z < ZMIN ? 'That\'s as low as it goes' : z + htOf(ob) - 1 > ZMAX ? 'That\'s as high as it goes' : 'Something is in the way ' + (dz > 0 ? 'above' : 'below')); return; }
+  for (const r of riders) delObj(r); delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z, htOf(ob)); if (n && ob.int) n.int = ob.int; carry(riders, 0, 0, dz);
   commitTx(dz > 0 ? 'Up a level' : 'Down a level'); if (n) { selection = { obj: n }; showObjInspector(n); reveal(z); }
 }
 function shiftRegion(r, dz) {
   const list = [], seen = new Set();
   for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; for (const ob of shownStack(y * plan.w + x)) if (!seen.has(ob.id)) { seen.add(ob.id); if (ob.x >= r.x && ob.y >= r.y && ob.x + ob.w <= r.x + r.w && ob.y + ob.h <= r.y + r.h && ITEMS[ob.i].c !== 'Kits') list.push(ob); } }
   list.sort((a, b) => (zOf(b) - zOf(a)) * dz); let moved = 0; const to = new Set();
-  for (const ob of list) { const z = zOf(ob) + dz; if (z < ZMIN || z > ZMAX || !fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, z)) continue; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z); if (n && ob.int) n.int = ob.int; moved++; to.add(z); }
+  for (const ob of list) { const z = zOf(ob) + dz; if (!fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, z, htOf(ob))) continue; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, z, htOf(ob)); if (n && ob.int) n.int = ob.int; moved++; to.add(z); }
   if (!moved) { toast(list.length ? (dz > 0 ? 'No room above them' : 'No room below them') : 'No items here'); return; }
   for (const z of to) if (hidden.has(z)) { hidden.delete(z); saveLayers(); layersChanged(); }
   commitTx(dz > 0 ? 'Up a level' : 'Down a level'); toast(moved + ' item' + (moved === 1 ? '' : 's') + ' moved ' + (dz > 0 ? 'up' : 'down') + (moved < list.length ? ', ' + (list.length - moved) + ' had no room' : '')); showRegionInspector();
 }
-function moveLevel(ob, x, y, w, h) { if (ob.rug) return 0; const it = ITEMS[ob.i], z = zOf(ob); if (autoZ(it, ob.x, ob.y, ob.w, ob.h, ob.id) !== z) return z; return autoZ(it, x, y, w, h, ob.id); }
-function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'No room here'; if (b === 'edge') return where + ': off the edge'; const qi = ITEMS[b.i]; return where + ': ' + qi.n + ' is in the way' + (structural(qi) && !inWall(it) ? ' (only doors and windows go into walls)' : ''); }
+function moveCtx(ob) { const ign = ob.rug ? null : new Set([ob.id, ...ridersOf(ob).map(r => r.id)]); return { ign, rest: autoZ(ITEMS[ob.i], ob.x, ob.y, ob.w, ob.h, ign) === zOf(ob) }; }
+function moveLevel(ob, x, y, w, h, ctx = moveCtx(ob)) { return ctx.rest ? autoZ(ITEMS[ob.i], x, y, w, h, ctx.ign) : zOf(ob); }
+function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'No room here'; if (b === 'edge') return where + ': off the edge'; if (b === 'top' || b === 'bottom') return where + ': too ' + (b === 'top' ? 'high' : 'low'); const qi = ITEMS[b.i]; return where + ': ' + qi.n + ' is in the way' + (structural(qi) && !inWall(it) ? ' (only doors and windows go into walls)' : ''); }
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
@@ -872,7 +877,7 @@ function zoneCounts(z) {
     const k = y * plan.w + x, t = topTerr(k), g = t == null ? 0 : terrAt(plan, k, t);
     if (g) { const n = ITEMS[g - 1].n; terr.set(n, (terr.get(n) || 0) + 1); counts.set(g - 1, (counts.get(g - 1) || 0) + 1); }
     const e = t == null ? 0 : t; if (e < minE) minE = e; if (e > maxE) maxE = e;
-    const oid = occAt(plan, k, t == null ? 1 : t + 1); if (oid && !seen.has(oid)) { seen.add(oid); const ob = plan.objs.get(oid); if (ob) counts.set(ob.i, (counts.get(ob.i) || 0) + 1); }
+    const sz = t == null ? 1 : t + 1, oid = occAt(plan, k, sz); if (oid && !seen.has(oid)) { const ob = plan.objs.get(oid); if (ob && zOf(ob) === sz) { seen.add(oid); counts.set(ob.i, (counts.get(ob.i) || 0) + 1); } }
   }
   return { counts, terr, high: maxE - minE >= 2, objIds: seen };
 }
@@ -942,7 +947,7 @@ function detectHouses() {
       let ox0 = Math.max(0, x0 - 1), oy0 = Math.max(0, y0 - 1), ox1 = Math.min(Wd - 1, x1 + 1), oy1 = Math.min(Hd - 1, y1 + 1);
       for (const d of doors) { const dx = d % Wd, dy = (d / Wd) | 0; ox0 = Math.min(ox0, dx); oy0 = Math.min(oy0, dy); ox1 = Math.max(ox1, dx); oy1 = Math.max(oy1, dy); }
       const furnIds = new Set(), furnTypes = new Set(), kitIds = new Set();
-      for (const k of cells) { const ob = objAtLv(k, L); if (!ob) continue; const it = ITEMS[ob.i]; if (it.c === 'Kits') kitIds.add(ob.id); if (FURN_CATS.has(it.c) && !isWall(it) && !isDoor(it) && it.sub !== 'Fossil') { furnIds.add(ob.id); furnTypes.add(it.i); } }
+      for (const k of cells) { const ob = objAtLv(k, L); if (!ob || zOf(ob) !== L) continue; const it = ITEMS[ob.i]; if (it.c === 'Kits') kitIds.add(ob.id); if (FURN_CATS.has(it.c) && !isWall(it) && !isDoor(it) && it.sub !== 'Fossil') { furnIds.add(ob.id); furnTypes.add(it.i); } }
       const sizeOk = w >= 2 && hh >= 2 && ((w <= 9 && hh <= 10) || (w <= 10 && hh <= 9));
       const kits = [...kitIds].map(i => plan.objs.get(i)); const kitHomes = kits.filter(ob => ITEMS[ob.i].cap);
       let id = 'H' + k0; if (ids.has(id)) id += '@' + L; ids.add(id);
@@ -1895,19 +1900,24 @@ function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = nu
   }
   c.restore();
 }
-const isRug = (it) => it.c === 'Rug';
+const isRug = (it) => it.c === 'Rug' || it.ht === 0;
 const painted = (it) => it.L === 'g' && !isRug(it);
 const rugsOf = (p) => [...p.rugs.values()];
 const overlaps = (r, x, y, w, h) => r.x < x + w && r.x + r.w > x && r.y < y + h && r.y + r.h > y;
-function rugAt(x, y) { for (const r of plan.rugs.values()) if (overlaps(r, x, y, 1, 1)) return r; return null; }
-function addRug(i, x, y, w, h) { beginTx(); const r = { id: plan.nextId++, rug: 1, i, x, y, w, h }; plan.rugs.set(r.id, r); tx.add.push(r); return r; }
+const rugShown = (r) => lvShown('r') && !hidden.has(zOf(r));
+function rugAt(x, y, all) { let best = null; for (const r of plan.rugs.values()) if (overlaps(r, x, y, 1, 1) && (all || rugShown(r)) && (!best || zOf(r) > zOf(best))) best = r; return best; }
+function addRug(i, x, y, w, h, z = 1) { beginTx(); const r = { id: plan.nextId++, rug: 1, i, x, y, w, h }; if (z) r.z = z; plan.rugs.set(r.id, r); tx.add.push(r); return r; }
+function rugLevel(p, x, y, w, h) { let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inB(p, xx, yy)) z = Math.max(z, standZ(yy * p.w + xx, p)); return z === -Infinity ? 1 : z; }
 function delRug(r) { if (!plan.rugs.has(r.id)) return; beginTx(); plan.rugs.delete(r.id); const ai = tx.add.indexOf(r); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(r); }
 const clearRug = delRug;
 function placeRug(it, x, y) {
   const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1];
   if (x + w > plan.w || y + hh > plan.h) { toast(it.n + ' is ' + w + '×' + hh + ' and doesn\'t fit here.'); return; }
-  const under = rugsOf(plan).filter(r => overlaps(r, x, y, w, hh)); if (under.some(r => r.i === it.i)) return;
-  for (const r of under) delRug(r); addRug(it.i, x, y, w, hh);
+  const z = placeZ(it, x, y, w, hh); if (z > ZMAX || z < ZMIN) { placeMiss.push({ i: it.i, x, y, w, h: hh, z, err: z > ZMAX ? 'top' : 'bottom' }); return; }
+  const under = rugsOf(plan).filter(r => zOf(r) === z && overlaps(r, x, y, w, hh)); if (under.some(r => r.i === it.i)) return;
+  const solid = []; for (let yy = y; yy < y + hh; yy++) for (let xx = x; xx < x + w; xx++) if (terrAt(plan, yy * plan.w + xx, z)) solid.push(yy * plan.w + xx);
+  if (solid.length && !layerReplace) { const k = solid[0]; placeMiss.push({ i: it.i, x, y, w, h: hh, z, err: { i: terrAt(plan, k, z) - 1, terr: 1, k, z } }); return; }
+  for (const k of solid) setTerr(k, z, 0); for (const r of under) delRug(r); addRug(it.i, x, y, w, hh, z); placeHit++; reveal(z);
 }
 function rugCellsToRugs(p) {
   const W = p.w, g = p.ground, taken = new Uint8Array(g.length), found = [], foot = (it) => userSizes[it.n] || (p.isz && p.isz[it.n]) || [it.w || 1, it.h || 1];
@@ -1925,7 +1935,7 @@ function rugCellsToRugs(p) {
     for (let xx = r.x - 1; xx <= r.x + r.w; xx++) { add(xx, r.y - 1); add(xx, r.y + r.h); } for (let yy = r.y; yy < r.y + r.h; yy++) { add(r.x - 1, yy); add(r.x + r.w, yy); }
     let best = 0, bv = 0; for (const [v, c] of n) if (c > best) { best = c; bv = v; } r.under = bv;
   }
-  for (const r of found) { for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) g[yy * W + xx] = r.under; const q = { id: p.nextId++, rug: 1, i: r.i, x: r.x, y: r.y, w: r.w, h: r.h }; p.rugs.set(q.id, q); }
+  for (const r of found) { for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) g[yy * W + xx] = r.under; const q = { id: p.nextId++, rug: 1, i: r.i, x: r.x, y: r.y, w: r.w, h: r.h }, z = rugLevel(p, r.x, r.y, r.w, r.h); if (z) q.z = z; p.rugs.set(q.id, q); }
 }
 function drawRug(c, it, x, y, s, w, h, under) {
   const u = s * dpr >= MAP_PIC_MIN ? picsFor(it)[0] : null, p = u && mapPic(u); if (!p) return false;
@@ -2012,13 +2022,13 @@ function draw(t, c = ctx) {
     drawArea(c, r.area, s, sel);
   }
   let resIx = null; const rix = () => resIx || (resIx = residentsIndex());
-  const rugZ = (r) => { let z = -Infinity; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) z = Math.max(z, standZ(y * plan.w + x)); return z; };
-  const rugs = lvShown('r') ? [...plan.rugs.values()].filter(r => !(r.x + r.w < x0 || r.x > x1 || r.y + r.h < y0 || r.y > y1)) : [];
-  const drawRugs = (fade) => { for (const r of rugs) { if ((rugZ(r) > cut) !== fade) continue; const it = ITEMS[r.i], rx = view.px + r.x * s, ry = view.py + r.y * s; if (!drawRug(c, it, rx, ry, s, r.w, r.h)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(rx, ry, r.w * s, r.h * s); } } };
-  drawRugs(false);
-  for (const z of plan.zs) if (z <= cut) drawObjs(c, z, s, V, rix);
+  const rugs = [...plan.rugs.values()].filter(r => rugShown(r) && !(r.x + r.w < x0 || r.x > x1 || r.y + r.h < y0 || r.y > y1)), rugLv = new Map();
+  for (const r of rugs) { const z = zOf(r); let covered = true; for (let y = r.y; y < r.y + r.h && covered; y++) for (let x = r.x; x < r.x + r.w; x++) { const t = V.at(x, y); if (t === NONE_Z || t < z) { covered = false; break; } } if (covered && z <= cut) continue; if (!rugLv.has(z)) rugLv.set(z, []); rugLv.get(z).push(r); }
+  const drawRugs = (z) => { for (const r of rugLv.get(z) || []) { const it = ITEMS[r.i], rx = view.px + r.x * s, ry = view.py + r.y * s; if (!drawRug(c, it, rx, ry, s, r.w, r.h)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(rx, ry, r.w * s, r.h * s); } if (s >= 18 && z !== rugLevel(plan, r.x, r.y, r.w, r.h)) lvBadge(c, z, rx, ry, s); } };
+  const lvAll = [...new Set([...plan.zs, ...rugLv.keys()])].sort((a, b) => a - b);
+  for (const z of lvAll) if (z <= cut) { drawRugs(z); drawObjs(c, z, s, V, rix); }
   if (cut !== Infinity) {
-    c.save(); c.globalAlpha = 0.28; drawTerr(c, V, V.tf, s); drawRugs(true); for (const z of plan.zs) if (z > cut) drawObjs(c, z, s, V, rix); c.restore();
+    c.save(); c.globalAlpha = 0.28; drawTerr(c, V, V.tf, s); for (const z of lvAll) if (z > cut) { drawRugs(z); drawObjs(c, z, s, V, rix); } c.restore();
   }
   if (s >= 30 && gShow) { c.font = '700 10px sans-serif'; c.textAlign = 'right'; c.textBaseline = 'top'; c.fillStyle = 'rgba(0,0,0,.55)'; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const z = V.tv[(y - y0) * V.cw + x - x0]; if (z !== NONE_Z && z) c.fillText((z > 0 ? '▲' : '▼') + Math.abs(z), view.px + (x + 1) * s - 2, view.py + y * s + 2); } }
   for (const hs of autoHouses) {
@@ -2048,11 +2058,11 @@ function draw(t, c = ctx) {
     const [hx, hy] = hover; const it = currentItem();
     if (tool === 'place' && it && inB(plan, hx, hy)) {
       const ft = footOf(it), rug = isRug(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = rug ? (rotated ? ft[1] : ft[0]) : it.L === 'g' ? brush : tw, fh = rug ? (rotated ? ft[0] : ft[1]) : it.L === 'g' ? brush : th;
-      const pw = mu ? fw : 1, ph = mu ? fh : 1, lz = rug ? 0 : placeZ(it, hx, hy, pw, ph), chk = rug ? null : placeCheck(it, hx, hy, pw, ph, lz), terr = isTerr(it);
-      const ok = rug ? hx + fw <= plan.w && hy + fh <= plan.h : (!mu && brush > 1) || !chk.err;
+      const pw = mu || rug ? fw : 1, ph = mu || rug ? fh : 1, lz = placeZ(it, hx, hy, pw, ph), chk = rug ? null : placeCheck(it, hx, hy, pw, ph, lz), terr = isTerr(it);
+      const ok = rug ? hx + fw <= plan.w && hy + fh <= plan.h && lz <= ZMAX && lz >= ZMIN : (!mu && brush > 1) || !chk.err;
       c.globalAlpha = 0.55; if (rug) { if (!drawRug(c, it, view.px + hx * s, view.py + hy * s, s, fw, fh)) { c.fillStyle = picsFor(it)[2] || it.col; c.fillRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s); } } else if (terr) { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) if (inB(plan, hx + dx, hy + dy)) drawGroundCell(c, it, view.px + (hx + dx) * s, view.py + (hy + dy) * s, s); } else if (lz <= ZMAX && lz >= ZMIN) drawGhost(c, it, hx, hy, pw, ph, lz, s); c.globalAlpha = 1;
-      if (terr && s >= 18 && lz <= ZMAX && lz >= ZMIN) lvBadge(c, lz, view.px + hx * s, view.py + hy * s, s);
-      if (chk && ((chk.gone && chk.gone.length) || (chk.goneT && chk.goneT.length))) { c.globalAlpha = 0.3; c.fillStyle = theme.bad; for (const q of chk.gone) for (let y = Math.max(q.y, hy); y < Math.min(q.y + q.h, hy + ph); y++) for (let x = Math.max(q.x, hx); x < Math.min(q.x + q.w, hx + pw); x++) c.fillRect(view.px + x * s, view.py + y * s, s, s); for (const k of chk.goneT) c.fillRect(view.px + (k % plan.w) * s, view.py + ((k / plan.w) | 0) * s, s, s); c.globalAlpha = 1; }
+      if ((terr || rug) && s >= 18 && lz <= ZMAX && lz >= ZMIN) lvBadge(c, lz, view.px + hx * s, view.py + hy * s, s);
+      if (chk && ((chk.gone && chk.gone.length) || (chk.goneT && chk.goneT.length))) { c.globalAlpha = 0.3; c.fillStyle = theme.bad; for (const q of chk.gone) for (let y = Math.max(q.y, hy); y < Math.min(q.y + q.h, hy + ph); y++) for (let x = Math.max(q.x, hx); x < Math.min(q.x + q.w, hx + pw); x++) c.fillRect(view.px + x * s, view.py + y * s, s, s); for (const [k] of chk.goneT) c.fillRect(view.px + (k % plan.w) * s, view.py + ((k / plan.w) | 0) * s, s, s); c.globalAlpha = 1; }
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
     } else if (tool === 'move' && moving && inB(plan, hx, hy)) drawMovePreview(c, s, moving, fitMove(moving, hx, hy, 0, 0));
     else if ((tool === 'stamp' || tool === 'paste') && inB(plan, hx, hy)) {
@@ -2098,7 +2108,7 @@ function kitBadge(c, ob, s, rix) {
 function drawGhost(c, it, x, y, w, h, z, s) { const d = z - standOver(x, y, w, h), g = { i: it.i, x, y, w, h, z }; if (d === 0) drawPicItem(c, it, view.px + x * s, view.py + y * s, s, w, h, false, [x, y, w, h, z]); else if (structural(it)) drawUp(c, g, s, d); else drawRaised(c, g, s, d); }
 function drawObjs(c, z, s, V, rix) {
   if (hidden.has(z)) return; const L = z ? plan.up.get(z) : plan.occ; if (!L) return; const small = [], big = [], seen = new Set();
-  for (let y = V.y0; y < V.y1; y++) for (let x = V.x0; x < V.x1; x++) { const oid = L[y * plan.w + x]; if (!oid || seen.has(oid)) continue; seen.add(oid); const ob = plan.objs.get(oid); if (ob) (ob.w > 1 || ob.h > 1 ? big : small).push(ob); }
+  for (let y = V.y0; y < V.y1; y++) for (let x = V.x0; x < V.x1; x++) { const oid = L[y * plan.w + x]; if (!oid || seen.has(oid)) continue; seen.add(oid); const ob = plan.objs.get(oid); if (ob && zOf(ob) === z) (ob.w > 1 || ob.h > 1 ? big : small).push(ob); }
   const list = [...small, ...big].filter(ob => { for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) { const t = V.at(x, y); if (t === NONE_Z || t < z) return true; } return false; }).map(ob => [ob, z - V.rest(ob)]);
   for (const [ob, d] of list) if (d > 0 && solidUp(ITEMS[ob.i])) upShadow(c, ob, s);
   for (const [ob, d] of list) {
@@ -2176,14 +2186,16 @@ function eraseCell(x, y, seen) {
   for (let dy = 0; dy < brush; dy++) for (let dx = 0; dx < brush; dx++) {
     const xx = x + dx, yy = y + dy; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx;
     if (seen) { if (seen.has(k)) continue; seen.add(k); }
-    if (fixed) { if (!lvShown(layerZ)) continue; const q = items ? objAtLv(k, layerZ) : null; if (q) { delObj(q); if (inWall(ITEMS[q.i])) shut.push(q); } else if (terr) setTerr(k, layerZ, 0); continue; }
-    const q = items ? topShown(k) : null, tz = terr ? topTerrShown(k) : null;
-    if (q && (tz == null || zOf(q) > tz || eraseMode === 'objects')) { delObj(q); if (inWall(ITEMS[q.i])) shut.push(q); continue; }
-    const rg = eraseMode === 'both' && lvShown('r') ? rugAt(xx, yy) : null; if (rg) { delRug(rg); continue; }
+    if (fixed) { if (!lvShown(layerZ)) continue; const q = items ? objAtLv(k, layerZ) : null, rg = items && !q ? rugsOf(plan).find(r => zOf(r) === layerZ && rugShown(r) && overlaps(r, xx, yy, 1, 1)) : null; if (q) { delObj(q); if (inWall(ITEMS[q.i])) shut.push(q); } else if (rg) delRug(rg); else if (terr) setTerr(k, layerZ, 0); continue; }
+    const q = items ? topShown(k) : null, tz = terr ? topTerrShown(k) : null, rg = items ? rugAt(xx, yy) : null;
+    const top = pickTop(q, tz, rg, eraseMode === 'objects');
+    if (top === q && q) { delObj(q); if (inWall(ITEMS[q.i])) shut.push(q); continue; }
+    if (top === rg && rg) { delRug(rg); continue; }
     if (tz != null) setTerr(k, tz, 0);
   }
   for (const ob of shut) closeWall(ob);
 }
+function pickTop(q, tz, rg, noTerr) { const kq = q ? topOf(q) : -Infinity, kr = rg ? zOf(rg) - 0.5 : -Infinity, kt = tz == null || noTerr ? -Infinity : tz; const m = Math.max(kq, kr, kt); if (m === -Infinity) return null; return m === kq ? q : m === kr ? rg : 'terr'; }
 function lineCells(x0, y0, x1, y1, fn) { const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy; for (; ;) { fn(x0, y0); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } } }
 function fillRect(r) {
   const it = currentItem(); if (!it) return;
@@ -2327,11 +2339,11 @@ addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; cv.styl
 function updateStatus() {
   const st = $('#status'); st.textContent = '';
   if (hover && plan && inB(plan, hover[0], hover[1])) {
-    const k = hover[1] * plan.w + hover[0], pile = shownStack(k), tz = topTerrShown(k), tv = tz == null ? 0 : terrAt(plan, k, tz), ob0 = pile[pile.length - 1], ob = ob0 && (tz == null || zOf(ob0) > tz) ? ob0 : null;
+    const k = hover[1] * plan.w + hover[0], pile = shownStack(k), tz = topTerrShown(k), tv = tz == null ? 0 : terrAt(plan, k, tz), rg0 = rugAt(hover[0], hover[1]), top = pickTop(pile[pile.length - 1], tz, rg0), ob = top && top !== 'terr' && !top.rug ? top : null;
     st.append(h('span', { class: 'chip' }, hover[0] + ', ' + hover[1] + (tz != null && tz !== 0 ? ' · ground ' + lvTxt(tz) : '')));
-    const rg = !ob && lvShown('r') && rugAt(hover[0], hover[1]);
-    if (ob) { const z = zOf(ob), un = objAtLv(k, z - 1), ut = terrAt(plan, k, z - 1); st.append(h('span', { class: 'chip' }, ITEMS[ob.i].n + ' · level ' + lvNum(z) + (un ? ', on ' + ITEMS[un.i].n : ut ? '' : ', floating'))); }
-    else if (rg) st.append(h('span', { class: 'chip' }, ITEMS[rg.i].n)); else if (tv) st.append(h('span', { class: 'chip' }, ITEMS[tv - 1].n + ' · level ' + lvNum(tz)));
+    const rg = top && top.rug ? top : null;
+    if (ob) { const z = zOf(ob), un = objAtLv(k, z - 1), ut = terrAt(plan, k, z - 1); st.append(h('span', { class: 'chip' }, ITEMS[ob.i].n + ' · level ' + lvNum(z) + (htOf(ob) > 1 ? ' to ' + lvNum(topOf(ob)) : '') + (un ? ', on ' + ITEMS[un.i].n : ut ? '' : ', floating'))); }
+    else if (rg) { const z = zOf(rg), un = objAtLv(k, z - 1); st.append(h('span', { class: 'chip' }, ITEMS[rg.i].n + ' · level ' + lvNum(z) + (un ? ', on ' + ITEMS[un.i].n : ''))); } else if (tv) st.append(h('span', { class: 'chip' }, ITEMS[tv - 1].n + ' · level ' + lvNum(tz)));
     const homes = []; for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (r && r.area && inArea(r.area, hover[0], hover[1])) homes.push(z.kind === 'habitat' && r.ok ? r.best.hb.n : (z.name || 'Zone')); } for (const hs of autoHouses) if (hs.cells.has(hover[1] * plan.w + hover[0])) homes.push(hs.ok ? 'House' : 'unfinished house');
     if (homes.length) st.append(h('span', { class: 'chip', style: 'color:var(--accent)' }, 'In range of ' + homes.slice(0, 3).join(', ') + (homes.length > 3 ? ' +' + (homes.length - 3) : '')));
   }
@@ -2676,7 +2688,7 @@ function renderOptbar() {
       const p = h('span', { class: 'pill' }, swatchEl(it), h('b', null, it.n));
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
-      if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', 'data-tip': sizeGuessed(it) ? 'Guessed size: change it if yours differs in game' : 'Size in tiles' }, (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? '?' : ''), ft[0] !== ft[1] ? ibtn('rotate', 'Rotate (Q)', () => { rotated = !rotated; renderOptbar(); requestDraw(); }, 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'))); }
+      if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', 'data-tip': sizeGuessed(it) || heightGuessed(it) ? 'Guessed ' + (sizeGuessed(it) && heightGuessed(it) ? 'size and height' : sizeGuessed(it) ? 'size' : 'height') + ': change it if yours differs in game' : tall(it) ? 'Size in tiles, and the levels it takes up' : 'Size in tiles' }, (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? '?' : '') + (tall(it) && (heightOf(it) > 1 || heightGuessed(it)) ? ' · ' + heightOf(it) + ' high' + (heightGuessed(it) ? '?' : '') : ''), ft[0] !== ft[1] ? ibtn('rotate', 'Rotate (Q)', () => { rotated = !rotated; renderOptbar(); requestDraw(); }, 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'))); }
       if ((it.L !== 'g' && multi(it)) || isRug(it)) { }
       else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, segmented([['solid', 'Solid'], ['outline', 'Outline']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode'), tipBtn('Drag a rectangle. Outline fills only its edge: quick walls.')));
       else if (tool === 'place') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
@@ -2706,31 +2718,39 @@ function levelPill(it) {
   const p = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), sel);
   if (layerZ == null && isTerr(it)) p.append(segmented([['stack', 'Stack'], ['paint', 'Paint']], terrMode, v => { terrMode = v; renderOptbar(); requestDraw(); }, 'Stack a new block on top, or paint over the top block'));
   if (layerZ != null) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + lvNum(layerZ)));
-  p.append(tipBtn(layerZ == null ? (isTerr(it) ? (terrMode === 'paint' ? 'Paint swaps the top terrain block for this one, at the same level.' : 'Stack puts a new terrain block on top of what\'s there, one level up, and lifts anything standing on it. Use Paint to swap the top block instead.') : stacker(it) ? 'Blocks stack on top of the terrain or blocks already there, and lift anything sitting on them.' : 'Items stand on the terrain, or on top of walls, blocks, tables and shelves.') + ' Pick a level to place on that level instead, or pick one in Layers.' : 'Everything you place goes on level ' + lvNum(layerZ) + '. Keep leaves what\'s already on that level and skips those squares; Replace takes it away. Squares that will be replaced show red.'));
+  p.append(tipBtn(layerZ == null ? (isTerr(it) ? (terrMode === 'paint' ? 'Paint swaps the top terrain block for this one, at the same level.' : 'Stack puts a new terrain block on top of whatever is there, items included, one level up. Use Paint to swap the top block instead.') : stacker(it) ? 'Blocks go on top of whatever is there: terrain, other blocks or items.' : isRug(it) ? 'Rugs lie on top of the highest block, and furniture stands on them.' : 'Items go on top of the highest block there, terrain or a wall or block, never on another item. This one is ' + heightOf(it) + (heightOf(it) === 1 ? ' level' : ' levels') + ' high.') + ' Pick a level to place on that level instead, or pick one in Layers.' : 'Everything you place goes on level ' + lvNum(layerZ) + '. Keep leaves what\'s already on that level and skips those squares; Replace takes it away. Squares that will be replaced show red.'));
   return p;
 }
 function zoneAt(x, y) { for (let i = plan.zones.length - 1; i >= 0; i--) { const z = plan.zones[i]; if (x >= z.x && y >= z.y && x < z.x + z.w && y < z.y + z.h) return z; } return null; }
 function tapSelect(x, y) {
   if (!inB(plan, x, y)) { closeInspector(); return; }
-  const k = y * plan.w + x, rg = lvShown('r') && rugAt(x, y), z = zoneAt(x, y), hs = houseAt(x, y) || autoHouses.find(q => q.doors.has(k));
-  const pile = shownStack(k).reverse(), at = layerZ != null ? pile.findIndex(q => zOf(q) === layerZ) : -1; if (at > 0) pile.unshift(pile.splice(at, 1)[0]);
-  const stack = [...pile.map(ob => ({ obj: ob })), rg && { rug: rg }, z && { zone: z }, hs && { house: hs }].filter(Boolean);
+  const k = y * plan.w + x, z = zoneAt(x, y), hs = houseAt(x, y) || autoHouses.find(q => q.doors.has(k));
+  const pile = [...shownStack(k).map(ob => ({ obj: ob, key: topOf(ob), lv: zOf(ob) })), ...rugsOf(plan).filter(r => rugShown(r) && overlaps(r, x, y, 1, 1)).map(r => ({ rug: r, key: zOf(r) - 0.5, lv: zOf(r) }))].sort((a, b) => b.key - a.key);
+  const at = layerZ != null ? pile.findIndex(q => q.lv === layerZ) : -1; if (at > 0) pile.unshift(pile.splice(at, 1)[0]);
+  const stack = [...pile.map(q => q.obj ? { obj: q.obj } : { rug: q.rug }), z && { zone: z }, hs && { house: hs }].filter(Boolean);
   if (!stack.length) { selection = null; closeInspector(); return; }
   const now = selection ? stack.findIndex(q => q.obj ? selection.obj && selection.obj.id === q.obj.id : q.rug ? selection.rug && selection.rug.id === q.rug.id : q.zone ? selection.zone === q.zone : selection.house === q.house.id) : -1;
-  const p = stack[now < 0 ? 0 : stack[now].obj && !(stack[now + 1] && stack[now + 1].obj) ? now : (now + 1) % stack.length];
+  const p = stack[now < 0 ? 0 : stack[now].obj && !(stack[now + 1] && (stack[now + 1].obj || stack[now + 1].rug)) ? now : (now + 1) % stack.length];
   if (p.obj) { selection = { obj: p.obj }; showObjInspector(p.obj); } else if (p.rug) showRugInspector(p.rug); else if (p.zone) selectZone(p.zone); else selectHouse(p.house);
 }
 function showRugInspector(r) {
   const it = ITEMS[r.i]; selection = { rug: r };
-  const box = inspectorShell(it.n, swatchEl(it), 'Rug · ' + r.w + '×' + r.h, 'Drag it to move it. Tap again to select what\'s under it.');
+  const box = inspectorShell(it.n, swatchEl(it), 'Rug · ' + r.w + '×' + r.h + (zOf(r) !== rugLevel(plan, r.x, r.y, r.w, r.h) ? ' · level ' + lvNum(zOf(r)) : ''), 'Rugs lie flat: furniture stands on them. Drag it to move it. Tap again to select what\'s under it.');
   box.append(recipeChips(it));
   const acts = box.acts;
   acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n); }));
   acts.append(ibtn('move', 'Move', () => { moving = r; setTool('move'); }));
-  if (r.w !== r.h) acts.append(ibtn('rotate', 'Rotate', () => { const b = rugBlocker(r, r.x, r.y, r.h, r.w); if (b) { toast(whyNot(b, r.h, r.w, it).replace('No room here', 'Can\'t turn it')); return; } delRug(r); const n = addRug(r.i, r.x, r.y, r.h, r.w); commitTx('Rotate'); showRugInspector(n); }));
+  acts.append(ibtn('up', 'Up a level', () => shiftRug(r, 1), '', { disabled: zOf(r) >= ZMAX }), ibtn('down', 'Down a level', () => shiftRug(r, -1), '', { disabled: zOf(r) <= ZMIN }));
+  if (r.w !== r.h) acts.append(ibtn('rotate', 'Rotate', () => { const b = rugBlocker(r, r.x, r.y, r.h, r.w); if (b) { toast(whyNot(b, r.h, r.w, it).replace('No room here', 'Can\'t turn it')); return; } delRug(r); const n = addRug(r.i, r.x, r.y, r.h, r.w, zOf(r)); commitTx('Rotate'); showRugInspector(n); }));
   acts.append(ibtn('info', 'About', () => showItemInfo(it)));
   acts.append(ibtn('trash', 'Delete', () => { delRug(r); commitTx('Delete ' + it.n); selection = null; closeInspector(); }, 'danger'));
   requestDraw();
+}
+function shiftRug(r, dz) {
+  const z = zOf(r) + dz, b = rugBlocker(r, r.x, r.y, r.w, r.h, z); let solid = null;
+  for (let y = r.y; y < r.y + r.h && !solid; y++) for (let x = r.x; x < r.x + r.w; x++) { const v = terrAt(plan, y * plan.w + x, z); if (v) { solid = ITEMS[v - 1]; break; } }
+  if (b || solid) { toast(b === 'top' ? 'That\'s as high as it goes' : b === 'bottom' ? 'That\'s as low as it goes' : (solid || ITEMS[b.i]).n + ' is in the way ' + (dz > 0 ? 'above' : 'below')); return; }
+  delRug(r); const n = addRug(r.i, r.x, r.y, r.w, r.h, z); commitTx(dz > 0 ? 'Up a level' : 'Down a level'); reveal(z); showRugInspector(n);
 }
 function closeInspector() { $('#inspector').classList.remove('open'); $('#inspector').textContent = ''; if (selection && !selection.rect) selection = null; requestDraw(); }
 let inspMin = LS.get('pokopia-planner:inspmin') === '1';
@@ -2747,9 +2767,9 @@ function inspectorShell(title, sw, sub, tip) {
 }
 function recipeChips(it) { const w = h('div', { class: 'reqs' }); if (it.m && it.m.length) for (const [m, q] of it.m) w.append(h('span', { class: 'req' }, h('b', null, q + '×'), m)); else w.append(it.c === 'Kits' ? h('span', { class: 'note', 'data-tip': 'Bought as a kit; materials not listed' }, 'Kit') : h('span', { class: 'note', 'data-tip': 'Gather, plant or find it' }, 'Not crafted')); return w; }
 function showObjInspector(ob) {
-  const it = ITEMS[ob.i], guess = sizeGuessed(it) || it.est;
-  const z = zOf(ob), under = z ? objAtLv(ob.y * plan.w + ob.x, z - 1) : null;
-  const box = inspectorShell(it.n, swatchEl(it), it.c + (it.sub ? ' · ' + it.sub : '') + ' · ' + ob.w + '×' + ob.h + (guess ? '?' : '') + (z !== standOver(ob.x, ob.y, ob.w, ob.h) ? ' · level ' + lvNum(z) + (under ? ', on ' + ITEMS[under.i].n : '') : ''), guess ? 'The size is a guess: Resize it if yours differs in game.' : '');
+  const it = ITEMS[ob.i], guess = sizeGuessed(it) || it.est, hg = heightGuessed(it) && htOf(ob) === heightOf(it), t = htOf(ob);
+  const z = zOf(ob), under = objAtLv(ob.y * plan.w + ob.x, z - 1);
+  const box = inspectorShell(it.n, swatchEl(it), it.c + (it.sub ? ' · ' + it.sub : '') + ' · ' + ob.w + '×' + ob.h + (guess ? '?' : '') + (tall(it) ? ' · ' + t + ' high' + (hg ? '?' : '') : '') + (z !== standOver(ob.x, ob.y, ob.w, ob.h) ? ' · level ' + lvNum(z) + (under ? ', on ' + ITEMS[under.i].n : '') : ''), guess || hg ? 'The ' + (guess && hg ? 'size and height are guesses' : guess ? 'size is a guess' : 'height is a guess') + ': Resize it if yours differs in game.' : '');
   box.append(recipeChips(it));
   if (it.cap || (it.c === 'Kits' && it.wk)) {
     const facts = h('div', { class: 'reqs' });
@@ -2770,7 +2790,7 @@ function showObjInspector(ob) {
     const opts = new Set(); for (const g of groups) for (const i of GROUPS.get(g)) if (i !== it.i && ITEMS[i].w === 1 && ITEMS[i].h === 1) opts.add(i);
     if (opts.size) {
       const sel = h('select', { id: 'swapSel', 'aria-label': 'Swap for another ' + groups.join(' or ') }, h('option', { value: '' }, 'Swap for…'), [...opts].sort((a, b) => ITEMS[a].n.localeCompare(ITEMS[b].n)).map(i => h('option', { value: i }, ITEMS[i].n)));
-      sel.onchange = () => { const ni = +sel.value; if (!sel.value) return; delObj(ob); const nob = addObj(ni, ob.x, ob.y, 1, 1, zOf(ob)); commitTx('Swap'); if (nob) { selection = { obj: nob }; showObjInspector(nob); } };
+      sel.onchange = () => { const ni = +sel.value; if (!sel.value) return; if (!fits(plan, ob.x, ob.y, 1, 1, ob.id, zOf(ob), heightOf(ITEMS[ni]))) { sel.value = ''; toast('No room above it for ' + ITEMS[ni].n); return; } delObj(ob); const nob = addObj(ni, ob.x, ob.y, 1, 1, zOf(ob)); commitTx('Swap'); if (nob) { selection = { obj: nob }; showObjInspector(nob); } };
       box.append(h('div', { class: 'field', style: 'margin-top:8px' }, sel));
     }
   }
@@ -2790,23 +2810,40 @@ function resizeObjDialog(ob) {
   const it = ITEMS[ob.i], kit = it.c === 'Kits', same = [...plan.objs.values()].filter(o => o.i === ob.i).length;
   modal('Resize ' + it.n, (box) => {
     box.append(picEl(it, 'pic big'));
-    box.append(h('p', { class: 'sub' }, (kit ? 'Footprint' : (sizeGuessed(it) ? 'A guess: tiles' : 'Tiles')) + ' it covers in your game.'));
-    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rsW' }, 'Width'), h('input', { id: 'rsW', type: 'number', min: 1, max: 30, value: ob.w })), h('div', { class: 'field' }, h('label', { for: 'rsH' }, 'Depth'), h('input', { id: 'rsH', type: 'number', min: 1, max: 30, value: ob.h }))));
+    box.append(h('p', { class: 'sub' }, sizeNote(it, kit)));
+    box.append(sizeFields('rs', ob.w, ob.h, tall(it) ? htOf(ob) : null));
     box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'rsAll', checked: kit ? null : '' }), 'Every ' + it.n + (same > 1 ? ' (' + same + ' placed)' : '') + ' and new ones'));
   }, 'Resize', () => {
-    const w = clamp(+$('#rsW').value | 0, 1, 30), hh = clamp(+$('#rsH').value | 0, 1, 30);
-    if ($('#rsAll').checked) { setItemSize(it, w, hh, true, ob); return; }
-    const r = reshapeObj(ob, ob.x, ob.y, w, hh); if (!r.ob) { toast(whyNot(r.err, w, hh, it).replace('No room here', 'Can\'t make it that size')); return false; }
+    const w = clamp(+$('#rsW').value | 0, 1, 30), hh = clamp(+$('#rsH').value | 0, 1, 30), t = tall(it) ? clamp(+$('#rsT').value | 0, 1, HMAX) : 1;
+    if ($('#rsAll').checked) { const ex = tall(it) && (t !== heightOf(it) || heightGuessed(it)) ? setItemHeight(it, t, true, true) : ''; setItemSize(it, w, hh, true, ob, ex); return; }
+    const r = reshapeObj(ob, ob.x, ob.y, w, hh, zOf(ob), t); if (!r.ob) { toast(whyNot(r.err, w, hh, it).replace('No room here', 'Can\'t make it that size')); return false; }
     commitTx('Resize'); selection = { obj: r.ob }; showObjInspector(r.ob);
   });
 }
-function setItemSize(it, w, hh, applyPlaced, keepSel) {
+function sizeNote(it, kit) { const g = sizeGuessed(it), hg = tall(it) && heightGuessed(it); return (kit ? 'Footprint' : g ? 'A guess: tiles' : 'Tiles') + ' it covers in your game' + (tall(it) ? ', and the levels it takes up' + (hg && !g ? ' (a guess)' : '') : '') + '.'; }
+function sizeFields(p, w, d, t) {
+  const f = (id, label, v, max) => h('div', { class: 'field' }, h('label', { for: p + id }, label), h('input', { id: p + id, type: 'number', min: 1, max, value: v }));
+  return t == null ? h('div', { class: 'grid2' }, f('W', 'Width', w, 30), f('H', 'Depth', d, 30)) : h('div', { class: 'grid3' }, f('W', 'Width', w, 30), f('H', 'Depth', d, 30), f('T', 'Height', t, HMAX));
+}
+function setItemHeight(it, t, applyPlaced, quiet) {
+  plan.isz = plan.isz || {}; const key = 'ht:' + it.n, base = it.ht == null ? 1 : it.ht;
+  if (!it.hg && t === base) { delete plan.isz[key]; delete userSizes[key]; } else { plan.isz[key] = t; userSizes[key] = t; } saveUserSizes();
+  let done = 0, kept = 0;
+  if (applyPlaced) for (const ob of [...plan.objs.values()].filter(o => o.i === it.i)) {
+    if (htOf(ob) === t) continue;
+    if (!fits(plan, ob.x, ob.y, ob.w, ob.h, ob.id, zOf(ob), t)) { kept++; continue; }
+    const was = selection && selection.obj === ob; delObj(ob); const n = addObj(ob.i, ob.x, ob.y, ob.w, ob.h, zOf(ob), t); if (n && ob.int) n.int = ob.int; if (was && n) selection = { obj: n }; done++;
+  }
+  const msg = ' · ' + t + ' high' + (kept ? ' · ' + kept + ' kept their height (no room above)' : '');
+  if (quiet) return msg; commitTx('Height'); markDirty(); renderOptbar(); requestDraw(); toast(it.n + ' is now' + msg.slice(2), kept ? 5000 : 2600); return msg;
+}
+function setItemSize(it, w, hh, applyPlaced, keepSel, extra = '') {
   plan.isz = plan.isz || {}; if (!it.sg && w === (it.w || 1) && hh === (it.h || 1)) { delete plan.isz[it.n]; delete userSizes[it.n]; } else { plan.isz[it.n] = [w, hh]; userSizes[it.n] = [w, hh]; } saveUserSizes();
   let done = 0, skipped = 0, selNew = null;
   if (applyPlaced && isRug(it)) for (const r of rugsOf(plan).filter(q => q.i === it.i)) {
     const [nw, nh] = r.w === r.h || w === hh ? [w, hh] : (r.w > r.h) === (w > hh) ? [w, hh] : [hh, w]; if (r.w === nw && r.h === nh) continue;
-    if (r.x + nw > plan.w || r.y + nh > plan.h || rugsOf(plan).some(q => q !== r && overlaps(q, r.x, r.y, nw, nh))) { skipped++; continue; }
-    delRug(r); addRug(r.i, r.x, r.y, nw, nh); done++;
+    if (rugBlocker(r, r.x, r.y, nw, nh)) { skipped++; continue; }
+    delRug(r); addRug(r.i, r.x, r.y, nw, nh, zOf(r)); done++;
   }
   if (applyPlaced && !isRug(it)) for (const ob of [...plan.objs.values()].filter(o => o.i === it.i)) {
     const [nw, nh] = ob.w === ob.h ? wallTurn(it, ob.x, ob.y, w, hh) : w === hh ? [w, hh] : (ob.w > ob.h) === (w > hh) ? [w, hh] : [hh, w];
@@ -2815,8 +2852,8 @@ function setItemSize(it, w, hh, applyPlaced, keepSel) {
     if (ob === keepSel) selNew = r.ob; done++;
   }
   commitTx('Resize'); markDirty(); renderOptbar(); requestDraw();
-  toast(it.n + ' is now ' + w + '×' + hh + (done ? ' · ' + done + ' resized' : '') + (skipped ? ' · ' + skipped + ' kept size (no room)' : ''), skipped ? 5000 : 2600);
-  if (keepSel) { const ob = selNew || keepSel; if (plan.objs.has(ob.id)) { selection = { obj: ob }; showObjInspector(ob); } }
+  toast(it.n + ' is now ' + w + '×' + hh + extra + (done ? ' · ' + done + ' resized' : '') + (skipped ? ' · ' + skipped + ' kept size (no room)' : ''), skipped || extra.includes('kept') ? 5000 : 2600);
+  if (keepSel) { let ob = selNew || keepSel; if (!plan.objs.has(ob.id) && selection && selection.obj && plan.objs.has(selection.obj.id) && selection.obj.i === ob.i) ob = selection.obj; if (plan.objs.has(ob.id)) { selection = { obj: ob }; showObjInspector(ob); } }
   if (IED.ob) iedRefresh();
 }
 const SZ_SKIP = new Set(['Terrain', 'Blocks', 'Wallpaper']);
@@ -2862,21 +2899,23 @@ function itemSizeDialog(it) {
   const ft = footOf(it), placed = isRug(it) ? rugsOf(plan).filter(r => r.i === it.i).length : [...plan.objs.values()].filter(o => o.i === it.i).length;
   modal('Size of ' + it.n, (box) => {
     box.append(picEl(it, 'pic big'));
-    box.append(h('p', { class: 'sub' }, (sizeGuessed(it) ? 'A guess: tiles' : 'Tiles') + ' it covers in your game.'));
-    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'isW' }, 'Width'), h('input', { id: 'isW', type: 'number', min: 1, max: 30, value: ft[0] })), h('div', { class: 'field' }, h('label', { for: 'isH' }, 'Depth'), h('input', { id: 'isH', type: 'number', min: 1, max: 30, value: ft[1] }))));
+    box.append(h('p', { class: 'sub' }, sizeNote(it, it.c === 'Kits')));
+    box.append(sizeFields('is', ft[0], ft[1], tall(it) ? heightOf(it) : null));
     if (placed) box.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'isAll', checked: '' }), 'Resize the ' + placed + ' placed'));
-  }, 'Save size', () => { setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), placed ? $('#isAll').checked : false); }, false, 'Applies to every ' + it.n + ' in all your plans, on the map and inside kit houses.');
+  }, 'Save size', () => { const all = placed ? $('#isAll').checked : false; let ex = ''; if (tall(it)) { const t = clamp(+$('#isT').value | 0, 1, HMAX); if (t !== heightOf(it) || heightGuessed(it)) ex = setItemHeight(it, t, all, true); } setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), all, null, ex); }, false, 'Applies to every ' + it.n + ' in all your plans, on the map and inside kit houses.');
 }
 function grabAt(x, y) {
   if (!plan || !inB(plan, x, y) || tool === 'pan') return null;
   const k = y * plan.w + x, pile = shownStack(k), mine = selection && selection.obj && pile.find(q => q.id === selection.obj.id);
   if (mine) return mine;
-  if (selection && selection.rug && lvShown('r') && plan.rugs.has(selection.rug.id) && overlaps(selection.rug, x, y, 1, 1)) return selection.rug;
+  if (selection && selection.rug && rugShown(selection.rug) && plan.rugs.has(selection.rug.id) && overlaps(selection.rug, x, y, 1, 1)) return selection.rug;
   if (tool !== 'select') return null;
-  return aimAt(k) || (lvShown('r') ? rugAt(x, y) : null);
+  const q = aimAt(k), rg = rugAt(x, y); if (!rg) return q; if (!q) return rg;
+  if (layerZ != null && lvShown(layerZ)) { if (zOf(q) === layerZ) return q; if (zOf(rg) === layerZ) return rg; }
+  return topOf(q) >= zOf(rg) ? q : rg;
 }
-function rugBlocker(r, x, y, w, h) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'edge'; for (const q of plan.rugs.values()) if (q.id !== r.id && overlaps(q, x, y, w, h)) return q; return null; }
-function moveBlocker(ob, x, y, w, h) { return ob.rug ? rugBlocker(ob, x, y, w, h) : blocker(ITEMS[ob.i], x, y, w, h, ob.id, moveLevel(ob, x, y, w, h)); }
+function rugBlocker(r, x, y, w, h, z = zOf(r)) { if (x < 0 || y < 0 || x + w > plan.w || y + h > plan.h) return 'edge'; if (z < ZMIN || z > ZMAX) return z < ZMIN ? 'bottom' : 'top'; for (const q of plan.rugs.values()) if (q.id !== r.id && zOf(q) === z && overlaps(q, x, y, w, h)) return q; return null; }
+function moveBlocker(ob, x, y, w, h, ctx = moveCtx(ob)) { const z = moveLevel(ob, x, y, w, h, ctx); return ob.rug ? rugBlocker(ob, x, y, w, h, z) : blocker(ITEMS[ob.i], x, y, w, h, ctx.ign, z, htOf(ob)); }
 function fitMove(ob, cx, cy, gx, gy) {
   const it = ITEMS[ob.i], wall = !ob.rug && inWall(it), cands = [], orients = [[ob.w, ob.h, gx, gy]];
   if (ob.w !== ob.h) orients.push([ob.h, ob.w, ob.h - 1 - gy, gx]);
@@ -2887,16 +2926,16 @@ function fitMove(ob, cx, cy, gx, gy) {
       cands.push({ x, y, w, h, cost });
     }
   });
-  cands.sort((a, b) => a.cost - b.cost);
-  for (const c of cands) if (!moveBlocker(ob, c.x, c.y, c.w, c.h)) return Object.assign(c, { ok: true, z: moveLevel(ob, c.x, c.y, c.w, c.h) });
-  const c = cands[0]; return Object.assign(c, { ok: false, z: moveLevel(ob, c.x, c.y, c.w, c.h), err: moveBlocker(ob, c.x, c.y, c.w, c.h) });
+  cands.sort((a, b) => a.cost - b.cost); const ctx = moveCtx(ob);
+  for (const c of cands) if (!moveBlocker(ob, c.x, c.y, c.w, c.h, ctx)) return Object.assign(c, { ok: true, z: moveLevel(ob, c.x, c.y, c.w, c.h, ctx) });
+  const c = cands[0]; return Object.assign(c, { ok: false, z: moveLevel(ob, c.x, c.y, c.w, c.h, ctx), err: moveBlocker(ob, c.x, c.y, c.w, c.h, ctx) });
 }
 function doMove(ob, f) {
-  const it = ITEMS[ob.i], same = f.x === ob.x && f.y === ob.y && f.w === ob.w && f.h === ob.h && (!!ob.rug || (f.z || 0) === zOf(ob));
+  const it = ITEMS[ob.i], same = f.x === ob.x && f.y === ob.y && f.w === ob.w && f.h === ob.h && (f.z || 0) === zOf(ob);
   if (!(ob.rug ? plan.rugs.has(ob.id) : plan.objs.has(ob.id))) { if (tool === 'move') setTool('select'); return; }
   if (!f.ok) { toast(whyNot(f.err, f.w, f.h, it, true)); return; }
   moving = null; if (tool === 'move') setTool('select');
-  if (ob.rug) { const n = same ? ob : (delRug(ob), addRug(ob.i, f.x, f.y, f.w, f.h)); commitTx('Move'); showRugInspector(n); return; }
+  if (ob.rug) { const n = same ? ob : (delRug(ob), addRug(ob.i, f.x, f.y, f.w, f.h, f.z || 0)); commitTx('Move'); showRugInspector(n); return; }
   if (same) { selection = { obj: ob }; showObjInspector(ob); return; }
   const inside = (r) => r.x >= ob.x && r.x < ob.x + ob.w && r.y >= ob.y && r.y < ob.y + ob.h, res = plan.res || [];
   if (res.some(inside)) setRes(res.map(r => { if (!inside(r)) return r; const rx = r.x - ob.x, ry = r.y - ob.y; return f.w === ob.w ? Object.assign({}, r, { x: f.x + rx, y: f.y + ry }) : Object.assign({}, r, { x: f.x + ob.h - 1 - ry, y: f.y + rx }); }));
@@ -2920,8 +2959,8 @@ function drawMovePreview(c, s, ob, f) {
 function pickAt(x, y) {
   if (!inB(plan, x, y)) return; const k = y * plan.w + x;
   if (layerZ != null && lvShown(layerZ)) { const q = objAtLv(k, layerZ), v = lvShown('g') && terrAt(plan, k, layerZ); if (q) { selectItem(ITEMS[q.i].n); return; } if (v) { selectItem(ITEMS[v - 1].n); return; } }
-  const top = topShown(k), tz = topTerrShown(k); if (top && (tz == null || zOf(top) > tz)) { selectItem(ITEMS[top.i].n); return; }
-  const rg = lvShown('r') && rugAt(x, y); if (rg) { selectItem(ITEMS[rg.i].n); return; }
+  const top = topShown(k), tz = topTerrShown(k), rg = rugAt(x, y), t = pickTop(top, tz, rg);
+  if (t && t !== 'terr') { selectItem(ITEMS[t.i].n); return; }
   if (tz != null) selectItem(ITEMS[terrAt(plan, k, tz) - 1].n);
 }
 function shownTerr(k) { const out = []; if (hidden.has('g')) return out; for (let j = 0; j < plan.tz.length; j++) { const z = plan.tz[j]; if (hidden.has(z)) continue; const v = plan.tt[j][k]; if (v) out.push([z, v]); } return out; }
@@ -3004,18 +3043,18 @@ function deleteZoneNow(z, withItems) {
   setZones(plan.zones.filter(q => q.id !== cur.id)); commitTx(cur.kind === 'habitat' ? 'Delete habitat' : 'Delete zone'); selection = null; closeInspector();
   undoToast((cur.name || 'Zone') + ' deleted' + (n ? ' with ' + n + ' item' + (n > 1 ? 's' : '') : ''));
 }
-function clearRegion(r, itemsOnly) { const seen = new Set(); if (lvShown('r')) for (const q of rugsOf(plan).filter(q => overlaps(q, r.x, r.y, r.w, r.h))) delRug(q); for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; for (const ob of shownStack(k)) if (!seen.has(ob.id)) { seen.add(ob.id); delObj(ob); } if (!itemsOnly) for (const [z] of shownTerr(k)) setTerr(k, z, 0); } commitTx('Clear area'); selection = null; closeInspector(); }
+function clearRegion(r, itemsOnly) { const seen = new Set(); for (const q of rugsOf(plan).filter(q => rugShown(q) && overlaps(q, r.x, r.y, r.w, r.h))) delRug(q); for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; for (const ob of shownStack(k)) if (!seen.has(ob.id)) { seen.add(ob.id); delObj(ob); } if (!itemsOnly) for (const [z] of shownTerr(k)) setTerr(k, z, 0); } commitTx('Clear area'); selection = null; closeInspector(); }
 function copyRegion(r) {
   const c = { w: r.w, h: r.h, t: [], o: [], ht: lvShown('g') }; const seen = new Set();
-  for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) { const xx = r.x + x, yy = r.y + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; for (const [z, v] of shownTerr(k)) c.t.push([x, y, z, v]); for (const ob of shownStack(k)) if (!seen.has(ob.id)) { seen.add(ob.id); if (ob.x >= r.x && ob.y >= r.y && ob.x + ob.w <= r.x + r.w && ob.y + ob.h <= r.y + r.h) c.o.push([ob.i, ob.x - r.x, ob.y - r.y, ob.w, ob.h, ob.int ? cloneInt(ob.int) : null, zOf(ob)]); } }
-  c.u = !lvShown('r') ? [] : rugsOf(plan).filter(q => q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h).map(q => [q.i, q.x - r.x, q.y - r.y, q.w, q.h]);
+  for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) { const xx = r.x + x, yy = r.y + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; for (const [z, v] of shownTerr(k)) c.t.push([x, y, z, v]); for (const ob of shownStack(k)) if (!seen.has(ob.id)) { seen.add(ob.id); if (ob.x >= r.x && ob.y >= r.y && ob.x + ob.w <= r.x + r.w && ob.y + ob.h <= r.y + r.h) c.o.push([ob.i, ob.x - r.x, ob.y - r.y, ob.w, ob.h, ob.int ? cloneInt(ob.int) : null, zOf(ob), htOf(ob)]); } }
+  c.u = rugsOf(plan).filter(q => rugShown(q) && q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h).map(q => [q.i, q.x - r.x, q.y - r.y, q.w, q.h, zOf(q)]);
   clip = c; selection = null; closeInspector(); setTool('paste'); toast('Copied. Tap the map to paste');
 }
 function pasteAt(x0, y0) {
   for (let y = 0; y < clip.h; y++) for (let x = 0; x < clip.w; x++) { const xx = x0 + x, yy = y0 + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; if (clip.ht) for (const [z] of shownTerr(k)) setTerr(k, z, 0); for (const ob of shownStack(k)) if (ob.w === 1 && ob.h === 1) delObj(ob); }
   for (const [x, y, z, v] of clip.t || []) { const xx = x0 + x, yy = y0 + y; if (!inB(plan, xx, yy)) continue; const k = yy * plan.w + xx; if (!occAt(plan, k, z)) setTerr(k, z, v); }
-  for (const [i, ox, oy, w, hh] of clip.u || []) { const x = x0 + ox, y = y0 + oy; if (x + w > plan.w || y + hh > plan.h) continue; for (const q of rugsOf(plan).filter(q => overlaps(q, x, y, w, hh))) delRug(q); addRug(i, x, y, w, hh); }
-  let skipped = 0; for (const [i, ox, oy, w, hh, ic, z] of clip.o) { const n = addObj(i, x0 + ox, y0 + oy, w, hh, z || 0); if (!n) skipped++; else if (ic) n.int = cloneInt(ic); }
+  for (const [i, ox, oy, w, hh, z = 1] of clip.u || []) { const x = x0 + ox, y = y0 + oy; if (x + w > plan.w || y + hh > plan.h) continue; for (const q of rugsOf(plan).filter(q => zOf(q) === z && overlaps(q, x, y, w, hh))) delRug(q); addRug(i, x, y, w, hh, z); }
+  let skipped = 0; for (const [i, ox, oy, w, hh, ic, z, t] of clip.o) { const n = addObj(i, x0 + ox, y0 + oy, w, hh, z || 0, t || 1); if (!n) skipped++; else if (ic) n.int = cloneInt(ic); }
   commitTx('Paste'); if (skipped) toast(skipped + ' item(s) did not fit');
 }
 
@@ -3230,7 +3269,7 @@ function renderPanel() { if (renderQueued) return; renderQueued = true; requestA
 
 function levelStats() {
   const n = new Map(), kinds = new Map(), t = new Map(), tk = new Map(); let all = 0;
-  for (const ob of plan.objs.values()) { const z = zOf(ob); n.set(z, (n.get(z) || 0) + 1); let m = kinds.get(z); if (!m) kinds.set(z, m = new Map()); m.set(ob.i, (m.get(ob.i) || 0) + 1); }
+  for (const ob of [...plan.objs.values(), ...plan.rugs.values()]) { const z = zOf(ob); n.set(z, (n.get(z) || 0) + 1); let m = kinds.get(z); if (!m) kinds.set(z, m = new Map()); m.set(ob.i, (m.get(ob.i) || 0) + 1); }
   for (let j = 0; j < plan.tz.length; j++) { const z = plan.tz[j], T = plan.tt[j], m = new Map(); let c = 0; for (let k = 0; k < T.length; k++) if (T[k]) { c++; m.set(T[k] - 1, (m.get(T[k] - 1) || 0) + 1); } if (c) { t.set(z, c); tk.set(z, m); all += c; } }
   return { n, kinds, t, tk, all };
 }
@@ -3563,6 +3602,7 @@ function renderPlans() {
     ['Painting', 'Paint terrain and plants with Place; drag Fill for big areas. Liquids (Water, Ocean, Muddy, Hot-spring, Lava, Waterfall) count toward habitat needs.'],
     ['Zones', 'Draw a Zone around a cluster. It checks the cluster against all ' + HAB.length + ' habitats and turns green when one forms.'],
     ['Terrain levels', 'Every block has a level, terrain too. Terrain starts at level 0, so things on the ground are on level 1. Place terrain to stack a block on top and build hills; Paint swaps the top block instead. Erase takes the top block off, so you can dig down. A 2-level rise inside a zone counts as a "High-up location".'],
+    ['Stacking', 'Everything you place goes on top of the highest block at that spot, kit houses too. Blocks, walls and terrain can go on top of items; items never go on top of other items, only on terrain or a block. Items have a height: most take 1 level, tall ones such as a refrigerator take 2, and rugs take none, so furniture stands on them. Heights are guesses until you set them with Resize.'],
     ['Layers', 'Every level is a layer, from −99 to 99, with its own terrain and items. In Layers (or L), tap an eye to hide or show a level, the rugs or all terrain, and tap a level to work on it (Go to level, or Page Up and Page Down, reach any other): Place and Fill put things there, Erase only takes from there, and everything above fades out so you can see into a basement. With On top, blocks and terrain stack on what\'s there; on a chosen level, Keep or Replace decides what happens to what\'s already there.'],
     ['Active areas', 'The dotted button by the zoom controls (or A) shows the white dotted line the game shows with the right stick: 4 tiles past a home on every side, 4 levels up or down. Light, warmth and humidity in a house you built only count the floor inside the walls.'],
     ['Houses you build', 'Found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Fill → Outline lays walls fast.'],
@@ -3590,7 +3630,7 @@ function resizePlanDialog() {
     box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rzW' }, 'Width'), h('input', { id: 'rzW', type: 'number', min: 8, max: 192, value: plan.w })), h('div', { class: 'field' }, h('label', { for: 'rzH' }, 'Depth'), h('input', { id: 'rzH', type: 'number', min: 8, max: 192, value: plan.h }))));
   }, 'Resize', () => {
     const w = clamp(+$('#rzW').value | 0, 8, 192), hh = clamp(+$('#rzH').value | 0, 8, 192);
-    const s = serialize(plan); const old = deserialize(s); const p = newPlan({ name: plan.name, area: plan.area, w, h: hh }); p.id = plan.id; p.inv = plan.inv;
+    const s = serialize(plan); const old = deserialize(s); const p = newPlan({ name: plan.name, area: plan.area, w, h: hh }); p.id = plan.id; p.inv = plan.inv; p.isz = old.isz;
     for (let j = 0; j < old.tz.length; j++) { const z = old.tz[j], T = old.tt[j], D = tLayer(p, z); for (let y = 0; y < Math.min(hh, old.h); y++) for (let x = 0; x < Math.min(w, old.w); x++) D[y * w + x] = T[y * old.w + x]; }
     for (const ob of old.objs.values()) if (ob.x + ob.w <= w && ob.y + ob.h <= hh) { const n = { ...ob, id: p.nextId++ }; p.objs.set(n.id, n); stampOcc(p, n, n.id); }
     for (const r of old.rugs.values()) if (r.x + r.w <= w && r.y + r.h <= hh) { const n = { ...r, id: p.nextId++ }; p.rugs.set(n.id, n); }
@@ -3935,9 +3975,9 @@ function makeExample() {
   undoStack.length = 0; redoStack.length = 0; tx = null; plan = prev; p.updated = Date.now();
   return p;
 }
-function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh); if (z) ob.z = z; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
+function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-21T05:03';
+const APP_BUILD = '2026-11-21T07:12';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
