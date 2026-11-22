@@ -2155,6 +2155,8 @@ function glideView(to, anchor, ms = 260) {
 const map2d = {
   draw: (t) => draw(t),
   pick: (sx, sy) => { const s = cellSize(); return [Math.floor((sx - view.px) / s), Math.floor((sy - view.py) / s)]; },
+  anchor() { },
+  dragPick: (sx, sy) => map2d.pick(sx, sy),
   cam: () => ({ zoom: view.zoom, px: view.px, py: view.py }),
   setCam: (c) => { view.zoom = c.zoom; view.px = c.px; view.py = c.py; requestDraw(); },
   panBy: (dx, dy) => { view.px += dx; view.py += dy; requestDraw(); },
@@ -2179,7 +2181,7 @@ async function enter3d(quiet) {
   if (!v) { LS.set(LSK + '3d', '0'); if (!quiet) toast('The 3D view needs WebGL 2, which this browser doesn\'t have', 3200); return; }
   if (in3d() || !plan) return;
   map2d.stop(); const s = cellSize(); v.enter((W / 2 - view.px) / s, (H / 2 - view.py) / s, view.zoom, LS.get(LSK + '3dtilt') !== '0');
-  mapView = v; if (tool !== 'pan') setTool('pan'); LS.set(LSK + '3d', '1'); ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
+  mapView = v; LS.set(LSK + '3d', '1'); ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
 }
 function leave3d() {
   if (!in3d()) return; const c = view3d.leave(), s = view.cs * c.zoom; view.zoom = c.zoom; view.px = W / 2 - c.cx * s; view.py = H / 2 - c.cy * s;
@@ -2189,7 +2191,106 @@ function lost3d() { const was = in3d(); if (was) leave3d(); view3d = null; const
 function tiltUi() { if (!view3d) return; const t = view3d.tilted(), b = $('#ztilt'), tip = t ? 'Look straight down (T)' : 'Tilt (T)'; b.setAttribute('aria-pressed', t ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip); }
 function ui3d() {
   const on = in3d(), b = $('#z3d'), tip = on ? 'Flat map (3)' : '3D view (3)'; b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip);
-  $('#map3d').hidden = !on; $('#zturn').hidden = !on; $('#ztilt').hidden = !on; $('#zarea').hidden = on; if (on) tiltUi();
+  $('#map3d').hidden = !on; $('#zturn').hidden = !on; $('#ztilt').hidden = !on; if (on) tiltUi();
+}
+function mapOverlay3d(o) {
+  if (!plan) return;
+  const A = theme.accent, BAD = theme.bad, sel = selection, W1 = '#ffffff';
+  const zcol = (z, r) => z.kind === 'label' ? theme.muted : r && r.ok ? theme.good : r && (r.target || r.near) ? theme.warn : theme.muted;
+  for (const z of plan.zones) { const r = zoneStatus.get(z.id), col = zcol(z, r); o.top(z.x, z.y, z.w, z.h, col, 0.1); o.ring(z.x, z.y, z.w, z.h, col, r && r.ok ? 0.95 : 0.65, sel && sel.zone === z ? 0.16 : 0.1); }
+  const area = (a, strong) => {
+    const R = a.rect, far = [];
+    if (a.kind === 'house') {
+      if (a.outer) { o.top(R.x, R.y, R.w, R.h, W1, strong ? 0.16 : 0.09); for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inB(plan, x, y)) continue; const d = standZ(y * plan.w + x) - a.base; if (d < -4 || d > 3) far.push(x, y); } }
+      for (const k of a.cells) o.cell(k % plan.w, (k / plan.w) | 0, W1, strong ? 0.3 : 0.18);
+    } else { o.top(R.x, R.y, R.w, R.h, W1, strong ? 0.22 : 0.12); for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) if (inB(plan, x, y) && Math.abs(standZ(y * plan.w + x) - a.base) > AREA_R) far.push(x, y); }
+    for (let i = 0; i < far.length; i += 2) o.cell(far[i], far[i + 1], '#000000', 0.22);
+    o.ring(R.x, R.y, R.w, R.h, W1, 0.95, strong ? 0.16 : 0.1);
+  };
+  for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (!r || !r.area) continue; const on = !!(sel && sel.zone && sel.zone.id === z.id); if (showAreas || on) area(r.area, on); }
+  for (const hs of autoHouses) { const on = !!(sel && sel.house === hs.id), R = hs.area.outer; if ((showAreas || on) && !hs.enclosure) area(hs.area, on); if (!showAreas && !on) o.ring(R.x, R.y, R.w, R.h, hs.ok ? theme.good : hs.enclosure ? theme.muted : theme.warn, 0.9, 0.1); }
+  if (sel && sel.obj && plan.objs.has(sel.obj.id) && isBox(ITEMS[sel.obj.i])) for (const x of boxReport(sel.obj)) o.ring(x.Z.x, x.Z.y, x.Z.w, x.Z.h, x.n === x.all ? theme.good : theme.warn, 0.9, 0.1);
+  if (pkDrag) {
+    const R = (hm) => hm.kind === 'kit' ? hm.ob : hm.hs.area.outer;
+    for (const hm of pkDrag.homes) { const r = R(hm); if (hm.kind === 'kit') o.box(r.x, r.y, r.w, r.h, zOf(r), htOf(r), A, 0.12); else o.ring(r.x, r.y, r.w, r.h, A, 0.9, 0.1); }
+    if (pkDrag.hm) { const r = R(pkDrag.hm), col = pkDrag.chk && pkDrag.chk.ok ? theme.good : BAD; if (pkDrag.hm.kind === 'kit') o.box(r.x, r.y, r.w, r.h, zOf(r), htOf(r), col, 0.4); else { o.top(r.x, r.y, r.w, r.h, col, 0.25); o.ring(r.x, r.y, r.w, r.h, col, 1, 0.16); } }
+  }
+  const one = sel && (sel.obj && plan.objs.has(sel.obj.id) ? sel.obj : sel.rug && plan.rugs.has(sel.rug.id) ? sel.rug : null);
+  if (one) o.box(one.x, one.y, one.w, one.h, zOf(one), one.rug ? 0.06 : htOf(one), A, 0.28);
+  if (sel && sel.group && !(drag && drag.kind === 'grpmove' && drag.moved)) { const G = sel.group, L = grpLive(G), F = grpFrame(G); if (F) { for (const b of G.boxes) o.top(b.x, b.y, b.w, b.h, A, 0.08); for (const q of L.objs) o.box(q.x, q.y, q.w, q.h, zOf(q), htOf(q), A, 0.2); for (const q of L.rugs) o.box(q.x, q.y, q.w, q.h, zOf(q), 0.06, A, 0.25); o.ring(F.x, F.y, F.w, F.h, A, 0.9, 0.1); } }
+  if (drag && drag.rect) { const r = normRect(drag.rect); o.top(r.x, r.y, r.w, r.h, A, 0.14); o.ring(r.x, r.y, r.w, r.h, A, 1, 0.1); }
+  const ghost = (it, x, y, w, h, z, a) => o.box(x, y, w, h, z, isRug(it) ? 0.06 : isTerr(it) ? 1 : Math.max(1, heightOf(it)), itemColour(it), a);
+  const snap = (sn, P, from) => {
+    if (from) o.ring(from.x, from.y, from.w, from.h, theme.muted, 0.8, 0.08);
+    if (!P.err) {
+      let n = 0; for (const [k, L, v] of P.put) { if (++n > 1500) break; o.box(k % plan.w, (k / plan.w) | 0, 1, 1, L, 1, itemColour(ITEMS[v - 1]), 0.4); }
+      for (const e of P.rugs) o.box(e.x, e.y, e.r.w, e.r.h, e.z, 0.06, itemColour(ITEMS[e.r.i]), 0.5);
+      for (const e of P.objs) o.box(e.x, e.y, e.o.w, e.o.h, e.z, e.o.t || 1, itemColour(ITEMS[e.o.i]), 0.5);
+      for (const q of P.gone) if (q) o.box(q.x, q.y, q.w, q.h, zOf(q), htOf(q), BAD, 0.45);
+    } else if (P.bad) o.top(P.bad.x, P.bad.y, P.bad.w, P.bad.h, BAD, 0.35);
+    o.ring(P.ox, P.oy, sn.w, sn.h, P.err ? BAD : A, 1, 0.1);
+  };
+  const move = (ob, f) => {
+    const it = ITEMS[ob.i]; o.frame(ob.x, ob.y, ob.w, ob.h, zOf(ob), theme.muted, 0.8, 0.08);
+    if (f.ok) {
+      ghost(it, f.x, f.y, f.w, f.h, f.z || 0, 0.55);
+      if (!ob.rug) { const seen = new Set(); for (let y = f.y; y < f.y + f.h; y++) for (let x = f.x; x < f.x + f.w; x++) { const id = occAt(plan, y * plan.w + x, f.z || 0), q = id && id !== ob.id && plan.objs.get(id); if (q && !seen.has(q) && !(inWall(it) && structural(ITEMS[q.i]))) { seen.add(q); o.box(q.x, q.y, q.w, q.h, zOf(q), htOf(q), BAD, 0.45); } } }
+    }
+    o.frame(f.x, f.y, f.w, f.h, f.z || 0, f.ok ? A : BAD, 1);
+  };
+  if (hover && !drag) {
+    const [hx, hy] = hover, it = currentItem();
+    if (tool === 'place' && it && inB(plan, hx, hy)) {
+      const ft = footOf(it), rug = isRug(it), mu = it.L !== 'g' && multi(it); const [tw, th] = mu ? wallTurn(it, hx, hy, rotated ? ft[1] : ft[0], rotated ? ft[0] : ft[1]) : [brush, brush]; const fw = rug ? (rotated ? ft[1] : ft[0]) : it.L === 'g' ? brush : tw, fh = rug ? (rotated ? ft[0] : ft[1]) : it.L === 'g' ? brush : th;
+      const pw = mu || rug ? fw : 1, ph = mu || rug ? fh : 1, lz = placeZ(it, hx, hy, pw, ph), chk = rug ? null : placeCheck(it, hx, hy, pw, ph, lz), terr = isTerr(it), inZ = lz <= ZMAX && lz >= ZMIN;
+      const ok = rug ? hx + fw <= plan.w && hy + fh <= plan.h && inZ : (!mu && brush > 1) || !chk.err;
+      if (rug) { if (inZ) ghost(it, hx, hy, fw, fh, lz, 0.55); }
+      else if (terr) { for (let dy = 0; dy < fh; dy++) for (let dx = 0; dx < fw; dx++) { const x = hx + dx, y = hy + dy; if (!inB(plan, x, y)) continue; const z = placeZ(it, x, y, 1, 1); if (z <= ZMAX && z >= ZMIN) ghost(it, x, y, 1, 1, z, 0.45); } }
+      else if (inZ) ghost(it, hx, hy, pw, ph, lz, 0.55);
+      if (chk) { for (const q of chk.gone || []) o.box(q.x, q.y, q.w, q.h, zOf(q), htOf(q), BAD, 0.45); for (const [k, lv] of chk.goneT || []) o.box(k % plan.w, (k / plan.w) | 0, 1, 1, lv, 1, BAD, 0.45); }
+      o.frame(hx, hy, fw, fh, clamp(lz, ZMIN, ZMAX), ok ? A : BAD, 1);
+    } else if (tool === 'move' && moving && inB(plan, hx, hy)) { if (moving.grp) { const [ox, oy] = grpMoveOrigin(moving, hx, hy); snap(moving.sn, snapPlanAt(moving.sn, ox, oy, true), moving.F); } else move(moving, fitMove(moving, hx, hy, 0, 0)); }
+    else if (tool === 'paste' && clip && inB(plan, hx, hy)) snap(clip, snapPlanAt(clip, hx, hy, false), null);
+    else if (tool === 'stamp' && inB(plan, hx, hy)) o.ring(hx - 2, hy - 2, 5, 5, A, 1, 0.1);
+    else if (inB(plan, hx, hy) && o.s >= 8) { const g = grabAt(hx, hy); if (g && !g.grp) o.box(g.x, g.y, g.w, g.h, zOf(g), g.rug ? 0.06 : htOf(g), A, 0.14); else { const [gx, gy, gw, gh] = g ? [g.x, g.y, g.w, g.h] : [hx, hy, brushFor(), brushFor()]; o.frame(gx, gy, gw, gh, o.cy(hx, hy), A, 0.85, 0.06); } }
+  }
+  if (drag && drag.kind === 'objmove' && drag.moved && drag.fit) move(drag.ob, drag.fit);
+  if (drag && drag.kind === 'grpmove' && drag.moved && drag.P) snap(drag.sn, drag.P, drag.F);
+}
+function mapLabels3d(o) {
+  if (!plan) return;
+  const c = o.c, s = o.s, small = s < 14; let ix = null; const rix = () => ix || (ix = residentsIndex());
+  const pill = (label, px, py, col, maxW) => { const fh = small ? 14 : 18; c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14), bw = maxW ? Math.min(tw, maxW) : tw; c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore(); };
+  const faces = (list, x, y) => { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, list, x, y - d * 0.62, d); };
+  if (s >= 8) for (const ob of plan.objs.values()) {
+    const it = ITEMS[ob.i]; if (!it.cap || !obShown(ob) || (layerZ != null && zOf(ob) > layerZ)) continue; const e = rix().homes.get('kit:' + ob.id); if (!e) continue;
+    const b = o.flatRect(ob.x, ob.y, ob.w, ob.h, zOf(ob) + htOf(ob)), t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = b.x1 - tw - 3, by = b.y0 + 3;
+    c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
+    if (s >= 10 && S.faces) faces(e.list.map(r => r.p), b.x0 + 3, b.y1);
+  }
+  for (const hs of autoHouses) {
+    const R = hs.area.outer, b = o.rect(R.x, R.y, R.w, R.h);
+    if (s >= 7 && S.labels) { const nres = (rix().homes.get('house:' + hs.id) || { list: [] }).list.length; pill(hs.enclosure ? 'Enclosure · ' + hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : '') : (hs.ok ? 'House ✓' : 'House · ' + houseIssues(hs)[0]) + (nres ? ' · ' + nres + '/4' : '') + (hs.kitHomes.length ? ' · +' + hs.kitHomes.length + ' kit' : ''), b.x0, b.y0, hs.ok ? theme.good : hs.enclosure ? theme.muted : theme.warn); }
+    if (s >= 10 && S.faces && !hs.enclosure) { const e = rix().homes.get('house:' + hs.id); if (e && e.list.length) faces(e.list.map(r => r.p), b.x0 + 4, b.y1); }
+  }
+  if (s >= 7 && S.labels) for (const z of plan.zones) {
+    const r = zoneStatus.get(z.id), b = o.rect(z.x, z.y, z.w, z.h), col = z.kind === 'label' ? theme.muted : r && r.ok ? theme.good : r && (r.target || r.near) ? theme.warn : theme.muted, zw = b.x1 - b.x0;
+    pill(small && r && r.ok && z.kind !== 'label' ? (z.kind === 'house' ? 'House ✓' : r.best.hb.n + ' ✓') : zoneLabel(z, r), b.x0, b.y0, col, small ? Math.max(zw + 16, 30) : Math.max(zw, 40) + 120);
+  }
+  if (s >= 7 && selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) for (const x of boxReport(selection.obj)) {
+    const b = o.rect(x.Z.x, x.Z.y, x.Z.w, x.Z.h), full = x.n === x.all, t = 'Box reach: ' + x.hm.label; c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top'; const tw = c.measureText(t).width + 8;
+    c.fillStyle = full ? theme.good : theme.warn; roundRect(c, b.x0 + 2, b.y1 + 2, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(t, b.x0 + 6, b.y1 + 4);
+  }
+  if (drag && drag.rect) { const r = normRect(drag.rect), b = o.rect(r.x, r.y, r.w, r.h); c.fillStyle = theme.ink; c.font = '700 12px sans-serif'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(r.w + ' × ' + r.h, b.x1 + 6, b.y0 + 8); }
+  if (sparkles.length) {
+    const now = performance.now();
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+      const p = sparkles[i], a = (now - p.t0) / p.life; if (a > 1) { sparkles.splice(i, 1); continue; } if (a < 0) continue;
+      const [px, py0] = o.at(p.zx, o.gy(Math.floor(p.zx), Math.floor(p.zy)), p.zy), py = py0 - a * s * 0.8, r = s * p.r * Math.sin(a * Math.PI);
+      c.fillStyle = a < 0.5 ? '#fff6c2' : theme.accent; c.globalAlpha = 1 - a; c.beginPath();
+      for (let k = 0; k < 8; k++) { const ang = k * Math.PI / 4, rr = k % 2 ? r * 0.35 : r; c.lineTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr); } c.closePath(); c.fill(); c.globalAlpha = 1;
+    }
+  }
 }
 function tilt3d() { if (!in3d()) return; LS.set(LSK + '3dtilt', view3d.tilt() ? '1' : '0'); tiltUi(); }
 function turn3d(dir) { if (in3d()) view3d.turn(dir); }
@@ -2966,7 +3067,6 @@ function currentItem() { return BY_NAME.get(curItem); }
 function brushFor() { if (tool === 'place') { const it = currentItem(); if (it && it.L !== 'g' && (it.w > 1 || it.h > 1)) return 1; return brush; } if (tool === 'erase') return brush; return 1; }
 function normRect(r) { const x = Math.min(r.x0, r.x1), y = Math.min(r.y0, r.y1); return { x, y, w: Math.abs(r.x1 - r.x0) + 1, h: Math.abs(r.y1 - r.y0) + 1 }; }
 function setTool(t) {
-  if (t !== 'pan' && in3d()) { leave3d(); toast('Editing is on the flat map for now, so it\'s back to the flat map', 2800); }
   if (tool === 'stamp' && t !== 'stamp') stampHab = null; if (t !== 'move') moving = null;
   tool = t; $$('.tbtn[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t ? 'true' : 'false'));
   if (!['select', 'pan', 'move', 'paste'].includes(t) && selection && selection.group) closeInspector();
@@ -3029,7 +3129,7 @@ function onDown(e) {
     const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, cam: mapView.cam(), a: Math.atan2(b.y - a.y, b.x - a.x) }; return;
   }
   if (pointers.size > 2) return;
-  const [cx, cy] = mapView.pick(e.offsetX, e.offsetY); hover = [cx, cy]; updateStatus();
+  const [cx, cy] = mapView.pick(e.offsetX, e.offsetY); hover = [cx, cy]; mapView.anchor(cx, cy); updateStatus();
   if (e.button === 2 && mapView.orbit) { drag = { kind: 'orbit', sx: e.offsetX, sy: e.offsetY, cam: mapView.cam() }; cv.style.cursor = 'grabbing'; return; }
   if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, cam: mapView.cam(), cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
   if (e.button === 2) return;
@@ -3062,7 +3162,7 @@ function onMove(e) {
     mapView.setCam(pinch.cam); mapView.panBy(mx - pinch.cx, my - pinch.cy); mapView.zoomAt(clamp(pinch.cam.zoom * d / pinch.d, 0.15, 5), mx, my);
     if (mapView.twist) mapView.twist(((Math.atan2(b.y - a.y, b.x - a.x) - pinch.a) * 180 / Math.PI + 540) % 360 - 180, mx, my); return;
   }
-  const [cx, cy] = mapView.pick(e.offsetX, e.offsetY);
+  const [cx, cy] = drag && drag.kind !== 'pan' && drag.kind !== 'orbit' ? mapView.dragPick(e.offsetX, e.offsetY) : mapView.pick(e.offsetX, e.offsetY);
   if (!hover || hover[0] !== cx || hover[1] !== cy) { hover = [cx, cy]; updateStatus(); requestDraw(); if (!drag) cv.style.cursor = grabAt(cx, cy) ? 'grab' : ''; }
   if (!drag) return;
   if (drag.kind === 'grpmove') {
@@ -5379,7 +5479,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T07:05';
+const APP_BUILD = '2026-11-22T07:20';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }

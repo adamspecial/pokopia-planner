@@ -15,9 +15,11 @@ flat out vec4 vr;
 out vec4 vc;
 flat out uvec4 vi;
 out float vs;
+out float vy;
 const vec3 NS[10] = vec3[10](vec3(0,1,0), vec3(0,0,1), vec3(0,0,-1), vec3(1,0,0), vec3(-1,0,0), vec3(0,-1,0), vec3(0,.7071,.7071), vec3(0,.7071,-.7071), vec3(.7071,.7071,0), vec3(-.7071,.7071,0));
 void main() {
   gl_Position = M * vec4(p, 1.0);
+  vy = p.y;
   vu = uv; vr = rc; vc = col; vi = inf;
   vec3 n = NS[min(int(inf.x), 9)];
   float l = length(n.xz);
@@ -29,7 +31,8 @@ precision highp float;
 precision highp int;
 precision mediump sampler2DArray;
 uniform sampler2DArray tx;
-uniform float lw, ls, g1, g8, pics;
+uniform float lw, ls, g1, g8, pics, am, cut, pass;
+in float vy;
 in vec2 vu;
 flat in vec4 vr;
 in vec4 vc;
@@ -37,6 +40,7 @@ flat in uvec4 vi;
 in float vs;
 out vec4 o;
 void main() {
+  if (pass > 0.5) { if (vy <= cut) discard; } else if (vy > cut) discard;
   vec3 c = vc.rgb;
   if (pics > 0.5 && vi.z < 255u) c = texture(tx, vec3(vu, float(vi.z))).rgb;
   vec2 fw = max(fwidth(vu), vec2(1e-4));
@@ -55,12 +59,12 @@ void main() {
       d = max(d, max(0.1 * g1 * (1.0 - smoothstep(0.0, lw, min(g.x, g.y))), 0.2 * g8 * (1.0 - smoothstep(0.0, lw, min(h.x, h.y)))) * ls);
     } else d = max(d, max(0.12 * (1.0 - smoothstep(0.0, lw, g.y)), 0.08 * g1 * (1.0 - smoothstep(0.0, lw, g.x))) * ls);
   }
-  o = vec4(c * vs * (1.0 - d), vc.a);
+  o = vec4(c * vs * (1.0 - d), vc.a * am);
 }`;
   const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
   const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-  const U = {}; for (const n of ['M', 'bk', 'tx', 'lw', 'ls', 'g1', 'g8', 'pics']) U[n] = gl.getUniformLocation(prog, n);
+  const U = {}; for (const n of ['M', 'bk', 'tx', 'lw', 'ls', 'g1', 'g8', 'pics', 'am', 'cut', 'pass']) U[n] = gl.getUniformLocation(prog, n);
   const ibo = gl.createBuffer(); let iboQuads = 0;
   function quads(n) {
     if (n <= iboQuads) return; let q = Math.max(4096, iboQuads); while (q < n) q *= 2; const a = new Uint32Array(q * 6);
@@ -301,6 +305,7 @@ void main() {
     c.tx = Au * B.R[0] + mu * B.H[0]; c.tz = Au * B.R[2] + mu * B.H[2]; return c;
   }
   function solidAt(x, y, z) {
+    if (layerZ != null && z > layerZ) return false;
     const k = y * plan.w + x;
     if (!hidden.has(z)) { if (!hidden.has('g') && terrAt(plan, k, z)) return true; const o = occAt(plan, k, z); if (o) { const ob = plan.objs.get(o); if (ob && obShown(ob)) return true; } }
     if (rugMapVer !== rugVer) { rugMap = new Set(); rugMapVer = rugVer; if (!hidden.has('r')) for (const r of plan.rugs.values()) if (!hidden.has(zOf(r))) for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) rugMap.add((zOf(r) - ZMIN) * plan.w * plan.h + yy * plan.w + xx); }
@@ -322,15 +327,28 @@ void main() {
     }
     return flat(yLo);
   }
-  const BX = builder(), ov = mesh(), base = mesh();
-  function columnTop(x, y) { const k = y * plan.w + x, t = topTerrShown(k), q = topShown(k); let z = t == null ? yLo - 1 : t; if (q && topOf(q) > z) z = topOf(q); return z + 1; }
-  function overlay() {
-    BX.n = 0; const ac = rgba(theme.accent, 0.28), e = 0.04;
-    const sel = selection && (selection.obj && plan.objs.has(selection.obj.id) ? selection.obj : selection.rug && plan.rugs.has(selection.rug.id) ? selection.rug : null);
-    if (sel) { const z = zOf(sel), t = sel.rug ? 0.06 : htOf(sel); box(BX, sel.x - e, z - e, sel.y - e, sel.x + sel.w + e, z + t + e, sel.y + sel.h + e, ac, 3); }
-    if (hover && !drag && inB(plan, hover[0], hover[1])) { const [x, y] = hover, Y = columnTop(x, y) + 0.02; q4(BX, x, Y, y, x, Y, y + 1, x + 1, Y, y + 1, x + 1, Y, y, 0, x, y, x + 1, y + 1, rgba(theme.accent, 0.22), pack(0, 15, 255, 3)); }
-    upload(ov, BX);
-  }
+  const BX = builder(), ov = mesh(), base = mesh(), RC = new Map(), OV = 0.015, I3 = pack(0, 0, 255, 3);
+  let curB = basis(), plY = TY;
+  const pc = (col, a) => { if (typeof col === 'number') return col; const k = col + '|' + a; let v = RC.get(k); if (v == null) { if (RC.size > 600) RC.clear(); v = rgba(col, a); RC.set(k, v); } return v; };
+  const gtop = (x, y) => { x = clamp(x, 0, plan.w - 1); y = clamp(y, 0, plan.h - 1); const t = topTerrShown(y * plan.w + x, layerZ != null ? layerZ : Infinity); return t == null ? yLo : t + 1; };
+  const ctop = (x, y) => { if (!inB(plan, x, y)) return TY; let z = gtop(x, y); const q = topShown(y * plan.w + x); if (q && (layerZ == null || zOf(q) <= layerZ) && topOf(q) + 1 > z) z = topOf(q) + 1; return z; };
+  const flat = (x0, z0, x1, z1, Y, c) => q4(BX, x0, Y, z0, x0, Y, z1, x1, Y, z1, x1, Y, z0, 0, x0, z0, x1, z1, c, I3);
+  const proj = (X, Y, Z) => { const B = curB, dx = X - cam.tx, dy = Y - TY, dz = Z - cam.tz; return [W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s, H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s]; };
+  const bbox = (pts) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } return { x0, y0, x1, y1 }; };
+  const O = {
+    s: 1, c: ctx, col: pc, gy: gtop, cy: ctop, at: proj,
+    box(x, y, w, h, z, t, col, a) { const e = 0.03; box(BX, x - e, z, y - e, x + w + e, z + t + e, y + h + e, pc(col, a), 3, 15); },
+    top(x, y, w, h, col, a) { const c = pc(col, a), x0 = Math.max(0, x), x1 = Math.min(plan.w, x + w), y1 = Math.min(plan.h, y + h); for (let yy = Math.max(0, y); yy < y1; yy++) for (let xx = x0; xx < x1;) { const Y = gtop(xx, yy); let e = xx + 1; while (e < x1 && gtop(e, yy) === Y) e++; flat(xx, yy, e, yy + 1, Y + OV, c); xx = e; } },
+    cell(x, y, col, a) { if (inB(plan, x, y)) flat(x, y, x + 1, y + 1, gtop(x, y) + OV, pc(col, a)); },
+    ring(x, y, w, h, col, a, wd = 0.1) {
+      const c = pc(col, a), d = Math.min(0.5, Math.max(wd, 2 / curB.s)), x0 = Math.max(0, x), x1 = Math.min(plan.w, x + w), y0 = Math.max(0, y), y1 = Math.min(plan.h, y + h), Y = OV * 2; if (x0 >= x1 || y0 >= y1) return;
+      for (let xx = x0; xx < x1; xx++) { if (y === y0) flat(xx, y0, xx + 1, y0 + d, gtop(xx, y0) + Y, c); if (y + h === y1) flat(xx, y1 - d, xx + 1, y1, gtop(xx, y1 - 1) + Y, c); }
+      for (let yy = y0; yy < y1; yy++) { if (x === x0) flat(x0, yy, x0 + d, yy + 1, gtop(x0, yy) + Y, c); if (x + w === x1) flat(x1 - d, yy, x1, yy + 1, gtop(x1 - 1, yy) + Y, c); }
+    },
+    frame(x, y, w, h, Y, col, a, wd = 0.1) { const c = pc(col, a), d = Math.min(Math.min(w, h) / 2, Math.max(wd, 2 / curB.s)), Yy = Y + OV * 2; flat(x, y, x + w, y + d, Yy, c); flat(x, y + h - d, x + w, y + h, Yy, c); flat(x, y + d, x + d, y + h - d, Yy, c); flat(x + w - d, y + d, x + w, y + h - d, Yy, c); },
+    rect(x, y, w, h) { const g = (cx, cy) => gtop(cx, cy); return bbox([proj(x, g(x, y), y), proj(x + w, g(x + w - 1, y), y), proj(x, g(x, y + h - 1), y + h), proj(x + w, g(x + w - 1, y + h - 1), y + h)]); },
+    flatRect(x, y, w, h, Y) { return bbox([proj(x, Y, y), proj(x + w, Y, y), proj(x, Y, y + h), proj(x + w, Y, y + h)]); },
+  };
   const MAT = new Float32Array(16);
   function matrix(B, D) {
     const kx = 2 * B.s / W, ky = 2 * B.s / H, T = [cam.tx, TY, cam.tz];
@@ -347,7 +365,7 @@ void main() {
   let lost = false;
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); if (lost) return; lost = true; stop(false); if (onLost) onLost(); });
   function draw() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); sparkles.length = 0;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     if (lost) return;
     const cw = Math.round(W * dpr), ch = Math.round(H * dpr); if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
     gl.viewport(0, 0, cw, ch); const [br, bg, bb] = bytes(rgba(theme['map-bg'] || '#e4e9e2')); gl.clearColor(br, bg, bb, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -356,6 +374,7 @@ void main() {
     const B = basis(); matrix(B, DEPTH);
     gl.useProgram(prog); gl.uniformMatrix4fv(U.M, false, MAT); gl.uniform2f(U.bk, -B.sa, B.ca); gl.uniform1i(U.tx, 0); gl.uniform1f(U.lw, dpr); gl.uniform1f(U.ls, clamp((B.s - 4) / 10, 0, 1));
     gl.uniform1f(U.g1, S.grid === 'all' && B.s >= 10 ? 1 : 0); gl.uniform1f(U.g8, S.grid !== 'off' ? 1 : 0); gl.uniform1f(U.pics, S.pics ? 1 : 0);
+    gl.uniform1f(U.am, 1); gl.uniform1f(U.pass, 0); gl.uniform1f(U.cut, layerZ != null ? layerZ + 1.001 : 1e6);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
     BX.n = 0; const Yb = yLo - 0.002; q4(BX, 0, Yb, 0, 0, Yb, plan.h, plan.w, Yb, plan.h, plan.w, Yb, 0, 0, 0, 0, plan.w, plan.h, rgba(theme['map-empty'] || '#cfd8cc'), pack(0, 15, 255, 0)); upload(base, BX);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true); gl.enable(gl.CULL_FACE); gl.disable(gl.BLEND);
@@ -365,12 +384,18 @@ void main() {
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.disable(gl.CULL_FACE);
     const dep = (c) => dot([c.cx * CS + CS / 2, TY, c.cy * CS + CS / 2], B.F);
     for (const c of vis.filter(c => c.tr.n).sort((a, b) => dep(b) - dep(a))) { gl.bindVertexArray(c.tr.vao); gl.drawElements(gl.TRIANGLES, c.tr.n, gl.UNSIGNED_INT, 0); }
-    overlay(); if (ov.n) { gl.disable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.bindVertexArray(ov.vao); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); }
+    if (layerZ != null) { gl.uniform1f(U.pass, 1); gl.uniform1f(U.am, 0.22); gl.enable(gl.CULL_FACE); for (const c of vis) if (c.op.n) { gl.bindVertexArray(c.op.vao); gl.drawElements(gl.TRIANGLES, c.op.n, gl.UNSIGNED_INT, 0); } gl.uniform1f(U.pass, 0); }
+    gl.uniform1f(U.cut, 1e6);
+    BX.n = 0; curB = B; O.s = B.s; O.c = ctx; if (typeof mapOverlay3d === 'function') mapOverlay3d(O); upload(ov, BX);
+    if (ov.n) { gl.enable(gl.CULL_FACE); gl.bindVertexArray(ov.vao); gl.disable(gl.DEPTH_TEST); gl.uniform1f(U.am, 0.35); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); gl.enable(gl.DEPTH_TEST); gl.uniform1f(U.am, 1); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); }
     gl.bindVertexArray(null); gl.depthMask(true);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); if (typeof mapLabels3d === 'function') mapLabels3d(O);
   }
   function stats() { let tris = 0, calls = 0; for (const c of CH.values()) if (c.op) { tris += (c.op.n + c.tr.n) / 3; calls += (c.op.n ? 1 : 0) + (c.tr.n ? 1 : 0); } return { tris, calls, chunks: CH.size, layers: tlNext }; }
   return {
-    draw, pick, stop: () => stop(false), stats,
+    draw, pick, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
+    anchor(x, y) { if (plan) plY = layerZ != null ? layerZ : ctop(x, y); },
+    dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1]; return [Math.floor(ox + B.F[0] * t), Math.floor(oz + B.F[2] * t)]; },
     cam: () => copy(cam),
     setCam: (c) => { stop(true); Object.assign(cam, c); requestDraw(); },
     panBy(dx, dy) { const B = basis(), al = -dx / B.s, be = dy / (B.s * B.sp); cam.tx += al * B.R[0] + be * B.H[0]; cam.tz += al * B.R[2] + be * B.H[2]; requestDraw(); },
