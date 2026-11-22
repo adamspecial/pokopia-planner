@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));</script>
+<script>window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
+window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js'; s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -2140,7 +2141,7 @@ function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(window.
 function cellSize() { return view.cs * view.zoom; }
 let frame = 0;
 function requestDraw() { needDraw = true; if (!frame) frame = requestAnimationFrame(loop); }
-function loop(t) { frame = 0; if (needDraw || sparkles.length) { needDraw = false; mapView.draw(t); } if (sparkles.length) frame = requestAnimationFrame(loop); }
+function loop(t) { frame = 0; if (hold2d && mapView === map2d) return; if (needDraw || sparkles.length) { needDraw = false; mapView.draw(t); } if (sparkles.length) frame = requestAnimationFrame(loop); }
 const calm = () => S.motion === 'off' || (S.motion !== 'on' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 let glide = 0, glideTo = null;
 function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = 0; } }
@@ -2171,17 +2172,18 @@ const map2d = {
 let mapView = map2d, view3d = null, load3d = null;
 const in3d = () => mapView !== map2d;
 function load3dScript() {
-  if (!load3d) load3d = new Promise((ok, no) => { if (typeof make3d === 'function') { ok(); return; } const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = () => ok(); s.onerror = () => { load3d = null; s.remove(); no(new Error('load')); }; document.head.append(s); });
+  if (!load3d) { const add = () => new Promise((ok, no) => { if (typeof make3d === 'function') { ok(); return; } const s = document.createElement('script'); s.src = 'map3d.js'; s.onload = () => ok(); s.onerror = () => { s.remove(); no(new Error('load')); }; document.head.append(s); }); load3d = (window.pokopia3d || Promise.reject(new Error('none'))).catch(add).catch((e) => { load3d = null; throw e; }); window.pokopia3d = null; }
   return load3d;
 }
 function get3d() {
   return load3dScript().then(() => { if (!view3d) { try { view3d = make3d($('#map3d'), lost3d); } catch (e) { view3d = null; } } return view3d; });
 }
+let hold2d = false;
 async function enter3d(quiet) {
-  if (in3d() || !plan) return; let v = null;
-  try { v = await get3d(); } catch (e) { if (!quiet) toast('The 3D view couldn\'t load. Check the connection and try again.', 3200); return; }
-  if (!v) { if (!quiet) toast('The 3D view needs WebGL 2, which this browser doesn\'t have', 3200); return; }
-  if (in3d() || !plan) return;
+  if (in3d() || !plan) { hold2d = false; return; } let v = null;
+  try { v = await get3d(); } catch (e) { hold2d = false; requestDraw(); if (!quiet) toast('The 3D view couldn\'t load. Check the connection and try again.', 3200); return; }
+  if (!v) { hold2d = false; requestDraw(); if (!quiet) toast('The 3D view needs WebGL 2, which this browser doesn\'t have', 3200); return; }
+  hold2d = false; if (in3d() || !plan) { requestDraw(); return; }
   map2d.stop(); const s = cellSize(); v.enter((W / 2 - view.px) / s, (H / 2 - view.py) / s, view.zoom, LS.get(LSK + '3dtilt') === '1');
   mapView = v; ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
 }
@@ -3324,12 +3326,20 @@ function mapPic(url) {
 function pumpPics() {
   while (picBusy < 6 && picQueue.length) {
     const url = picQueue.shift(), p = mapPics.get(url), im = new Image(); picBusy++;
-    const done = (ok) => { picBusy--; if (ok && im.naturalWidth) { if (/\/top\//.test(url)) p.box = [0, 0, im.naturalWidth, im.naturalHeight]; else [p.box, p.col, p.leaf, p.bloom] = readPic(im); p.img = im; picsArrived(); } else p.failed = true; pumpPics(); };
+    const done = (ok) => { picBusy--; if (ok && im.naturalWidth) { if (/\/top\//.test(url)) p.box = [0, 0, im.naturalWidth, im.naturalHeight]; else [p.box, p.col, p.leaf, p.bloom] = picFacts(url, im); p.img = im; picsArrived(); } else p.failed = true; pumpPics(); };
     im.src = url;
     (im.decode ? im.decode() : new Promise((ok, no) => { im.onload = ok; im.onerror = no; })).then(() => done(true), () => done(false));
   }
 }
 function picsArrived() { if (picRedraw) return; picRedraw = true; requestAnimationFrame(() => { picRedraw = false; requestDraw(); if (IED.ob) iedDraw(); }); }
+let PIC_FACTS = null, picFactsT = 0;
+function picFacts(url, im) {
+  if (!PIC_FACTS) { try { PIC_FACTS = JSON.parse(LS.get(LSK + 'picfacts') || '{}') || {}; } catch (e) { PIC_FACTS = {}; } }
+  const k = url.replace(/^pics\//, ''), hit = PIC_FACTS[k]; if (Array.isArray(hit) && Array.isArray(hit[0]) && hit[0].length === 4) return hit;
+  const v = readPic(im); if (v[1] == null && v.length < 3) return v; PIC_FACTS[k] = v;
+  clearTimeout(picFactsT); picFactsT = setTimeout(() => { const keys = Object.keys(PIC_FACTS); if (keys.length > 1600) PIC_FACTS = Object.fromEntries(keys.slice(-1200).map(q => [q, PIC_FACTS[q]])); LS.set(LSK + 'picfacts', JSON.stringify(PIC_FACTS)); }, 4000);
+  return v;
+}
 function readPic(im) {
   const w = im.naturalWidth, h = im.naturalHeight;
   try {
@@ -5490,7 +5500,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T07:41';
+const APP_BUILD = '2026-11-22T08:28';
 if (S.map3d) load3dScript().catch(() => { });
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
@@ -5516,14 +5526,14 @@ function initSW() {
   setInterval(checkForUpdate, 30 * 60 * 1000);
 }
 async function boot() {
-  readTheme(); resize(); fsInit(); tipsInit();
+  hold2d = S.map3d; readTheme(); resize(); fsInit(); tipsInit();
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
   new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   new ResizeObserver(() => { resize(); }).observe($('#mapwrap'));
   const [dataReq, picsReq] = window.pokopiaLoad || [null, fetch('pics/index.json').then(r => r.ok ? r.json() : null).catch(() => null)];
   let d;
   try { const emb = document.getElementById('pokopiaData'); if (emb) d = JSON.parse(emb.textContent); else { d = dataReq ? await dataReq : null; if (!d) { const r = await fetch('data.json'); if (!r.ok) throw new Error(r.status); d = await r.json(); } } }
-  catch (e) { $('#hdrPlan').textContent = 'Could not load game data'; toast('Game data failed to load. Reload to try again.', 6000); initSW(); return; }
+  catch (e) { hold2d = false; $('#hdrPlan').textContent = 'Could not load game data'; toast('Game data failed to load. Reload to try again.', 6000); initSW(); return; }
   buildIndex(d);
   const pj = await picsReq; if (pj && pj.pics) { PICS = { pics: pj.pics, missing: pj.missing || {}, top: pj.top || {}, pk: pj.fv ? pj.pk || {} : {}, pkmissing: pj.pkmissing || {}, bytes: pj.bytes || 0 }; picOf.length = 0; }
   loadLocalPlans();
@@ -5533,7 +5543,7 @@ async function boot() {
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
   selectItem('Field grass', false); setTool(S.tool); setShowAreas(showAreas); $('#status').hidden = !S.status;
   { const was = LS.get(LSK + '3d'); if (was != null) { if (was === '0' && S.map3d) { S.map3d = false; savePrefs(); } LS.del(LSK + '3d'); } }
-  if (S.map3d) enter3d(true);
+  if (S.map3d) enter3d(true); else { hold2d = false; requestDraw(); }
   { const want = location.hash.slice(1), last = LS.get(LSK + 'tab'); showTab(VALID_TABS.includes(want) ? want : S.start === 'last' && VALID_TABS.includes(last) ? last : 'build', true); }
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
