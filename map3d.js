@@ -305,7 +305,7 @@ void main() {
     const t0 = performance.now(), run = (t) => { const k = Math.min(1, (t - t0) / ms); step(1 - Math.pow(1 - k, 3)); requestDraw(); if (k < 1) A.raf = requestAnimationFrame(run); else { A = null; updateStatus(); } };
     A = { step, snap, to, raf: requestAnimationFrame(run) };
   }
-  function glideTo(to, ms = 260) { const fr = copy(cam); animate((e) => { moved(); cam.tx = fr.tx + (to.tx - fr.tx) * e; cam.tz = fr.tz + (to.tz - fr.tz) * e; cam.zoom = fr.zoom * Math.pow(to.zoom / fr.zoom, e); cam.yaw = fr.yaw + (to.yaw - fr.yaw) * e; cam.pitch = fr.pitch + (to.pitch - fr.pitch) * e; }, ms, to.yaw !== fr.yaw || to.pitch !== fr.pitch, to); }
+  function glideTo(to, ms = 260) { stop(true); const fr = copy(cam); animate((e) => { moved(); cam.tx = fr.tx + (to.tx - fr.tx) * e; cam.tz = fr.tz + (to.tz - fr.tz) * e; cam.zoom = fr.zoom * Math.pow(to.zoom / fr.zoom, e); cam.yaw = fr.yaw + (to.yaw - fr.yaw) * e; cam.pitch = fr.pitch + (to.pitch - fr.pitch) * e; }, ms, to.yaw !== fr.yaw || to.pitch !== fr.pitch, to); }
   function zoomAt(z, sx, sy, smooth) {
     const fr = copy(cam), g = ground(fr, sx, sy), at = (e) => { moved(); const zz = fr.zoom * Math.pow(z / fr.zoom, e), k = fr.zoom / zz; cam.zoom = zz; cam.tx = g[0] + (fr.tx - g[0]) * k; cam.tz = g[1] + (fr.tz - g[1]) * k; };
     if (smooth) { animate(at, 200, false, { zoom: z }); return; } stop(true); at(1); requestDraw(); updateStatus();
@@ -399,8 +399,8 @@ void main() {
   }
   let lost = false;
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); if (lost) return; lost = true; stop(false); if (onLost) onLost(); });
-  function draw() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
+  function draw(t, out) {
+    if (!out) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); }
     if (lost) return;
     const now = performance.now(), sc = now < lowUntil && dpr > 1.25 ? 1 : dpr, cw = Math.round(W * sc), ch = Math.round(H * sc); if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
     if (sc < dpr) { clearTimeout(sharpT); sharpT = setTimeout(requestDraw, lowUntil - now + 20); }
@@ -423,14 +423,27 @@ void main() {
     for (const c of vis.filter(c => c.tr.n).sort((a, b) => dep(b) - dep(a))) { gl.bindVertexArray(c.tr.vao); gl.drawElements(gl.TRIANGLES, c.tr.n, gl.UNSIGNED_INT, 0); }
     if (layerZ != null) { gl.uniform1f(U.pass, 1); gl.uniform1f(U.am, 0.22); gl.enable(gl.CULL_FACE); for (const c of vis) if (c.op.n) { gl.bindVertexArray(c.op.vao); gl.drawElements(gl.TRIANGLES, c.op.n, gl.UNSIGNED_INT, 0); } gl.uniform1f(U.pass, 0); }
     gl.uniform1f(U.cut, 1e6); gl.uniform4f(U.cw, 0, 0, 0, 0);
-    BX.n = 0; curB = B; O.s = B.s; O.c = ctx; if (typeof mapOverlay3d === 'function') mapOverlay3d(O); upload(ov, BX);
+    BX.n = 0; curB = B; O.s = B.s; O.c = out || ctx; if (typeof mapOverlay3d === 'function') mapOverlay3d(O); upload(ov, BX);
     if (ov.n) { gl.enable(gl.CULL_FACE); gl.bindVertexArray(ov.vao); gl.disable(gl.DEPTH_TEST); gl.uniform1f(U.am, 0.35); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); gl.enable(gl.DEPTH_TEST); gl.uniform1f(U.am, 1); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); }
     gl.bindVertexArray(null); gl.depthMask(true);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); if (typeof mapLabels3d === 'function') mapLabels3d(O);
+    if (out) { out.setTransform(1, 0, 0, 1, 0, 0); out.drawImage(canvas, 0, 0); } else ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (typeof mapLabels3d === 'function') mapLabels3d(O);
+  }
+  function snapshot(px, title) {
+    if (lost || !plan) return null; sync();
+    const c = copy(A && A.to ? { ...cam, ...A.to } : cam); c.yaw = snapYaw(c.yaw); c.pitch = c.pitch > 84 ? 90 : c.pitch;
+    const { B, u0, u1, v0, v1 } = bounds(c), pad = 16, top = 40, lim = Math.min(2600, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]);
+    const s = Math.max(2, Math.min(px, (lim - 2 * pad) / (u1 - u0), (lim - top - 2 * pad) / (v1 - v0))), w = Math.ceil((u1 - u0) * s + 2 * pad), h = Math.ceil((v1 - v0) * s + top + 2 * pad);
+    const sv = { W, H, dpr, cam: copy(cam), low: lowUntil }; stop(true); W = w; H = h; dpr = 1; lowUntil = 0;
+    c.zoom = s / view.cs; const Au = (u0 + u1) / 2, Bv = v1 - (H / 2 - top - pad) / s, mu = (Bv - TY * B.cp) / B.sp; c.tx = Au * B.R[0] + mu * B.H[0]; c.tz = Au * B.R[2] + mu * B.H[2]; Object.assign(cam, c);
+    const o = document.createElement('canvas'); o.width = w; o.height = h; const x = o.getContext('2d'); let ok = true;
+    try { draw(0, x); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#eef1ec'; x.fillRect(0, 0, w, 38); x.fillStyle = '#1c2a23'; x.font = '700 20px sans-serif'; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillText(title || '', 12, 20); } catch (e) { ok = false; }
+    W = sv.W; H = sv.H; dpr = sv.dpr; Object.assign(cam, sv.cam); lowUntil = sv.low; requestDraw();
+    return ok ? o : null;
   }
   function stats() { let tris = 0, calls = 0; for (const c of CH.values()) if (c.op) { tris += (c.op.n + c.tr.n) / 3; calls += (c.op.n ? 1 : 0) + (c.tr.n ? 1 : 0); } return { tris, calls, chunks: CH.size, layers: tlNext }; }
   return {
-    draw, pick, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
+    draw, pick, snapshot, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
     anchor(x, y) { if (plan) plY = layerZ != null ? layerZ : ctop(x, y); },
     dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { sx, sy, px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
     cam: () => copy(cam),
@@ -445,8 +458,8 @@ void main() {
     loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
     enter(cx, cy, zoom, tilted) { Object.assign(cam, { tx: cx, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: tilted ? PA : 90 }); markAll(); requestDraw(); },
     leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
-    turn(dir) { const fr = copy(cam), y = snapYaw((A && A.to && A.to.yaw != null ? A.to.yaw : cam.yaw)) - 90 * dir; glideTo({ ...fr, yaw: y }, 300); },
-    tilt() { const fr = copy(cam), p = (A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch) > 84 ? PA : 90; glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: p }, 300); return p < 90; },
+    turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 90 * dir }, 300); },
+    tilt() { stop(true); const fr = copy(cam), p = fr.pitch > 84 ? PA : 90; glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: p }, 300); return p < 90; },
     tilted: () => (A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch) < 89,
     twist(deg, sx, sy) { const d = Math.abs(deg) < 12 ? 0 : deg - Math.sign(deg) * 12; if (!d) return; const g = ground(cam, sx, sy); rotAbout(cam, cam.yaw - d, g[0], g[1]); moved(); requestDraw(); },
     orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, 35, 90); moved(); requestDraw(); },

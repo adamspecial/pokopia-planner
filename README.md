@@ -13,7 +13,7 @@ Notices appear at the bottom of the screen and stack: a new one slides in undern
 The ⚙ button at the top right opens Settings; Plans has a Settings button too. Changes apply at once and are saved on this device only, so a phone and a PC can each be set up their own way. On a phone, Back closes Settings.
 
 - **Appearance**: light, dark or system theme; an accent colour (purple, blue, teal, pink or orange); animations on, off or as the device sets them.
-- **Map**: grid lines (all, every 8 tiles, none), height shading, pictures or simple shapes, portraits on homes, labels on zones and houses, every home's active area, and the info chips at the bottom.
+- **Map**: the 3D view (on unless you turn it off), grid lines (all, every 8 tiles, none), height shading on the flat map, pictures or simple shapes, portraits on homes, labels on zones and houses, every home's active area, and the info chips at the bottom.
 - **Controls**: the default tool (Pan or Select), whether the mouse wheel zooms or scrolls (Ctrl + wheel zooms when it scrolls), tooltips on hover and long-press, vibration on Android, and a list of keyboard shortcuts.
 - **Notices**: how long they stay (short, normal or long), and whether new habitats sparkle.
 - **Layout**: the panel on the left or right and narrow, normal or wide on big screens; how far it opens on a phone when you tap a tab; and whether the app opens on the last tab you used or on Build.
@@ -43,7 +43,7 @@ In **Decorate**, tapping a suggestion folds the window into a small bar under th
 
 Every block has a level, terrain included, and each level of a square holds one thing: a terrain block, a wall block or an item. Terrain starts at level 0, so the ground floor, where things stand on the ground, is level 1. Levels go from −99 to 99.
 
-**Terrain** stacks like any other block. Place soil, grass, sand or any terrain on a square and a new block goes on top, one level up, so you build hills by stacking and plateaus by filling an area again. Choose **Paint** in the Place or Fill bar to swap the top block's material instead, at the same level, for recolouring an area. Erase takes the top block off, so erasing level 0 digs a hole; put a floor lower down for a basement or a dug-out room. Hills are drawn lighter the higher they are and pits darker, with a shadow along each drop and ▲ or ▼ with the height when you zoom in. There is no Height tool any more: a 2-level rise of terrain inside a zone is what counts as a "High-up location".
+**Terrain** stacks like any other block. Place soil, grass, sand or any terrain on a square and a new block goes on top, one level up, so you build hills by stacking and plateaus by filling an area again. Choose **Paint** in the Place or Fill bar to swap the top block's material instead, at the same level, for recolouring an area. Erase takes the top block off, so erasing level 0 digs a hole; put a floor lower down for a basement or a dug-out room. In 3D, hills and pits are real heights. On the flat map they're drawn lighter the higher they are and pits darker, with a shadow along each drop and ▲ or ▼ with the height when you zoom in. There is no Height tool any more: a 2-level rise of terrain inside a zone is what counts as a "High-up location".
 
 Everything you place goes on top of the highest block at that spot: terrain, items, rugs and kit houses alike. The outline shows where it will land before you tap.
 
@@ -75,7 +75,7 @@ Height decides what counts:
 
 ## 3D view
 
-Tap the cube by the zoom buttons, or press 3, to see the plan in 3D. Tap it again to go back to the flat map. It's the same plan, drawn as simple blocks so it stays quick on a phone:
+The map is 3D. It opens looking straight down, so it reads like a floor plan, and you can tilt and turn it to see heights, walls and what's inside. It's the same plan, drawn as simple blocks so it stays quick on a phone:
 
 - Terrain, floors, walls and blocks are cubes. Their tops show the floor and terrain pictures when **Pictures on the map** is on, and flat colours when it's off. Water, lava and hot springs are see-through, and the grid follows **Grid lines** in Settings.
 - Each item is a box the size of its footprint and as tall as its height. Plants, flowers and other small things are drawn low, lamps as a post with a light, trees as a trunk and leaves, and kit houses with a roof. Doors and fences are thin, windows are glass, and rugs lie flat on the floor.
@@ -98,7 +98,9 @@ Every tool works in 3D, the same way as on the flat map:
 
 While you pan, zoom or turn, the 3D view draws at a lower resolution to stay smooth, and sharpens as soon as you stop.
 
-Each device remembers whether you were in 3D and how the view was tilted. The 3D view needs WebGL 2, which Chrome and Edge have. If the browser stops it, the planner goes back to the flat map and you can open 3D again.
+**Save picture** (the Image button in Plans) saves the plan as you see it in 3D, turned and tilted the same way, with zones, labels and portraits. Selections and previews are left out.
+
+**The flat map.** Turn off **3D view** in Settings → Map to use the flat map instead, with height shading and level numbers. Its Save picture is the flat plan. The planner also uses the flat map on its own when the browser doesn't have WebGL 2 (Chrome and Edge do), or when the browser stops the 3D view. A notice then offers **Try 3D again**. Each device remembers how the 3D view was tilted.
 
 ## Pokémon and homes
 
