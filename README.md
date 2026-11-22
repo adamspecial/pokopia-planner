@@ -26,13 +26,15 @@ The planner opens on **Pan**: drag to move around the map, pinch or use the mous
 
 To move things, pick **Select** (V). Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool except Pan, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. An item that rests on a block keeps resting on whatever is highest where you drop it; one floating in mid-air keeps its level. Dragging from an empty square selects an area, as below.
 
+**Which way items face.** Items have a front. Press Q while placing to turn what you're placing a quarter turn (Shift+Q the other way), or select an item and use **Turn left** and **Turn right** (or Q). Long items swap their width and length as they turn. Until you turn them, steps rise toward the block or wall next to them, and ladders, posters, wallpaper, shelves, beds, sofas and other things that stand against a wall put their back to it. Otherwise items face down the map. The flat map turns furniture and steps to match, and steps show an arrow pointing up them.
+
 ## Moving several things together
 
 Select a group of things and they move, turn and copy as one, in a single step to undo.
 
 - **Pick them.** In Select, drag from an empty square to select everything inside the box. With a mouse, Shift-click adds an item or takes it away and Shift-drag adds another area. On a phone, tap **Several** in the bar above the map, or **Pick several** on an item, then tap items in or out and tap **Done** when you're finished. **Select all of it** on a house picks its walls, doors and everything inside, and **Select what's in it** on a zone picks the zone's area. Ctrl+A selects everything.
 - **Move them.** Drag any of them, or tap **Move** and then where they should go. A preview shows where everything lands: red squares hold small items that would be replaced, and a red outline means something is in the way. Arrow keys nudge them a square at a time, five with Shift. The group keeps its shape and its levels and settles on the ground where it lands, and items stacked on a selected item come along.
-- **Turn and flip.** Turn left or right, or flip left to right or top to bottom (Q, Shift+Q, F, Shift+F). Doors and windows turn with their walls.
+- **Turn and flip.** Turn left or right, or flip left to right or top to bottom (Q, Shift+Q, F, Shift+F). Doors and windows turn with their walls, and every item turns to face its new way.
 - **Duplicate and copy.** **Duplicate** (Ctrl+D) puts a copy right next to the original and selects it, or asks where to put it when there's no room. **Copy** (Ctrl+C) lets you paste as many copies as you like, in any plan; while pasting, Q turns the copy and F flips it. Kit homes are copied with their interiors but not their residents.
 - **What comes along.** Residents of a kit home or house that moves go with it, and so does a house's roof setting. A zone that lies wholly inside a selected area moves, turns and copies with it. With **Ground too**, which is on unless you turn it off, the floors, paths and water inside a selected area come along too and the gap is filled with the ground around it. Ground that matches its surroundings stays where it is.
 - **The rest.** Up and Down a level, Make a zone, Delete and, for areas, Clear everything. Tap a kind in the list to leave all of that kind out of the selection.
@@ -75,11 +77,11 @@ Height decides what counts:
 
 ## 3D view
 
-The map is 3D. It opens looking straight down, so it reads like a floor plan, and you can tilt and turn it to see heights, walls and what's inside. It's the same plan, drawn as simple blocks so it stays quick on a phone:
+The map is 3D. It opens looking straight down, so it reads like a floor plan, and you can tilt and turn it to see heights, walls and what's inside. It's the same plan, drawn with simple shapes so it stays quick on a phone:
 
 - Terrain, floors, walls and blocks are cubes. Their tops show the floor and terrain pictures when **Pictures on the map** is on, and flat colours when it's off. Water, lava and hot springs are see-through, and the grid follows **Grid lines** in Settings.
-- Each item is a box the size of its footprint and as tall as its height. Plants, flowers and other small things are drawn low, lamps as a post with a light, trees as a trunk and leaves, and kit houses with a roof. Doors and fences are thin, windows are glass, and rugs lie flat on the floor.
-- The top of each item shows the same picture or shape as on the flat map, and rugs show their pattern. When you zoom far out, the tops turn to plain colour and the outlines fade, as on the flat map.
+- Each kind of item has its own simple shape, in its own colours, made of a few boxes, cylinders, cones, balls and slopes: steps are three treads, chairs have a seat, back and legs, beds a pillow and blanket, lamps a post and a light, trees a trunk and leaves, barrels and pots are round, and roof pieces slope. Kit houses have walls, a roof, a door and windows. Doors and fences are thin, windows and glass are see-through, and rugs lie flat on the floor.
+- Flat things show their picture: rugs and mats on top, posters, paintings, signs and boards on their front. Posters, wallpaper, clocks and other wall items hang on the wall behind them. With no wall, wallpaper lies flat on the floor and other wall items stand on a post. When you zoom far out, pictures turn to plain colour and the outlines fade, as on the flat map.
 - Hidden layers aren't drawn.
 
 Moving around:
@@ -90,7 +92,7 @@ Moving around:
 
 Every tool works in 3D, the same way as on the flat map:
 
-- **Previews are see-through boxes.** What you're placing shows where it will land, at its own level and height, with an outline on the squares it covers: in the accent colour when it fits and red when it doesn't. Things it would replace turn red. Moving an item or a group shows it at its new spot, with the old spot outlined.
+- **Previews are see-through.** What you're placing shows its shape where it will land, facing the way it will face, at its own level and height, with an outline on the squares it covers: in the accent colour when it fits and red when it doesn't. Things it would replace turn red. Moving an item or a group shows it at its new spot, with the old spot outlined.
 - **Drags stay at one height.** A stroke, a filled area, a zone or a move follows the height of the surface where you started it, so dragging across a hill or a wall doesn't jump between levels.
 - **Zones, homes and labels.** Zones, active areas, Community box reach and the outline of where a Pokémon can go are drawn over the ground. Zone and house labels, kit badges and resident portraits float above them.
 - **Seeing inside.** In a tilted view, walls, roofs and anything else standing in front of the pointer and higher than where it points turn see-through around it, so you can see and work behind them. Taps go through the see-through part too. To pick one of those walls, point at it from outside first.
