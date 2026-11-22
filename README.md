@@ -73,6 +73,22 @@ Height decides what counts:
 - **Light, warmth and humidity:** only what's inside the walls, from 1 below to 3 above the floor (see below). Things on top of walls never count.
 - Items on top of walls don't break the house. Habitats only count items standing on the ground.
 
+## 3D view
+
+Tap the cube by the zoom buttons, or press 3, to see the plan in 3D. Tap it again to go back to the flat map. It's the same plan, drawn as simple blocks so it stays quick on a phone:
+
+- Terrain, floors, walls and blocks are cubes. Their tops show the floor and terrain pictures when **Pictures on the map** is on, and flat colours when it's off. Water, lava and hot springs are see-through, and the grid follows **Grid lines** in Settings.
+- Each item is a box the size of its footprint and as tall as its height. Plants, flowers and other small things are drawn low, lamps as a post with a light, trees as a trunk and leaves, and kit houses with a roof. Doors and fences are thin, windows are glass, and rugs lie flat on the floor.
+- Hidden layers aren't drawn.
+
+Moving around:
+
+- **Tilt** with the tilt button or T, to switch between looking straight down and looking from an angle. With a mouse, drag up and down with the right button to tilt anywhere in between.
+- **Turn** a quarter turn at a time with the turn button (Shift turns it the other way), or with , and . on a keyboard. On a phone or tablet, twist two fingers; with a mouse, drag sideways with the right button. When you let go, the view settles on the nearest quarter turn.
+- Drag to pan, and pinch or use the wheel to zoom, as on the flat map. Fit, Zoom in and Zoom out work the same way.
+
+For now the 3D view is for looking. Tap anything to see its details, and double-click a kit house to decorate inside. Picking any tool other than Pan, or anything to place, goes back to the flat map, where you edit as usual. Labels, zones, active areas and resident portraits show on the flat map only for now. Each device remembers whether you were in 3D and how the view was tilted. The 3D view needs WebGL 2, which Chrome and Edge have. If the browser stops it, the planner goes back to the flat map and you can open 3D again.
+
 ## Pokémon and homes
 
 Every Pokémon has its picture from the game, the 3D model the Pokédex shows. The planner uses one of three sizes, depending on the room:
