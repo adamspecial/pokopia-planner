@@ -31,7 +31,9 @@ precision highp float;
 precision highp int;
 precision mediump sampler2DArray;
 uniform sampler2DArray tx;
-uniform float lw, ls, g1, g8, pics, am, cut, pass;
+uniform sampler2D sy;
+uniform float lw, ls, g1, g8, pics, am, cut, pass, syms, cl;
+uniform vec4 cw;
 in float vy;
 in vec2 vu;
 flat in vec4 vr;
@@ -41,8 +43,10 @@ in float vs;
 out vec4 o;
 void main() {
   if (pass > 0.5) { if (vy <= cut) discard; } else if (vy > cut) discard;
+  if (cw.z > 0.0 && vy > cl + 0.05) { float r = length(gl_FragCoord.xy - cw.xy); if (r < cw.z && gl_FragCoord.z < cw.w) { float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); if (n < 0.8 * (1.0 - smoothstep(cw.z * 0.55, cw.z, r))) discard; } }
   vec3 c = vc.rgb;
-  if (pics > 0.5 && vi.z < 255u) c = texture(tx, vec3(vu, float(vi.z))).rgb;
+  if (vi.w == 0u) { if (pics > 0.5 && vi.z < 255u) c = texture(tx, vec3(vu, float(vi.z))).rgb; }
+  else if (vi.w == 1u && vi.x == 0u && vi.z < 255u && syms > 0.5) { vec2 f = clamp((vu - vr.xy) / max(vr.zw - vr.xy, vec2(1e-4)), 0.0, 1.0), q = (vec2(float(vi.z % 16u), float(vi.z / 16u)) * 64.0 + 4.0 + f * 56.0) / 1024.0; vec4 t = texture(sy, q); c = c * (1.0 - t.a) + t.rgb; }
   vec2 fw = max(fwidth(vu), vec2(1e-4));
   vec2 a = (vu - vr.xy) / fw, b = (vr.zw - vu) / fw;
   uint f = vi.y;
@@ -64,7 +68,7 @@ void main() {
   const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
   const prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
   if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-  const U = {}; for (const n of ['M', 'bk', 'tx', 'lw', 'ls', 'g1', 'g8', 'pics', 'am', 'cut', 'pass']) U[n] = gl.getUniformLocation(prog, n);
+  const U = {}; for (const n of ['M', 'bk', 'tx', 'sy', 'lw', 'ls', 'g1', 'g8', 'pics', 'am', 'cut', 'pass', 'syms', 'cl', 'cw']) U[n] = gl.getUniformLocation(prog, n);
   const ibo = gl.createBuffer(); let iboQuads = 0;
   function quads(n) {
     if (n <= iboQuads) return; let q = Math.max(4096, iboQuads); while (q < n) q *= 2; const a = new Uint32Array(q * 6);
@@ -89,8 +93,8 @@ void main() {
     const put = (x, y, z) => { f[o] = x; f[o + 1] = y; f[o + 2] = z; f[o + 3] = m === 2 ? z : x; f[o + 4] = m === 0 ? z : y; f[o + 5] = r0; f[o + 6] = r1; f[o + 7] = r2; f[o + 8] = r3; u[o + 9] = col; u[o + 10] = info; o += 11; };
     put(ax, ay, az); put(bx, by, bz); put(cx, cy, cz); put(dx, dy, dz); B.n += 4;
   }
-  function box(B, x0, y0, z0, x1, y1, z1, col, kind = 1, flags = 15) {
-    q4(B, x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0, 0, x0, z0, x1, z1, col, pack(0, flags, 255, kind));
+  function box(B, x0, y0, z0, x1, y1, z1, col, kind = 1, flags = 15, sym = 255) {
+    q4(B, x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0, 0, x0, z0, x1, z1, col, pack(0, flags, sym, kind));
     q4(B, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, 1, x0, y0, x1, y1, col, pack(1, flags, 255, kind));
     q4(B, x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, 1, x0, y0, x1, y1, col, pack(2, flags, 255, kind));
     q4(B, x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, 2, z0, y0, z1, y1, col, pack(3, flags, 255, kind));
@@ -144,6 +148,23 @@ void main() {
       im.onerror = () => { TLS[L] = 3; }; im.src = picsFor(ITEMS[i])[1];
     }
   }
+  const atlas = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.texStorage2D(gl.TEXTURE_2D, 4, gl.RGBA8, 1024, 1024);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 3);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const SC = document.createElement('canvas'); SC.width = SC.height = 64; const scx = SC.getContext('2d');
+  const SLOT = new Map(), SLOTS = []; let symSig = '', atlasDirty = false;
+  function paintSlot(n) {
+    const e = SLOTS[n], it = ITEMS[e.i], sd = dpr; scx.setTransform(1, 0, 0, 1, 0, 0); scx.clearRect(0, 0, 64, 64); scx.save(); scx.translate(4, 4); scx.scale(1 / e.w, 1 / e.h); dpr = 1;
+    try { if (e.rug) { if (!drawRug(scx, it, 0, 0, 56, e.w, e.h) && !drawLook(scx, it, 0, 0, 56, e.w, e.h)) { scx.fillStyle = picsFor(it)[2] || it.col; scx.fillRect(0, 0, 56 * e.w, 56 * e.h); } } else drawPicItem(scx, it, 0, 0, 56, e.w, e.h, false, null); } catch (er) { }
+    dpr = sd; scx.restore();
+    const u = picsFor(it).filter(Boolean); e.wait = S.pics && u.some(x => { const q = mapPics.get(x); return q && !q.img && !q.failed; });
+    gl.bindTexture(gl.TEXTURE_2D, atlas); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true); gl.texSubImage2D(gl.TEXTURE_2D, 0, (n % 16) * 64, Math.floor(n / 16) * 64, gl.RGBA, gl.UNSIGNED_BYTE, SC); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); atlasDirty = true;
+  }
+  function symOf(i, w, h, rug) {
+    const k = i + ':' + w + 'x' + h + (rug ? 'r' : ''); let n = SLOT.get(k); if (n != null) return n;
+    if (SLOTS.length >= 255) return 255; n = SLOTS.length; SLOTS.push({ i, w, h, rug, wait: false }); SLOT.set(k, n); paintSlot(n); return n;
+  }
+  function syncSyms() { const sig = (S.pics ? 1 : 0) + '|' + (theme.panel || ''); if (sig !== symSig) { symSig = sig; for (let n = 0; n < SLOTS.length; n++) paintSlot(n); return; } for (let n = 0; n < SLOTS.length; n++) if (SLOTS[n].wait) { const u = picsFor(ITEMS[SLOTS[n].i]).filter(Boolean); if (!u.some(x => { const q = mapPics.get(x); return q && !q.img && !q.failed; })) paintSlot(n); } }
   const LOW = new Set('grass flower crop moss lily mat web coral stump fossil pokeball doll stone orb gem pouch letter plate platter setting teaset books pan border bordersingle bordercorner planks grate star blob firework paintballoon pot wreath poster posterbolt posterwave postermtn frame wallclock mirror vine banner hatch'.split(' '));
   const MID = new Map([['table', 0.7], ['chair', 0.55], ['stool', 0.45], ['bed', 0.5], ['sofa', 0.55], ['bench', 0.5], ['chest', 0.55], ['crate', 0.6], ['bin', 0.6], ['planter', 0.5], ['steps', 0.5], ['campfire', 0.35], ['sink', 0.75], ['bath', 0.55], ['cannon', 0.6], ['stand', 0.7], ['roofflat', 0.3]]);
   const TRUNK = rgba('#7a5434'), GLASS = rgba('#bfe6f5', 0.5);
@@ -172,11 +193,11 @@ void main() {
       return;
     }
     if (/^roof/.test(k) && k !== 'roofflat') { hip(B, x0, z, z0, x1, z + t * 0.9, z1, a); return; }
-    if (k === 'tree' || it.sh === 'tree' || it.sh === 'palm' || it.sh === 'pine') { const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, tw = Math.min(0.14, ob.w * 0.1); box(B, cx - tw, z, cz - tw, cx + tw, z + t * 0.45, cz + tw, TRUNK); box(B, x0 + 0.08, z + t * 0.35, z0 + 0.08, x1 - 0.08, z + t - 0.05, z1 - 0.08, a); return; }
+    if (k === 'tree' || it.sh === 'tree' || it.sh === 'palm' || it.sh === 'pine') { const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, tw = Math.min(0.14, ob.w * 0.1); box(B, cx - tw, z, cz - tw, cx + tw, z + t * 0.45, cz + tw, TRUNK); box(B, x0 + 0.08, z + t * 0.35, z0 + 0.08, x1 - 0.08, z + t - 0.05, z1 - 0.08, a, 1, 15, symOf(ob.i, ob.w, ob.h)); return; }
     if (k === 'lamp') { const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hd = 0.2, top = z + t - 0.05; box(B, cx - 0.07, z, cz - 0.07, cx + 0.07, top - 0.25, cz + 0.07, a); box(B, cx - hd, top - 0.28, cz - hd, cx + hd, top, cz + hd, b); return; }
     if (k === 'column') { const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2; box(B, cx - 0.2, z, cz - 0.2, cx + 0.2, z + t, cz + 0.2, a); return; }
     const f = LOW.has(k) ? 0.3 : t > 1 ? 0 : MID.get(k) || 0, ins = f && f <= 0.3 ? 0.18 : 0.07;
-    box(B, x0 + ins, z, z0 + ins, x1 - ins, f ? z + f : z + t - 0.06, z1 - ins, a);
+    box(B, x0 + ins, z, z0 + ins, x1 - ins, f ? z + f : z + t - 0.06, z1 - ins, a, 1, 15, symOf(ob.i, ob.w, ob.h));
   }
   const CH = new Map(); let allDirty = true, anyDirty = true, lastSig = '', yLo = 0, yHi = 2, rugVer = 0, rugMap = null, rugMapVer = -1;
   const chKey = (cx, cy) => cy * 4096 + cx;
@@ -251,7 +272,7 @@ void main() {
     side(1, 0, (B, i, r, w, Y0, Y1, col, fl) => { const X = x0 + r, Z0 = y0 + i, Z1 = Z0 + w; q4(B, X, Y0, Z1, X, Y0, Z0, X, Y1, Z0, X, Y1, Z1, 2, Z0, Y0, Z1, Y1, col, pack(3, fl, 255, 0)); });
     side(-1, 0, (B, i, r, w, Y0, Y1, col, fl) => { const X = x0 + r - 1, Z0 = y0 + i, Z1 = Z0 + w; q4(B, X, Y0, Z0, X, Y0, Z1, X, Y1, Z1, X, Y1, Z0, 2, Z0, Y0, Z1, Y1, col, pack(4, fl, 255, 0)); });
     for (const ob of obs) if (!hidden.has(zOf(ob)) && !SOLID[ob.i]) emitObj(BO, BT, ob);
-    for (const r of rugs) box(BO, r.x + 0.03, zOf(r), r.y + 0.03, r.x + r.w - 0.03, zOf(r) + 0.05, r.y + r.h - 0.03, COL[r.i]);
+    for (const r of rugs) box(BO, r.x + 0.03, zOf(r), r.y + 0.03, r.x + r.w - 0.03, zOf(r) + 0.05, r.y + r.h - 0.03, COL[r.i], 1, 15, symOf(r.i, r.w, r.h, true));
     if (!ch.op) { ch.op = mesh(); ch.tr = mesh(); }
     upload(ch.op, BO); upload(ch.tr, BT); ch.dirty = false;
   }
@@ -284,9 +305,9 @@ void main() {
     const t0 = performance.now(), run = (t) => { const k = Math.min(1, (t - t0) / ms); step(1 - Math.pow(1 - k, 3)); requestDraw(); if (k < 1) A.raf = requestAnimationFrame(run); else { A = null; updateStatus(); } };
     A = { step, snap, to, raf: requestAnimationFrame(run) };
   }
-  function glideTo(to, ms = 260) { const fr = copy(cam); animate((e) => { cam.tx = fr.tx + (to.tx - fr.tx) * e; cam.tz = fr.tz + (to.tz - fr.tz) * e; cam.zoom = fr.zoom * Math.pow(to.zoom / fr.zoom, e); cam.yaw = fr.yaw + (to.yaw - fr.yaw) * e; cam.pitch = fr.pitch + (to.pitch - fr.pitch) * e; }, ms, to.yaw !== fr.yaw || to.pitch !== fr.pitch, to); }
+  function glideTo(to, ms = 260) { const fr = copy(cam); animate((e) => { moved(); cam.tx = fr.tx + (to.tx - fr.tx) * e; cam.tz = fr.tz + (to.tz - fr.tz) * e; cam.zoom = fr.zoom * Math.pow(to.zoom / fr.zoom, e); cam.yaw = fr.yaw + (to.yaw - fr.yaw) * e; cam.pitch = fr.pitch + (to.pitch - fr.pitch) * e; }, ms, to.yaw !== fr.yaw || to.pitch !== fr.pitch, to); }
   function zoomAt(z, sx, sy, smooth) {
-    const fr = copy(cam), g = ground(fr, sx, sy), at = (e) => { const zz = fr.zoom * Math.pow(z / fr.zoom, e), k = fr.zoom / zz; cam.zoom = zz; cam.tx = g[0] + (fr.tx - g[0]) * k; cam.tz = g[1] + (fr.tz - g[1]) * k; };
+    const fr = copy(cam), g = ground(fr, sx, sy), at = (e) => { moved(); const zz = fr.zoom * Math.pow(z / fr.zoom, e), k = fr.zoom / zz; cam.zoom = zz; cam.tx = g[0] + (fr.tx - g[0]) * k; cam.tz = g[1] + (fr.tz - g[1]) * k; };
     if (smooth) { animate(at, 200, false, { zoom: z }); return; } stop(true); at(1); requestDraw(); updateStatus();
   }
   function rotAbout(c, yaw, gx, gz) { const d = (yaw - c.yaw) * Math.PI / 180, cs = Math.cos(d), sn = Math.sin(d), dx = c.tx - gx, dz = c.tz - gz; c.tx = gx + dx * cs - dz * sn; c.tz = gz + dx * sn + dz * cs; c.yaw = yaw; }
@@ -304,8 +325,21 @@ void main() {
     const Au = (u0 + u1) / 2, Bv = v1 - (H / 2 - topY) / s, mu = (Bv - TY * B.cp) / B.sp;
     c.tx = Au * B.R[0] + mu * B.H[0]; c.tz = Au * B.R[2] + mu * B.H[2]; return c;
   }
+  let CUT = null, lowUntil = 0, sharpT = 0;
+  const moved = () => { lowUntil = performance.now() + 160; };
+  function cutState() {
+    if (!CUT || !hover || cam.pitch > 85 || drag && (drag.kind === 'pan' || drag.kind === 'orbit') || pinch) return null;
+    const B = basis(), dx = CUT.px - cam.tx, dy = CUT.py - TY, dz = CUT.pz - cam.tz; return { sx: CUT.sx, sy: CUT.sy, Y: CUT.Y, r: Math.max(48, 2.6 * B.s), d: (dx * B.F[0] + dy * B.F[1] + dz * B.F[2] - 0.6) / DEPTH };
+  }
+  let PC = null;
+  function seeThrough(x, y, z) {
+    if (!PC || z + 1 <= PC.Y + 0.05) return false; const B = PC.B, dx = x + 0.5 - cam.tx, dy = z + 0.5 - TY, dz = y + 0.5 - cam.tz;
+    if ((dx * B.F[0] + dy * B.F[1] + dz * B.F[2]) / DEPTH >= PC.d) return false; const sx = W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s - PC.sx, sy = H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s - PC.sy;
+    return sx * sx + sy * sy < (PC.r * 0.55) * (PC.r * 0.55);
+  }
   function solidAt(x, y, z) {
     if (layerZ != null && z > layerZ) return false;
+    if (seeThrough(x, y, z)) return false;
     const k = y * plan.w + x;
     if (!hidden.has(z)) { if (!hidden.has('g') && terrAt(plan, k, z)) return true; const o = occAt(plan, k, z); if (o) { const ob = plan.objs.get(o); if (ob && obShown(ob)) return true; } }
     if (rugMapVer !== rugVer) { rugMap = new Set(); rugMapVer = rugVer; if (!hidden.has('r')) for (const r of plan.rugs.values()) if (!hidden.has(zOf(r))) for (let yy = r.y; yy < r.y + r.h; yy++) for (let xx = r.x; xx < r.x + r.w; xx++) rugMap.add((zOf(r) - ZMIN) * plan.w * plan.h + yy * plan.w + xx); }
@@ -317,15 +351,16 @@ void main() {
     const lo = [0, yLo, 0], hi = [plan.w, yHi, plan.h]; let t0 = -Infinity, t1 = Infinity;
     for (let i = 0; i < 3; i++) { if (Math.abs(D[i]) < 1e-9) { if (O[i] < lo[i] || O[i] > hi[i]) { t1 = -1; break; } continue; } let a = (lo[i] - O[i]) / D[i], b = (hi[i] - O[i]) / D[i]; if (a > b) [a, b] = [b, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, b); }
     const flat = (Y) => { const t = (Y - O[1]) / D[1]; return [Math.floor(O[0] + D[0] * t), Math.floor(O[2] + D[2] * t)]; };
-    if (!(t1 > t0)) return flat(TY);
+    const cs = cutState(); PC = cs ? { ...cs, B } : null;
+    if (!(t1 > t0)) { PC = null; return flat(TY); }
     const t = t0 + 1e-6, P = [O[0] + D[0] * t, O[1] + D[1] * t, O[2] + D[2] * t], cell = P.map((v, i) => clamp(Math.floor(v), lo[i], hi[i] - 1)), st = D.map(d => d > 0 ? 1 : d < 0 ? -1 : 0);
     const tM = [0, 1, 2].map(i => st[i] ? ((st[i] > 0 ? cell[i] + 1 : cell[i]) - P[i]) / D[i] : Infinity), tD = [0, 1, 2].map(i => st[i] ? Math.abs(1 / D[i]) : Infinity);
     for (let n = 0; n < 2000; n++) {
       if (cell[0] < 0 || cell[0] >= plan.w || cell[2] < 0 || cell[2] >= plan.h || cell[1] < yLo || cell[1] >= yHi) break;
-      if (solidAt(cell[0], cell[2], cell[1])) return [cell[0], cell[2], cell[1]];
+      if (solidAt(cell[0], cell[2], cell[1])) { PC = null; CUT = { sx, sy, px: cell[0] + 0.5, py: cell[1] + 1, pz: cell[2] + 0.5, Y: cell[1] + 1 }; return [cell[0], cell[2], cell[1]]; }
       const i = tM[0] < tM[1] ? (tM[0] < tM[2] ? 0 : 2) : (tM[1] < tM[2] ? 1 : 2); cell[i] += st[i]; tM[i] += tD[i];
     }
-    return flat(yLo);
+    PC = null; const f = flat(yLo); CUT = { sx, sy, px: f[0] + 0.5, py: yLo, pz: f[1] + 0.5, Y: yLo }; return f;
   }
   const BX = builder(), ov = mesh(), base = mesh(), RC = new Map(), OV = 0.015, I3 = pack(0, 0, 255, 3);
   let curB = basis(), plY = TY;
@@ -367,15 +402,17 @@ void main() {
   function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
     if (lost) return;
-    const cw = Math.round(W * dpr), ch = Math.round(H * dpr); if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    const now = performance.now(), sc = now < lowUntil && dpr > 1.25 ? 1 : dpr, cw = Math.round(W * sc), ch = Math.round(H * sc); if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    if (sc < dpr) { clearTimeout(sharpT); sharpT = setTimeout(requestDraw, lowUntil - now + 20); }
     gl.viewport(0, 0, cw, ch); const [br, bg, bb] = bytes(rgba(theme['map-bg'] || '#e4e9e2')); gl.clearColor(br, bg, bb, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     if (!plan) return;
-    sync(); if (mipDirty) { gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex); gl.generateMipmap(gl.TEXTURE_2D_ARRAY); mipDirty = false; }
+    sync(); syncSyms(); if (mipDirty) { gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex); gl.generateMipmap(gl.TEXTURE_2D_ARRAY); mipDirty = false; } if (atlasDirty) { gl.bindTexture(gl.TEXTURE_2D, atlas); gl.generateMipmap(gl.TEXTURE_2D); atlasDirty = false; }
     const B = basis(); matrix(B, DEPTH);
-    gl.useProgram(prog); gl.uniformMatrix4fv(U.M, false, MAT); gl.uniform2f(U.bk, -B.sa, B.ca); gl.uniform1i(U.tx, 0); gl.uniform1f(U.lw, dpr); gl.uniform1f(U.ls, clamp((B.s - 4) / 10, 0, 1));
+    gl.useProgram(prog); gl.uniformMatrix4fv(U.M, false, MAT); gl.uniform2f(U.bk, -B.sa, B.ca); gl.uniform1i(U.tx, 0); gl.uniform1i(U.sy, 1); gl.uniform1f(U.lw, sc); gl.uniform1f(U.syms, B.s >= 9 ? 1 : 0); gl.uniform1f(U.ls, clamp((B.s - 4) / 10, 0, 1));
     gl.uniform1f(U.g1, S.grid === 'all' && B.s >= 10 ? 1 : 0); gl.uniform1f(U.g8, S.grid !== 'off' ? 1 : 0); gl.uniform1f(U.pics, S.pics ? 1 : 0);
     gl.uniform1f(U.am, 1); gl.uniform1f(U.pass, 0); gl.uniform1f(U.cut, layerZ != null ? layerZ + 1.001 : 1e6);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
+    const ct = cutState(); if (ct) { const P = [ct.sx * sc, ch - ct.sy * sc]; gl.uniform4f(U.cw, P[0], P[1], ct.r * sc, ct.d * 0.5 + 0.5 - 1e-4); gl.uniform1f(U.cl, ct.Y); } else gl.uniform4f(U.cw, 0, 0, 0, 0);
     BX.n = 0; const Yb = yLo - 0.002; q4(BX, 0, Yb, 0, 0, Yb, plan.h, plan.w, Yb, plan.h, plan.w, Yb, 0, 0, 0, 0, plan.w, plan.h, rgba(theme['map-empty'] || '#cfd8cc'), pack(0, 15, 255, 0)); upload(base, BX);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true); gl.enable(gl.CULL_FACE); gl.disable(gl.BLEND);
     gl.bindVertexArray(base.vao); gl.drawElements(gl.TRIANGLES, base.n, gl.UNSIGNED_INT, 0);
@@ -385,7 +422,7 @@ void main() {
     const dep = (c) => dot([c.cx * CS + CS / 2, TY, c.cy * CS + CS / 2], B.F);
     for (const c of vis.filter(c => c.tr.n).sort((a, b) => dep(b) - dep(a))) { gl.bindVertexArray(c.tr.vao); gl.drawElements(gl.TRIANGLES, c.tr.n, gl.UNSIGNED_INT, 0); }
     if (layerZ != null) { gl.uniform1f(U.pass, 1); gl.uniform1f(U.am, 0.22); gl.enable(gl.CULL_FACE); for (const c of vis) if (c.op.n) { gl.bindVertexArray(c.op.vao); gl.drawElements(gl.TRIANGLES, c.op.n, gl.UNSIGNED_INT, 0); } gl.uniform1f(U.pass, 0); }
-    gl.uniform1f(U.cut, 1e6);
+    gl.uniform1f(U.cut, 1e6); gl.uniform4f(U.cw, 0, 0, 0, 0);
     BX.n = 0; curB = B; O.s = B.s; O.c = ctx; if (typeof mapOverlay3d === 'function') mapOverlay3d(O); upload(ov, BX);
     if (ov.n) { gl.enable(gl.CULL_FACE); gl.bindVertexArray(ov.vao); gl.disable(gl.DEPTH_TEST); gl.uniform1f(U.am, 0.35); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); gl.enable(gl.DEPTH_TEST); gl.uniform1f(U.am, 1); gl.drawElements(gl.TRIANGLES, ov.n, gl.UNSIGNED_INT, 0); }
     gl.bindVertexArray(null); gl.depthMask(true);
@@ -395,24 +432,24 @@ void main() {
   return {
     draw, pick, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
     anchor(x, y) { if (plan) plY = layerZ != null ? layerZ : ctop(x, y); },
-    dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1]; return [Math.floor(ox + B.F[0] * t), Math.floor(oz + B.F[2] * t)]; },
+    dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { sx, sy, px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
     cam: () => copy(cam),
-    setCam: (c) => { stop(true); Object.assign(cam, c); requestDraw(); },
-    panBy(dx, dy) { const B = basis(), al = -dx / B.s, be = dy / (B.s * B.sp); cam.tx += al * B.R[0] + be * B.H[0]; cam.tz += al * B.R[2] + be * B.H[2]; requestDraw(); },
+    setCam: (c) => { stop(true); Object.assign(cam, c); moved(); requestDraw(); },
+    panBy(dx, dy) { moved(); const B = basis(), al = -dx / B.s, be = dy / (B.s * B.sp); cam.tx += al * B.R[0] + be * B.H[0]; cam.tz += al * B.R[2] + be * B.H[2]; requestDraw(); },
     zoom: () => cam.zoom,
     zoomGoal: () => A && A.to && A.to.zoom ? A.to.zoom : cam.zoom,
     zoomAt,
     centerOn(cx, cy, zoom) { const c = copy(cam); c.yaw = snapYaw(c.yaw); if (zoom) c.zoom = zoom; const x = clamp(Math.floor(cx), 0, plan.w - 1), y = clamp(Math.floor(cy), 0, plan.h - 1); place(c, cx, standZ(y * plan.w + x), cy, W / 2, H * (innerWidth < 900 ? 0.3 : 0.5)); glideTo(c); },
     fit(smooth) { if (!plan) return; const c = fitCam(); if (smooth) glideTo(c); else { stop(true); Object.assign(cam, c); requestDraw(); updateStatus(); } },
     touched,
-    loaded() { stop(true); markAll(); requestDraw(); },
+    loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
     enter(cx, cy, zoom, tilted) { Object.assign(cam, { tx: cx, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: tilted ? PA : 90 }); markAll(); requestDraw(); },
     leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
     turn(dir) { const fr = copy(cam), y = snapYaw((A && A.to && A.to.yaw != null ? A.to.yaw : cam.yaw)) - 90 * dir; glideTo({ ...fr, yaw: y }, 300); },
     tilt() { const fr = copy(cam), p = (A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch) > 84 ? PA : 90; glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: p }, 300); return p < 90; },
     tilted: () => (A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch) < 89,
-    twist(deg, sx, sy) { const d = Math.abs(deg) < 12 ? 0 : deg - Math.sign(deg) * 12; if (!d) return; const g = ground(cam, sx, sy); rotAbout(cam, cam.yaw - d, g[0], g[1]); requestDraw(); },
-    orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, 35, 90); requestDraw(); },
+    twist(deg, sx, sy) { const d = Math.abs(deg) < 12 ? 0 : deg - Math.sign(deg) * 12; if (!d) return; const g = ground(cam, sx, sy); rotAbout(cam, cam.yaw - d, g[0], g[1]); moved(); requestDraw(); },
+    orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, 35, 90); moved(); requestDraw(); },
     settle,
   };
 }

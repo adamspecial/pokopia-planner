@@ -79,6 +79,7 @@ Tap the cube by the zoom buttons, or press 3, to see the plan in 3D. Tap it agai
 
 - Terrain, floors, walls and blocks are cubes. Their tops show the floor and terrain pictures when **Pictures on the map** is on, and flat colours when it's off. Water, lava and hot springs are see-through, and the grid follows **Grid lines** in Settings.
 - Each item is a box the size of its footprint and as tall as its height. Plants, flowers and other small things are drawn low, lamps as a post with a light, trees as a trunk and leaves, and kit houses with a roof. Doors and fences are thin, windows are glass, and rugs lie flat on the floor.
+- The top of each item shows the same picture or shape as on the flat map, and rugs show their pattern. When you zoom far out, the tops turn to plain colour and the outlines fade, as on the flat map.
 - Hidden layers aren't drawn.
 
 Moving around:
@@ -92,7 +93,10 @@ Every tool works in 3D, the same way as on the flat map:
 - **Previews are see-through boxes.** What you're placing shows where it will land, at its own level and height, with an outline on the squares it covers: in the accent colour when it fits and red when it doesn't. Things it would replace turn red. Moving an item or a group shows it at its new spot, with the old spot outlined.
 - **Drags stay at one height.** A stroke, a filled area, a zone or a move follows the height of the surface where you started it, so dragging across a hill or a wall doesn't jump between levels.
 - **Zones, homes and labels.** Zones, active areas, Community box reach and the outline of where a Pokémon can go are drawn over the ground. Zone and house labels, kit badges and resident portraits float above them.
+- **Seeing inside.** In a tilted view, walls, roofs and anything else standing in front of the pointer and higher than where it points turn see-through around it, so you can see and work behind them. Taps go through the see-through part too. To pick one of those walls, point at it from outside first.
 - **Levels.** When you pick a level to work on in Layers, everything above it fades and taps go through it, so you can see and build inside a basement or under a roof.
+
+While you pan, zoom or turn, the 3D view draws at a lower resolution to stay smooth, and sharpens as soon as you stop.
 
 Each device remembers whether you were in 3D and how the view was tilted. The 3D view needs WebGL 2, which Chrome and Edge have. If the browser stops it, the planner goes back to the flat map and you can open 3D again.
 
