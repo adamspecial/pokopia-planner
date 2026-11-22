@@ -175,9 +175,10 @@ void main() {
   const TRUNK = rgba('#7a5434'), GLASS = rgba('#bfe6f5', 0.5);
   const PAL = { w: rgba('#b8895a'), t: TRUNK, m: rgba('#9aa2a8'), k: rgba('#3d4146'), s: rgba('#f3f1ec'), g: GLASS, y: rgba('#ffe48a'), n: rgba('#5ba84a'), r: rgba('#d8504a'), o: rgba('#f09a3c'), u: rgba('#4f8fd8'), c: rgba('#a6a59d'), p: rgba('#f4efe1'), h: rgba('#26282c'), i: rgba('#7b5a3c'), v: rgba('#9fd6ec'), q: rgba('#7cc4e4', 0.62) };
   const TONES = [];
+  const mkTones = (A, Bc, a, b) => ({ a: A, b: Bc, d: rgba(shade(a, -0.3)), l: rgba(shade(a, 0.3)), e: rgba(shade(b, -0.3)), f: rgba(shade(b, 0.3)) });
   function tones(i) {
     let t = TONES[i]; if (t) return t; const it = ITEMS[i], a = it.look ? it.look.a : it.col, b = it.look && it.look.b ? it.look.b : shade(a, -0.25);
-    return TONES[i] = { a: COL[i], b: COLB[i], d: rgba(shade(a, -0.3)), l: rgba(shade(a, 0.3)), e: rgba(shade(b, -0.3)), f: rgba(shade(b, 0.3)) };
+    return TONES[i] = mkTones(COL[i], COLB[i], a, b);
   }
   const P8 = Math.PI / 8;
   function fid(nx, ny, nz) {
@@ -807,7 +808,7 @@ void main() {
     altar: 'bc,0,0,100,100,0,16 ba,20,20,80,80,16,40 ba,36,36,64,64,40,70 tb,50,50,12,70,100,0,0',
   };
   const HOUSE = new Set(['house', 'center', 'office', 'shop', 'temple']);
-  const PARSED = new Map(), MOD = [];
+  const PARSED = new Map(), MOD = [], NB0 = { n: null, s: null, w: null, e: null }; let TH = 0;
   function parse(src) {
     let m = PARSED.get(src); if (m) return m; m = { l: 0, w: 0, ops: [] };
     for (const t of src.split(' ')) { if (!t) continue; if (t[0] === '!') { m[t[1]] = 1; continue; } m.ops.push({ o: t[0], c: t[1], n: t.slice(3).split(',').map(Number) }); }
@@ -868,7 +869,7 @@ void main() {
   function emitObj(B, BT, ob) {
     const it = ITEMS[ob.i], z = zOf(ob), t = htOf(ob), x0 = ob.x, z0 = ob.y, x1 = x0 + ob.w, z1 = z0 + ob.h, a = COL[ob.i], k = lookK(it);
     if (isDoor(it) || isWindow(it)) {
-      const nb = structAround([ob.x, ob.y, ob.w, ob.h, z]), hz = ob.w !== ob.h ? ob.w > ob.h : !!(nb.w || nb.e) || !(nb.n || nb.s), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, th = isDoor(it) ? 0.1 : 0.06;
+      const nb = TH ? NB0 : structAround([ob.x, ob.y, ob.w, ob.h, z]), hz = ob.w !== ob.h ? ob.w > ob.h : !!(nb.w || nb.e) || !(nb.n || nb.s), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, th = isDoor(it) ? 0.1 : 0.06;
       const sx0 = hz ? x0 : cx - th, sx1 = hz ? x1 : cx + th, sz0 = hz ? cz - th : z0, sz1 = hz ? cz + th : z1, top = z + t;
       if (isDoor(it)) { box(B, sx0, z, sz0, sx1, top - 0.04, sz1, a); const kx = hz ? x0 + (x1 - x0) * 0.78 : cx, kz = hz ? cz : z0 + (z1 - z0) * 0.78, ky = z + Math.min(0.5, t * 0.45); box(B, hz ? kx - 0.04 : sx0 - 0.03, ky, hz ? sz0 - 0.03 : kz - 0.04, hz ? kx + 0.04 : sx1 + 0.03, ky + 0.08, hz ? sz1 + 0.03 : kz + 0.04, PAL.k); return; }
       const fw = 0.12, ft = 0.1, gx0 = hz ? x0 + fw : sx0, gx1 = hz ? x1 - fw : sx1, gz0 = hz ? sz0 : z0 + fw, gz1 = hz ? sz1 : z1 - fw;
@@ -877,7 +878,7 @@ void main() {
       box(BT, gx0, z + 0.12 + ft, gz0, gx1, top - ft, gz1, GLASS); return;
     }
     if (fenceLike(it)) {
-      const nb = structAround([ob.x, ob.y, ob.w, ob.h, z]), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = 0.05, y0 = z + 0.3, y1 = z + 0.72;
+      const nb = TH ? NB0 : structAround([ob.x, ob.y, ob.w, ob.h, z]), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = 0.05, y0 = z + 0.3, y1 = z + 0.72;
       if (ob.w > 1 || ob.h > 1) { if (ob.w >= ob.h) box(B, x0, y0, cz - r, x1, y1, cz + r, a); else box(B, cx - r, y0, z0, cx + r, y1, z1, a); return; }
       box(B, cx - 0.11, z, cz - 0.11, cx + 0.11, z + 0.85, cz + 0.11, a);
       const any = nb.n || nb.s || nb.w || nb.e;
@@ -890,8 +891,8 @@ void main() {
     const r = faceOf(ob), m = it.c === 'Kits' && HOUSE.has(k) && !ITEMM[it.n] && !NAMEM[it.n] ? null : modelOf(it);
     frame(ob, r, m);
     if (it.c === 'Kits' && !m) { house(B, BT, ob, it, k); return; }
-    if (it.c === 'Wallpaper' && !backSolid(ob, r)) { run(B, BT, ob, parse(MODELS.fpaper)); return; }
-    if (m) { run(B, BT, ob, m); if (m.y0 > 0.05 && hangs(it) && !backSolid(ob, r)) abox(B, 0.44, 0, 0.56, 0.1, 0, m.y0, COLB[ob.i], 255, 0); return; }
+    if (it.c === 'Wallpaper' && !TH && !backSolid(ob, r)) { run(B, BT, ob, parse(MODELS.fpaper)); return; }
+    if (m) { run(B, BT, ob, m); if (m.y0 > 0.05 && hangs(it) && !TH && !backSolid(ob, r)) abox(B, 0.44, 0, 0.56, 0.1, 0, m.y0, COLB[ob.i], 255, 0); return; }
     box(B, x0 + 0.07, z, z0 + 0.07, x1 - 0.07, z + t - 0.06, z1 - 0.07, a, 1, 15, symOf(ob.i, ob.w, ob.h));
   }
   const CH = new Map(); let allDirty = true, anyDirty = true, lastSig = '', yLo = 0, yHi = 2, rugVer = 0, rugMap = null, rugMapVer = -1;
@@ -1142,9 +1143,56 @@ void main() {
     W = sv.W; H = sv.H; dpr = sv.dpr; Object.assign(cam, sv.cam); lowUntil = sv.low; requestDraw();
     return ok ? o : null;
   }
+  const srcOf = (it) => { const k = lookK(it); if (it.c === 'Kits' && HOUSE.has(k) && !ITEMM[it.n] && !NAMEM[it.n]) return 'house:' + k; const m = modelOf(it); return m ? (ITEMM[it.n] || (it.c === 'Kits' ? KITS[NAMEM[it.n] || k] : MODELS[NAMEM[it.n] || (it.c === 'Wallpaper' ? 'wpaper' : it.c === 'Poster' ? 'wposter' : hangs(it) && WALLM[k] ? WALLM[k] : ALIAS[k] || k)])) : SOLID[it.i] ? 'solid' : FLOOR[it.i] ? 'floor' : isRug(it) ? 'rug' : 'box'; };
+  const TB = builder(), TT = builder(), WALLC = rgba('#d9d4c9'); let thM = null, thT = null;
+  const tsz = (o, dw, dh) => { const sc = o.dpr || 1; return [Math.max(1, Math.round(dw * sc)), Math.max(1, Math.round(dh * sc))]; };
+  function thumb(it, o, out, dx, dy, dw, dh) {
+    if (lost) return null; const [vw, vh] = tsz(o, dw, dh);
+    if (canvas.width < vw || canvas.height < vh) { canvas.width = Math.max(canvas.width, vw); canvas.height = Math.max(canvas.height, vh); }
+    const r = thumbGL(it, o, 0, canvas.height - vh, vw, vh); out.drawImage(canvas, 0, canvas.height - vh, vw, vh, dx, dy, dw, dh); return r;
+  }
+  function thumbs(jobs) {
+    if (lost || !jobs.length) return []; const [vw, vh] = tsz(jobs[0].o, jobs[0].dw, jobs[0].dh), n = Math.max(1, Math.min(8, Math.floor(2048 / vw))), put = [];
+    for (const j of jobs) { const [a, b] = tsz(j.o, j.dw, j.dh); if (a !== vw || b !== vh || put.length >= n) break; put.push(j); }
+    if (canvas.width !== n * vw || canvas.height !== vh) { canvas.width = n * vw; canvas.height = vh; }
+    const res = put.map((j, k) => thumbGL(j.it, j.o, k * vw, 0, vw, vh));
+    put.forEach((j, k) => j.out.drawImage(canvas, k * vw, 0, vw, vh, j.dx, j.dy, j.dw, j.dh));
+    return res;
+  }
+  function thumbGL(it, o, vx, vy, vw, vh) {
+    const i = it.i, w = o.w, h = o.h, t = o.t, sv = [COL[i], COLB[i], TONES[i]], sc = o.dpr || 1;
+    if (o.a || o.b) { const a = o.a || (it.look ? it.look.a : it.col), b = o.b || (it.look && it.look.b ? it.look.b : shade(a, -0.25)); COL[i] = rgba(a, LIQ[i] ? 0.72 : 1); COLB[i] = rgba(b); TONES[i] = mkTones(COL[i], COLB[i], a, b); }
+    if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); }
+    TB.n = 0; TT.n = 0; TH = 1; const used = []; let wait = false;
+    try {
+      q4(TB, 0, -0.004, 0, 0, -0.004, h, w, -0.004, h, w, -0.004, 0, 0, 0, 0, w, h, rgba(o.ground || '#dfe5dc'), pack(0, 15, 255, 0));
+      if (FLOOR[i] || SOLID[i]) { if (LIQ[i]) box(TT, 0, 0, 0, w, 0.85, h, COL[i], 0, 15, 255); else { const L = FLOOR[i] ? layerOf(i) : 255; box(TB, 0, 0, 0, w, FLOOR[i] ? 1 : t, h, COL[i], 0, 15, L, 0); if (L !== 255 && S.pics) { wantPics(); wait = TLS[L] < 2; } } }
+      else if (isRug(it)) { const n = symOf(i, w, h, true); used.push(n); box(TB, 0.03, 0, 0.03, w - 0.03, 0.05, h - 0.03, COL[i], 1, 15, n); }
+      else { if (hangs(it)) box(TB, -0.02, 0, -0.16, w + 0.02, Math.max(t, 1), -0.02, WALLC, 1, 15); emitObj(TB, TT, { id: 0, i, x: 0, y: 0, w, h, z: 0, t, r: 0 }); for (const [k, n] of SLOT) if (k.startsWith(i + ':')) used.push(n); }
+    } finally { TH = 0; COL[i] = sv[0]; COLB[i] = sv[1]; TONES[i] = sv[2]; }
+    for (const n of used) { const e = SLOTS[n]; if (!e) continue; if (!e.todo && e.wait && !picsFor(it).filter(Boolean).some(x => { const q = mapPics.get(x); return q && !q.img && !q.failed; })) e.todo = true; if (e.todo) { e.todo = false; paintSlot(n); } if (e.wait) wait = true; }
+    if (mipDirty) { gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex); gl.generateMipmap(gl.TEXTURE_2D_ARRAY); mipDirty = false; } if (atlasDirty) { gl.bindTexture(gl.TEXTURE_2D, atlas); gl.generateMipmap(gl.TEXTURE_2D); atlasDirty = false; }
+    const B = basis({ yaw: o.yaw == null ? -30 : o.yaw, pitch: o.pitch == null ? 32 : o.pitch, zoom: 1 }); let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity, f0 = Infinity, f1 = -Infinity;
+    for (const Q of [TB, TT]) for (let v = 0; v < Q.n; v++) { const k = v * 11, x = Q.f[k], y = Q.f[k + 1], z = Q.f[k + 2], u = x * B.R[0] + y * B.R[1] + z * B.R[2], vv = x * B.U[0] + y * B.U[1] + z * B.U[2], ff = x * B.F[0] + y * B.F[1] + z * B.F[2]; if (u < u0) u0 = u; if (u > u1) u1 = u; if (vv < v0) v0 = vv; if (vv > v1) v1 = vv; if (ff < f0) f0 = ff; if (ff > f1) f1 = ff; }
+    const pad = (o.pad == null ? 0.08 : o.pad) * Math.min(vw, vh), s = Math.min((vw - 2 * pad) / Math.max(u1 - u0, 0.1), (vh - 2 * pad) / Math.max(v1 - v0, 0.1)), kx = 2 * s / vw, ky = 2 * s / vh, cu = (u0 + u1) / 2, cv0 = (v0 + v1) / 2, cf = (f0 + f1) / 2, D = Math.max((f1 - f0) / 2 + 0.5, 1);
+    MAT[0] = B.R[0] * kx; MAT[4] = B.R[1] * kx; MAT[8] = B.R[2] * kx; MAT[12] = -cu * kx;
+    MAT[1] = B.U[0] * ky; MAT[5] = B.U[1] * ky; MAT[9] = B.U[2] * ky; MAT[13] = -cv0 * ky;
+    MAT[2] = B.F[0] / D; MAT[6] = B.F[1] / D; MAT[10] = B.F[2] / D; MAT[14] = -cf / D;
+    MAT[3] = 0; MAT[7] = 0; MAT[11] = 0; MAT[15] = 1;
+    if (!thM) { thM = mesh(); thT = mesh(); } upload(thM, TB); upload(thT, TT);
+    gl.viewport(vx, vy, vw, vh); gl.enable(gl.SCISSOR_TEST); gl.scissor(vx, vy, vw, vh); const [br, bg, bb] = bytes(rgba(o.bg || '#eef1ec')); gl.clearColor(br, bg, bb, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.disable(gl.SCISSOR_TEST);
+    gl.useProgram(prog); gl.uniformMatrix4fv(U.M, false, MAT); gl.uniform2f(U.bk, -B.sa, B.ca); gl.uniform1i(U.tx, 0); gl.uniform1i(U.sy, 1); gl.uniform1f(U.lw, sc); gl.uniform1f(U.syms, 1); gl.uniform1f(U.ls, clamp((s / sc - 4) / 10, 0, 1));
+    gl.uniform1f(U.g1, 1); gl.uniform1f(U.g8, 0); gl.uniform1f(U.pics, S.pics ? 1 : 0); gl.uniform1f(U.am, 1); gl.uniform1f(U.pass, 0); gl.uniform1f(U.cut, 1e6); gl.uniform4f(U.cw, 0, 0, 0, 0); gl.uniform1f(U.cl, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
+    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true); gl.enable(gl.CULL_FACE); gl.disable(gl.BLEND);
+    if (thM.n) { gl.bindVertexArray(thM.vao); gl.drawElements(gl.TRIANGLES, thM.n, gl.UNSIGNED_INT, 0); }
+    if (thT.n) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.disable(gl.CULL_FACE); gl.bindVertexArray(thT.vao); gl.drawElements(gl.TRIANGLES, thT.n, gl.UNSIGNED_INT, 0); }
+    gl.bindVertexArray(null); gl.depthMask(true);
+    return { wait, tris: (thM.n + thT.n) / 3 };
+  }
   function stats() { let tris = 0, calls = 0; for (const c of CH.values()) if (c.op) { tris += (c.op.n + c.tr.n) / 3; calls += (c.op.n ? 1 : 0) + (c.tr.n ? 1 : 0); } return { tris, calls, chunks: CH.size, layers: tlNext }; }
   return {
-    draw, pick, snapshot, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
+    draw, pick, snapshot, thumb, thumbs, srcOf, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
     anchor(x, y) { if (plan) plY = layerZ != null ? layerZ : ctop(x, y); },
     dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
     cam: () => copy(cam),
