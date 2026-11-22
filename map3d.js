@@ -123,7 +123,7 @@ void main() {
   const PILLAR = /^(?!Wooden|Stone).*pillar \((upper|middle|lower)\)$|^Iron pillar$/i;
   const NI = ITEMS.length, SOLID = new Uint8Array(NI), LIQ = new Uint8Array(NI), COL = new Uint32Array(NI), COLB = new Uint32Array(NI), FLOOR = new Uint8Array(NI);
   for (const it of ITEMS) {
-    const i = it.i, liq = it.L === 'g' && /water|^lava$/i.test(it.n);
+    const i = it.i, liq = it.L === 'g' && !!it.lq;
     LIQ[i] = liq ? 1 : 0; FLOOR[i] = it.L === 'g' && !isRug(it) ? 1 : 0; SOLID[i] = it.L !== 'g' && isWall(it) && !inWall(it) && !fenceLike(it) && !PILLAR.test(it.n) ? 1 : 0;
     const base = FLOOR[i] ? picsFor(it)[2] || it.col : it.look ? it.look.a : it.col;
     COL[i] = rgba(base, liq ? 0.72 : 1); COLB[i] = rgba(it.look && it.look.b ? it.look.b : shade(base, -0.25));

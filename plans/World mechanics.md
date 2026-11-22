@@ -226,4 +226,12 @@ These are quick tests in the game, worth doing before the phase that needs them:
 
 ## Status
 
-Planned. The research is done. Phase 0 can start straight away.
+Phase 0 is done. Phase 0 added:
+
+- the item facts, shown in each item's info and panel
+- **Show on the map**, with a Reach overlay
+- the problem chip and the Limits list
+- placement order
+- the data fixes
+
+Phase 1 (Environment) is next.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-22T21:10';
+<script>const APP_BUILD = '2026-11-22T22:57';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -102,6 +102,19 @@ button{cursor:pointer}
 .iconbtn svg{width:19px;height:19px}
 .iconbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .iconbtn{position:relative}
+.sysw{position:relative;display:block}
+.sysmenu{position:absolute;right:46px;bottom:0;width:min(290px,calc(100vw - 70px));background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:6px;z-index:8}
+.sysmenu[hidden]{display:none}
+.sysmenu .shd{font-size:12px;font-weight:700;color:var(--muted);padding:4px 8px 2px}
+.sysmenu .mi{display:flex;gap:10px;align-items:flex-start;width:100%;padding:8px;border:0;border-radius:8px;background:none;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.sysmenu .mi:hover,.sysmenu .mi:focus-visible{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.sysmenu .ck{flex:none;width:18px;height:18px;margin-top:1px;border-radius:5px;border:2px solid var(--line);display:grid;place-items:center}
+.sysmenu .mi[aria-checked="true"] .ck{background:var(--accent);border-color:var(--accent)}
+.sysmenu .mi[aria-checked="true"] .ck::after{content:"";width:8px;height:4px;border:2px solid var(--accent-ink);border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+.sysmenu .mt{display:block;font-weight:700;font-size:14px}
+.sysmenu .md{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.sysmenu kbd{font:inherit;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;color:var(--muted)}
+.status .chip.act{pointer-events:auto;cursor:pointer;font:inherit;font-size:12px}
 .iconbtn.dot::after{content:"";position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--panel)}
 .lvsel{border:0;background:none;font-weight:700;font-size:12.5px;padding:2px 0;max-width:120px;cursor:pointer}
 .lvsel:focus-visible{outline-offset:0}
@@ -655,7 +668,8 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
     <symbol id="i-swap" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 8h14l-3-3M20 16H6l3 3"/></symbol>
     <symbol id="i-move" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v18M3 12h18M12 3 9.5 5.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"/></symbol>
     <symbol id="i-stamp" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M9 3h6v5l2 4H7l2-4zM4 12h16v4H4zM6 20h12"/></symbol>
-    <symbol id="i-area" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 3" d="M3 3h18v18H3z"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5" fill="currentColor"/></symbol>
+    <symbol id="i-sys" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3 21 12 12 21 3 12z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 2.6" d="M12 7.5 16.5 12 12 16.5 7.5 12z"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></symbol>
+<symbol id="i-area" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="1.5 3" d="M3 3h18v18H3z"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5" fill="currentColor"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 20V9m-5 5 5-5 5 5M5 4h14"/></symbol>
     <symbol id="i-layers" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 3.5 21 8l-9 4.5L3 8z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m3 12 9 4.5 9-4.5M3 16l9 4.5 9-4.5"/></symbol>
@@ -706,7 +720,7 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
       <div class="status" id="status"></div>
       <div class="zoomctl">
         <button class="iconbtn" id="zlayers" aria-label="Layers (L)" data-tip="Layers (L)"><svg><use href="#i-layers"/></svg></button>
-        <button class="iconbtn" id="zarea"aria-pressed="false" aria-label="Show every home's active area" data-tip="Active areas (A)"><svg><use href="#i-area"/></svg></button>
+        <span class="sysw"><button class="iconbtn" id="zsys" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="sysmenu" aria-label="Show on the map (S)" data-tip="Show on the map (S)"><svg><use href="#i-sys"/></svg></button><div class="sysmenu" id="sysmenu" role="menu" aria-label="Show on the map" hidden></div></span>
         <button class="iconbtn" id="zturn" hidden aria-label="Turn the view (. or ,)" data-tip="Turn the view (. or ,)"><svg><use href="#i-rotate"/></svg></button>
         <button class="iconbtn" id="ztilt" hidden aria-pressed="false" aria-label="Tilt (T)" data-tip="Tilt (T)"><svg><use href="#i-tilt"/></svg></button>
         <button class="iconbtn" id="zin" aria-label="Zoom in" data-tip="Zoom in"><svg><use href="#i-plus"/></svg></button>
