@@ -17,6 +17,12 @@ A quick way to go through every item in the game, flag the ones whose size, shap
 - When an item's model, size or colours change, its card shows **Changed**. The Changed filter lists only those, so later passes check just the fixes. **It's fixed** clears a flag. Editing a flag on a fixed item marks it as still wrong.
 - The review is stored on the device and syncs through the existing Google sign-in, so a pass can start on the phone and finish on the PC.
 
+## Applying a review
+
+- **Sizes** set in a review are confirmed, so they stop being marked as guesses. Use the exact width and length sent.
+- **A second colour always gets a part.** If a review sets a second colour on an item whose model has no part in that colour, the model should get one, so the colour shows. The Review screen says when this is the case, and Send marks the colour "not on the model yet".
+- **Shared shapes:** when a fix is to a shape that other items share, check every item in that shape against its picture before changing it.
+
 ## What it reuses
 
 - The 3D drawing in `map3d.js` renders each item into a small picture (`thumb` and `thumbs`), with the same models the map uses. This is the first piece of the 3D model editor's groundwork.

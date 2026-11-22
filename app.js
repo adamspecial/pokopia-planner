@@ -4787,7 +4787,7 @@ function rvKey(e) {
 function rvOpen(c) {
   const it = c.it, items = rvData().items, b = c.b, r0 = items[it.n], f0 = r0 && r0.f, [ca, cb] = rvCols(it), sig = rvSig(it), chg = !!(c.st && c.st.chg);
   const st = { w: f0 && f0.w != null ? f0.w : b.w, h: f0 && f0.h != null ? f0.h : b.h, t: f0 && f0.t != null ? f0.t : b.t, a: (f0 && f0.a) || '', b: (f0 && f0.b) || '', n: (f0 && f0.n) || '', pick: f0 && f0.a && !f0.b ? 'b' : 'a', yaw: -30, pitch: 32 };
-  const ht = tall(it), cv = h('canvas', { class: 'th', 'aria-label': '3D model. Drag to turn it.' }), u = picsFor(it)[0];
+  const ht = tall(it), cv = h('canvas', { class: 'th', 'aria-label': '3D model. Drag to turn it.' }), u = picsFor(it)[0], noB = !!(RV.T && RV.T.usesB && !RV.T.usesB(it));
   const pic = u ? h('img', { alt: it.n, src: u, draggable: 'false' }) : h('div', { class: 'nopic' }, 'No picture');
   let tries = 0, raf = 0;
   const draw = () => {
@@ -4800,7 +4800,7 @@ function rvOpen(c) {
   const commit = () => {
     const f = {};
     if (st.w !== b.w || st.h !== b.h || (ht && st.t !== b.t)) { f.w = st.w; f.h = st.h; if (ht) f.t = st.t; f.was = [b.w, b.h, b.t]; }
-    if (st.a) f.a = st.a; if (st.b) f.b = st.b; if (st.a || st.b) f.wc = [ca, cb];
+    if (st.a) f.a = st.a; if (st.b) { f.b = st.b; if (noB) f.nb = 1; } if (st.a || st.b) f.wc = [ca, cb];
     const note = st.n.trim(); if (note) f.n = note;
     const r = items[it.n] || (items[it.n] = {}), old = r.f;
     if (Object.keys(f).length) { f.g = sig; f.e = Date.now(); if (old && old.sent) f.sent = old.sent; if (old && (old.re || (old.sent && old.g !== sig))) f.re = 1; r.f = f; } else delete r.f;
@@ -4843,6 +4843,7 @@ function rvOpen(c) {
     const szRow = h('div', { class: 'stps' }, stp('w', 'Width', 1, 40), stp('h', 'Length', 1, 40), ht ? stp('t', 'Height', 1, HMAX) : null);
     box.append(h('h4', null, 'Size', h('span', { class: 'was' }, ' now ' + rvSz(b.w, b.h, b.t, it) + (it.sg || (ht && it.hg) ? ' (a guess)' : ''))), szRow);
     box.append(h('h4', null, 'Colours'), h('div', { class: 'rvsws' }, swB('a', 'Main'), swB('b', 'Second'), h('span', { class: 'sub' }, u ? 'Pick one, then tap the picture' : '')));
+    if (noB) box.append(h('p', { class: 'sub rvnob' }, 'No part of this model uses the second colour yet. Pick one anyway and Claude will add a part in it.'));
     box.append(h('h4', null, 'Shape'), note);
     paintSw();
   });
@@ -4864,7 +4865,7 @@ function rvText(list) {
   const lines = list.map(c => {
     const it = c.it, f = items[it.n].f, p = [];
     if (f.w != null) { const w = f.was || [c.b.w, c.b.h, c.b.t]; p.push('size ' + rvSz(f.w, f.h, f.t != null ? f.t : w[2], it) + ' (was ' + rvSz(w[0], w[1], w[2], it) + ')'); }
-    if (f.a || f.b) { const w = f.wc || rvCols(it); p.push('colours ' + [f.a ? 'main ' + f.a + ' (was ' + w[0] + ')' : '', f.b ? 'second ' + f.b + ' (was ' + w[1] + ')' : ''].filter(Boolean).join(', ')); }
+    if (f.a || f.b) { const w = f.wc || rvCols(it); p.push('colours ' + [f.a ? 'main ' + f.a + ' (was ' + w[0] + ')' : '', f.b ? 'second ' + f.b + ' (was ' + w[1] + (f.nb ? ', not on the model yet' : '') + ')' : ''].filter(Boolean).join(', ')); }
     if (f.n) p.push('shape: ' + f.n.replace(/\s+/g, ' '));
     return '• ' + it.n + (f.re ? ' (still wrong after the fix)' : '') + ': ' + p.join('; ');
   });
