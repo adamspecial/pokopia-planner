@@ -117,7 +117,7 @@ void main() {
     }
   }
   const cc = document.createElement('canvas').getContext('2d');
-  function rgba(c, a = 1) { cc.fillStyle = '#000'; cc.fillStyle = c || '#888'; const s = cc.fillStyle; let r, g, b; if (s[0] === '#') { r = parseInt(s.slice(1, 3), 16); g = parseInt(s.slice(3, 5), 16); b = parseInt(s.slice(5, 7), 16); } else { const m = s.match(/[\d.]+/g) || [0, 0, 0]; r = +m[0]; g = +m[1]; b = +m[2]; } return (r | g << 8 | b << 16 | Math.round(a * 255) << 24) >>> 0; }
+  function rgba(c, a = 1) { if (typeof c === 'string' && c.length === 7 && c[0] === '#') { const n = parseInt(c.slice(1), 16); if (n === n) return ((n >> 16 & 255) | (n & 0xff00) | (n & 255) << 16 | Math.round(a * 255) << 24) >>> 0; } cc.fillStyle = '#000'; cc.fillStyle = c || '#888'; const s = cc.fillStyle; let r, g, b; if (s[0] === '#') { r = parseInt(s.slice(1, 3), 16); g = parseInt(s.slice(3, 5), 16); b = parseInt(s.slice(5, 7), 16); } else { const m = s.match(/[\d.]+/g) || [0, 0, 0]; r = +m[0]; g = +m[1]; b = +m[2]; } return (r | g << 8 | b << 16 | Math.round(a * 255) << 24) >>> 0; }
   const bytes = (u) => [(u & 255) / 255, (u >> 8 & 255) / 255, (u >> 16 & 255) / 255];
   const NI = ITEMS.length, SOLID = new Uint8Array(NI), LIQ = new Uint8Array(NI), COL = new Uint32Array(NI), COLB = new Uint32Array(NI), FLOOR = new Uint8Array(NI);
   for (const it of ITEMS) {
@@ -162,9 +162,14 @@ void main() {
   }
   function symOf(i, w, h, rug) {
     const k = i + ':' + w + 'x' + h + (rug ? 'r' : ''); let n = SLOT.get(k); if (n != null) return n;
-    if (SLOTS.length >= 255) return 255; n = SLOTS.length; SLOTS.push({ i, w, h, rug, wait: false }); SLOT.set(k, n); paintSlot(n); return n;
+    if (SLOTS.length >= 255) return 255; n = SLOTS.length; SLOTS.push({ i, w, h, rug, wait: false, todo: true }); SLOT.set(k, n); return n;
   }
-  function syncSyms() { const sig = (S.pics ? 1 : 0) + '|' + (theme.panel || ''); if (sig !== symSig) { symSig = sig; for (let n = 0; n < SLOTS.length; n++) paintSlot(n); return; } for (let n = 0; n < SLOTS.length; n++) if (SLOTS[n].wait) { const u = picsFor(ITEMS[SLOTS[n].i]).filter(Boolean); if (!u.some(x => { const q = mapPics.get(x); return q && !q.img && !q.failed; })) paintSlot(n); } }
+  function syncSyms() {
+    const sig = (S.pics ? 1 : 0) + '|' + (theme.panel || ''); if (sig !== symSig) { symSig = sig; for (const e of SLOTS) e.todo = true; }
+    const end = performance.now() + 6; let left = false;
+    for (let n = 0; n < SLOTS.length; n++) { const e = SLOTS[n]; if (!e.todo && e.wait) { const u = picsFor(ITEMS[e.i]).filter(Boolean); if (!u.some(x => { const q = mapPics.get(x); return q && !q.img && !q.failed; })) e.todo = true; } if (!e.todo) continue; if (performance.now() > end) { left = true; break; } e.todo = false; paintSlot(n); }
+    if (left) requestAnimationFrame(requestDraw);
+  }
   const LOW = new Set('grass flower crop moss lily mat web coral stump fossil pokeball doll stone orb gem pouch letter plate platter setting teaset books pan border bordersingle bordercorner planks grate star blob firework paintballoon pot wreath poster posterbolt posterwave postermtn frame wallclock mirror vine banner hatch'.split(' '));
   const MID = new Map([['table', 0.7], ['chair', 0.55], ['stool', 0.45], ['bed', 0.5], ['sofa', 0.55], ['bench', 0.5], ['chest', 0.55], ['crate', 0.6], ['bin', 0.6], ['planter', 0.5], ['steps', 0.5], ['campfire', 0.35], ['sink', 0.75], ['bath', 0.55], ['cannon', 0.6], ['stand', 0.7], ['roofflat', 0.3]]);
   const TRUNK = rgba('#7a5434'), GLASS = rgba('#bfe6f5', 0.5);
@@ -204,7 +209,7 @@ void main() {
   function markAll() { for (const c of CH.values()) c.dirty = true; allDirty = true; anyDirty = true; rugVer++; }
   function touched(x, y, w, h) {
     if (!plan) return; rugVer++;
-    const ax = Math.max(0, Math.floor((x - 1) / CS)), ay = Math.max(0, Math.floor((y - 1) / CS)), bx = Math.floor((x + w) / CS), by = Math.floor((y + h) / CS);
+    const mx = Math.ceil(plan.w / CS) - 1, my = Math.ceil(plan.h / CS) - 1, ax = clamp(Math.floor((x - 1) / CS), 0, mx), ay = clamp(Math.floor((y - 1) / CS), 0, my), bx = clamp(Math.floor((x + w) / CS), 0, mx), by = clamp(Math.floor((y + h) / CS), 0, my);
     for (let cy = ay; cy <= by; cy++) for (let cx = ax; cx <= bx; cx++) { const c = CH.get(chKey(cx, cy)); if (c) c.dirty = true; else allDirty = true; }
     anyDirty = true; requestDraw();
   }
@@ -329,7 +334,7 @@ void main() {
   const moved = () => { lowUntil = performance.now() + 160; };
   function cutState() {
     if (!CUT || !hover || cam.pitch > 85 || drag && (drag.kind === 'pan' || drag.kind === 'orbit') || pinch) return null;
-    const B = basis(), dx = CUT.px - cam.tx, dy = CUT.py - TY, dz = CUT.pz - cam.tz; return { sx: CUT.sx, sy: CUT.sy, Y: CUT.Y, r: Math.max(48, 2.6 * B.s), d: (dx * B.F[0] + dy * B.F[1] + dz * B.F[2] - 0.6) / DEPTH };
+    const B = basis(), dx = CUT.px - cam.tx, dy = CUT.py - TY, dz = CUT.pz - cam.tz; return { sx: W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s, sy: H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s, Y: CUT.Y, r: Math.max(48, 2.6 * B.s), d: (dx * B.F[0] + dy * B.F[1] + dz * B.F[2] - 0.6) / DEPTH };
   }
   let PC = null;
   function seeThrough(x, y, z) {
@@ -357,10 +362,10 @@ void main() {
     const tM = [0, 1, 2].map(i => st[i] ? ((st[i] > 0 ? cell[i] + 1 : cell[i]) - P[i]) / D[i] : Infinity), tD = [0, 1, 2].map(i => st[i] ? Math.abs(1 / D[i]) : Infinity);
     for (let n = 0; n < 2000; n++) {
       if (cell[0] < 0 || cell[0] >= plan.w || cell[2] < 0 || cell[2] >= plan.h || cell[1] < yLo || cell[1] >= yHi) break;
-      if (solidAt(cell[0], cell[2], cell[1])) { PC = null; CUT = { sx, sy, px: cell[0] + 0.5, py: cell[1] + 1, pz: cell[2] + 0.5, Y: cell[1] + 1 }; return [cell[0], cell[2], cell[1]]; }
+      if (solidAt(cell[0], cell[2], cell[1])) { PC = null; const Y = cell[1] + 1, tt = (Y - O[1]) / D[1]; CUT = { px: O[0] + D[0] * tt, py: Y, pz: O[2] + D[2] * tt, Y }; return [cell[0], cell[2], cell[1]]; }
       const i = tM[0] < tM[1] ? (tM[0] < tM[2] ? 0 : 2) : (tM[1] < tM[2] ? 1 : 2); cell[i] += st[i]; tM[i] += tD[i];
     }
-    PC = null; const f = flat(yLo); CUT = { sx, sy, px: f[0] + 0.5, py: yLo, pz: f[1] + 0.5, Y: yLo }; return f;
+    PC = null; const f = flat(yLo), tt = (yLo - O[1]) / D[1]; CUT = { px: O[0] + D[0] * tt, py: yLo, pz: O[2] + D[2] * tt, Y: yLo }; return f;
   }
   const BX = builder(), ov = mesh(), base = mesh(), RC = new Map(), OV = 0.015, I3 = pack(0, 0, 255, 3);
   let curB = basis(), plY = TY;
@@ -404,7 +409,7 @@ void main() {
     if (lost) return;
     const now = performance.now(), sc = now < lowUntil && dpr > 1.25 ? 1 : dpr, cw = Math.round(W * sc), ch = Math.round(H * sc); if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
     if (sc < dpr) { clearTimeout(sharpT); sharpT = setTimeout(requestDraw, lowUntil - now + 20); }
-    gl.viewport(0, 0, cw, ch); const [br, bg, bb] = bytes(rgba(theme['map-bg'] || '#e4e9e2')); gl.clearColor(br, bg, bb, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, cw, ch); const [br, bg, bb] = bytes(pc(theme['map-bg'] || '#e4e9e2', 1)); gl.clearColor(br, bg, bb, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     if (!plan) return;
     sync(); syncSyms(); if (mipDirty) { gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex); gl.generateMipmap(gl.TEXTURE_2D_ARRAY); mipDirty = false; } if (atlasDirty) { gl.bindTexture(gl.TEXTURE_2D, atlas); gl.generateMipmap(gl.TEXTURE_2D); atlasDirty = false; }
     const B = basis(); matrix(B, DEPTH);
@@ -413,7 +418,7 @@ void main() {
     gl.uniform1f(U.am, 1); gl.uniform1f(U.pass, 0); gl.uniform1f(U.cut, layerZ != null ? layerZ + 1.001 : 1e6);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
     const ct = cutState(); if (ct) { const P = [ct.sx * sc, ch - ct.sy * sc]; gl.uniform4f(U.cw, P[0], P[1], ct.r * sc, ct.d * 0.5 + 0.5 - 1e-4); gl.uniform1f(U.cl, ct.Y); } else gl.uniform4f(U.cw, 0, 0, 0, 0);
-    BX.n = 0; const Yb = yLo - 0.002; q4(BX, 0, Yb, 0, 0, Yb, plan.h, plan.w, Yb, plan.h, plan.w, Yb, 0, 0, 0, 0, plan.w, plan.h, rgba(theme['map-empty'] || '#cfd8cc'), pack(0, 15, 255, 0)); upload(base, BX);
+    BX.n = 0; const Yb = yLo - 0.002; q4(BX, 0, Yb, 0, 0, Yb, plan.h, plan.w, Yb, plan.h, plan.w, Yb, 0, 0, 0, 0, plan.w, plan.h, pc(theme['map-empty'] || '#cfd8cc', 1), pack(0, 15, 255, 0)); upload(base, BX);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true); gl.enable(gl.CULL_FACE); gl.disable(gl.BLEND);
     gl.bindVertexArray(base.vao); gl.drawElements(gl.TRIANGLES, base.n, gl.UNSIGNED_INT, 0);
     const vis = []; for (const c of CH.values()) if (c.op && onScreen(c)) vis.push(c);
@@ -445,7 +450,7 @@ void main() {
   return {
     draw, pick, snapshot, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
     anchor(x, y) { if (plan) plY = layerZ != null ? layerZ : ctop(x, y); },
-    dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { sx, sy, px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
+    dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
     cam: () => copy(cam),
     setCam: (c) => { stop(true); Object.assign(cam, c); moved(); requestDraw(); },
     panBy(dx, dy) { moved(); const B = basis(), al = -dx / B.s, be = dy / (B.s * B.sp); cam.tx += al * B.R[0] + be * B.H[0]; cam.tz += al * B.R[2] + be * B.H[2]; requestDraw(); },
