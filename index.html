@@ -937,7 +937,7 @@ let tx = null; const undoStack = [], redoStack = [];
 function beginTx() { if (!tx) tx = { g: new Map(), add: [], del: [], z: null, in: null, r: null, f: null }; }
 function setRes(next) { beginTx(); if (!tx.r) tx.r = [plan.res || []]; plan.res = next; tx.r[1] = next; }
 function setRoofs(next) { beginTx(); if (!tx.f) tx.f = [plan.roofs || []]; plan.roofs = next; tx.f[1] = next; }
-function setTerr(k, z, v) { if (!v && !terrAt(plan, k, z)) return; const T = tLayer(plan, z); if (T[k] === v) return; beginTx(); const key = (z - ZMIN) * plan.w * plan.h + k; if (!tx.g.has(key)) tx.g.set(key, [T[k], v]); else tx.g.get(key)[1] = v; T[k] = v; }
+function setTerr(k, z, v) { if (!v && !terrAt(plan, k, z)) return; const T = tLayer(plan, z); if (T[k] === v) return; beginTx(); const key = (z - ZMIN) * plan.w * plan.h + k; if (!tx.g.has(key)) tx.g.set(key, [T[k], v]); else tx.g.get(key)[1] = v; T[k] = v; mapView.touched(k % plan.w, (k / plan.w) | 0, 1, 1, z, z); }
 let userSizes = {}; try { userSizes = JSON.parse(LS.get('pokopia-planner:sizes') || '{}') || {}; } catch (e) { userSizes = {}; }
 const saveUserSizes = () => { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); LS.set(LSK + 'sizesUpdated', String(Date.now())); scheduleSync(); };
 if (Object.keys(userSizes).length && !LS.get(LSK + 'sizesUpdated')) LS.set(LSK + 'sizesUpdated', '1');
@@ -948,7 +948,8 @@ const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 const heightSet = (it, p = plan) => { const u = userSizes['ht:' + it.n]; return u != null ? u : p && p.isz && p.isz['ht:' + it.n] != null ? p.isz['ht:' + it.n] : null; };
 function heightOf(it, p = plan) { if (!it) return 1; if (isRug(it)) return 0; if (it.L === 'g' || structural(it)) return 1; const u = heightSet(it, p); return clamp(u != null ? u | 0 : it.ht == null ? 1 : it.ht, 1, HMAX); }
 const HMAX = 20, tall = (it) => !!it && !isRug(it) && it.L !== 'g' && !structural(it), heightGuessed = (it) => tall(it) && !!it.hg && heightSet(it) == null;
-function addObj(i, x, y, w, h, z = 1, t) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; t = Math.max(1, t == null ? heightOf(it) : t); if (!fits(plan, x, y, w, h, 0, z, t)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; if (z) ob.z = z; if (t !== 1) ob.t = t; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); tx.add.push(ob); return ob; }
+function addObj(i, x, y, w, h, z = 1, t) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; t = Math.max(1, t == null ? heightOf(it) : t); if (!fits(plan, x, y, w, h, 0, z, t)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; if (z) ob.z = z; if (t !== 1) ob.t = t; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); touchOb(ob); tx.add.push(ob); return ob; }
+const touchOb = (ob) => mapView.touched(ob.x, ob.y, ob.w, ob.h, zOf(ob), ob.rug ? zOf(ob) : topOf(ob));
 const inWall = (it) => isDoor(it) || isWindow(it);
 const structural = (it) => isWall(it) || inWall(it);
 function replaces(it, q) { if (q.w > 1 || q.h > 1 || q.i === it.i) return false; const qi = ITEMS[q.i]; if (inWall(it)) return true; if (isWall(it)) return !inWall(qi); return !structural(qi); }
@@ -1044,7 +1045,7 @@ function shiftLevel(ob, dz) {
 function moveCtx(ob) { const ign = ob.rug ? null : new Set([ob.id, ...ridersOf(ob).map(r => r.id)]); return { ign, rest: autoZ(ITEMS[ob.i], ob.x, ob.y, ob.w, ob.h, ign) === zOf(ob) }; }
 function moveLevel(ob, x, y, w, h, ctx = moveCtx(ob)) { return ctx.rest ? autoZ(ITEMS[ob.i], x, y, w, h, ctx.ign) : zOf(ob); }
 function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'No room here'; if (b === 'edge') return where + ': off the edge'; if (b === 'top' || b === 'bottom') return where + ': too ' + (b === 'top' ? 'high' : 'low'); const qi = ITEMS[b.i]; return where + ': ' + qi.n + ' is in the way' + (structural(qi) && !inWall(it) ? ' (only doors and windows go into walls)' : ''); }
-function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
+function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); touchOb(ob); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
   if (!tx) return null; const t = tx; tx = null;
@@ -1053,10 +1054,10 @@ function commitTx(label) {
 }
 function applyTx(t, dir) {
   const bi = dir < 0 ? 0 : 1;
-  const N = plan.w * plan.h; for (const [key, pair] of t.g) tLayer(plan, Math.floor(key / N) + ZMIN)[key % N] = pair[bi];
+  const N = plan.w * plan.h; for (const [key, pair] of t.g) { const z = Math.floor(key / N) + ZMIN, k = key % N; tLayer(plan, z)[k] = pair[bi]; mapView.touched(k % plan.w, (k / plan.w) | 0, 1, 1, z, z); }
   const rem = dir < 0 ? t.add : t.del, put = dir < 0 ? t.del : t.add;
-  for (const ob of rem) { if (ob.rug) { plan.rugs.delete(ob.id); continue; } plan.objs.delete(ob.id); stampOcc(plan, ob, 0); }
-  for (const ob of put) { if (ob.rug) { plan.rugs.set(ob.id, ob); continue; } plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); }
+  for (const ob of rem) { touchOb(ob); if (ob.rug) { plan.rugs.delete(ob.id); continue; } plan.objs.delete(ob.id); stampOcc(plan, ob, 0); }
+  for (const ob of put) { touchOb(ob); if (ob.rug) { plan.rugs.set(ob.id, ob); continue; } plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); }
   if (t.z) plan.zones = t.z[bi];
   if (t.in) t.in[0].int = t.in[bi + 1];
   if (t.r) plan.res = t.r[bi];
@@ -1575,7 +1576,7 @@ function decorMinimize(home, it, filt) {
   decorMini = null; closeModal(); selectItem(it.n); closeInspector();
   decorMini = { home, item: it.n, filt, scroll: $('#modalBox').scrollTop }; renderMini();
   if (innerWidth < 900) setSheet('peek');
-  if (home.hs) centerOn(home.hs.x + home.hs.w / 2, home.hs.y + home.hs.h / 2);
+  if (home.hs) mapView.centerOn(home.hs.x + home.hs.w / 2, home.hs.y + home.hs.h / 2);
 }
 function renderMini() {
   const el = $('#minidlg'); el.textContent = ''; el.hidden = !decorMini; if (!decorMini) return;
@@ -2130,10 +2131,9 @@ let theme = {};
 function readTheme() { const cs = getComputedStyle(document.documentElement); for (const k of ['map-bg', 'map-empty', 'map-grid', 'map-chunk', 'accent', 'accent-soft', 'good', 'warn', 'bad', 'ink', 'panel', 'line', 'muted']) theme[k] = cs.getPropertyValue('--' + k).trim(); const m = document.querySelector('meta[name="theme-color"]'), pc = cs.getPropertyValue('--paper').trim(); if (m && pc) m.setAttribute('content', pc); requestDraw(); }
 function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); requestDraw(); }
 function cellSize() { return view.cs * view.zoom; }
-function toCell(sx, sy) { const s = cellSize(); return [Math.floor((sx - view.px) / s), Math.floor((sy - view.py) / s)]; }
 let frame = 0;
 function requestDraw() { needDraw = true; if (!frame) frame = requestAnimationFrame(loop); }
-function loop(t) { frame = 0; if (needDraw || sparkles.length) { needDraw = false; draw(t); } if (sparkles.length) frame = requestAnimationFrame(loop); }
+function loop(t) { frame = 0; if (needDraw || sparkles.length) { needDraw = false; mapView.draw(t); } if (sparkles.length) frame = requestAnimationFrame(loop); }
 const calm = () => S.motion === 'off' || (S.motion !== 'on' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 let glide = 0, glideTo = null;
 function stopGlide() { if (glide) { cancelAnimationFrame(glide); glide = 0; } }
@@ -2144,7 +2144,22 @@ function glideView(to, anchor, ms = 260) {
   const t0 = performance.now(), step = (t) => { const k = Math.min(1, (t - t0) / ms); at(1 - Math.pow(1 - k, 3)); if (k < 1) glide = requestAnimationFrame(step); else { glide = 0; updateStatus(); } };
   glide = requestAnimationFrame(step);
 }
-function centerOn(cx, cy, zoom) { const z = zoom || view.zoom, s = view.cs * z; glideView({ zoom: z, px: W / 2 - cx * s, py: H * (innerWidth < 900 ? 0.3 : 0.5) - cy * s }); }
+const map2d = {
+  draw: (t) => draw(t),
+  pick: (sx, sy) => { const s = cellSize(); return [Math.floor((sx - view.px) / s), Math.floor((sy - view.py) / s)]; },
+  cam: () => ({ zoom: view.zoom, px: view.px, py: view.py }),
+  setCam: (c) => { view.zoom = c.zoom; view.px = c.px; view.py = c.py; requestDraw(); },
+  panBy: (dx, dy) => { view.px += dx; view.py += dy; requestDraw(); },
+  zoom: () => view.zoom,
+  zoomGoal: () => glide && glideTo ? glideTo.zoom : view.zoom,
+  zoomAt(z, sx, sy, smooth) { if (smooth) { glideView({ zoom: z }, [sx, sy], 200); return; } stopGlide(); const k = z / view.zoom; view.px = sx - (sx - view.px) * k; view.py = sy - (sy - view.py) * k; view.zoom = z; requestDraw(); updateStatus(); },
+  centerOn(cx, cy, zoom) { const z = zoom || view.zoom, s = view.cs * z; glideView({ zoom: z, px: W / 2 - cx * s, py: H * (innerWidth < 900 ? 0.3 : 0.5) - cy * s }); },
+  fit(smooth) { if (!plan) return; const pad = 24; const sheet = innerWidth < 900 ? sheetStops().peek : 0; const avH = H - sheet - 24; const z = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / (plan.w * view.cs), (avH - 56) / (plan.h * view.cs)), 0.15, 3); const s = view.cs * z; const ob = ($('#optbar').getBoundingClientRect().height || 36) + 18; const to = { zoom: z, px: (W - plan.w * s) / 2, py: ob + Math.max(0, (avH - ob - plan.h * s) / 3) }; if (smooth) { glideView(to); return; } stopGlide(); Object.assign(view, to); requestDraw(); updateStatus(); },
+  stop: stopGlide,
+  touched() { },
+  loaded() { },
+};
+let mapView = map2d;
 
 function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = null) {
@@ -2663,9 +2678,9 @@ const rugsOf = (p) => [...p.rugs.values()];
 const overlaps = (r, x, y, w, h) => r.x < x + w && r.x + r.w > x && r.y < y + h && r.y + r.h > y;
 const rugShown = (r) => lvShown('r') && !hidden.has(zOf(r));
 function rugAt(x, y, all) { let best = null; for (const r of plan.rugs.values()) if (overlaps(r, x, y, 1, 1) && (all || rugShown(r)) && (!best || zOf(r) > zOf(best))) best = r; return best; }
-function addRug(i, x, y, w, h, z = 1) { beginTx(); const r = { id: plan.nextId++, rug: 1, i, x, y, w, h }; if (z) r.z = z; plan.rugs.set(r.id, r); tx.add.push(r); return r; }
+function addRug(i, x, y, w, h, z = 1) { beginTx(); const r = { id: plan.nextId++, rug: 1, i, x, y, w, h }; if (z) r.z = z; plan.rugs.set(r.id, r); touchOb(r); tx.add.push(r); return r; }
 function rugLevel(p, x, y, w, h) { let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inB(p, xx, yy)) z = Math.max(z, standZ(yy * p.w + xx, p)); return z === -Infinity ? 1 : z; }
-function delRug(r) { if (!plan.rugs.has(r.id)) return; beginTx(); plan.rugs.delete(r.id); const ai = tx.add.indexOf(r); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(r); }
+function delRug(r) { if (!plan.rugs.has(r.id)) return; beginTx(); plan.rugs.delete(r.id); touchOb(r); const ai = tx.add.indexOf(r); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(r); }
 const clearRug = delRug;
 function placeRug(it, x, y) {
   const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1];
@@ -2973,15 +2988,15 @@ function fillRect(r) {
 }
 
 function onDown(e) {
-  if (!plan) return; stopGlide(); cv.setPointerCapture(e.pointerId); downMod = e.shiftKey || e.ctrlKey || e.metaKey;
+  if (!plan) return; mapView.stop(); cv.setPointerCapture(e.pointerId); downMod = e.shiftKey || e.ctrlKey || e.metaKey;
   pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
   if (pointers.size === 2) {
     if (drag) { if (drag.kind === 'stroke') commitTx(drag.label); drag = null; requestDraw(); }
-    const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, zoom: view.zoom, px: view.px, py: view.py }; return;
+    const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, cam: mapView.cam() }; return;
   }
   if (pointers.size > 2) return;
-  const [cx, cy] = toCell(e.offsetX, e.offsetY); hover = [cx, cy]; updateStatus();
-  if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, px: view.px, py: view.py, cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
+  const [cx, cy] = mapView.pick(e.offsetX, e.offsetY); hover = [cx, cy]; updateStatus();
+  if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, cam: mapView.cam(), cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
   if (e.button === 2) return;
   const gob = grabAt(cx, cy);
   if (gob && gob.grp) { drag = { kind: 'grpmove', G: selection.group, F: grpFrame(selection.group), sn: null, P: null, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false }; return; }
@@ -3009,10 +3024,9 @@ function onMove(e) {
   if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
   if (pinch && pointers.size >= 2) {
     const [a, b] = [...pointers.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    const z = clamp(pinch.zoom * d / pinch.d, 0.15, 5); const k = z / pinch.zoom;
-    view.zoom = z; view.px = mx - (pinch.cx - pinch.px) * k; view.py = my - (pinch.cy - pinch.py) * k; requestDraw(); return;
+    mapView.setCam(pinch.cam); mapView.panBy(mx - pinch.cx, my - pinch.cy); mapView.zoomAt(clamp(pinch.cam.zoom * d / pinch.d, 0.15, 5), mx, my); return;
   }
-  const [cx, cy] = toCell(e.offsetX, e.offsetY);
+  const [cx, cy] = mapView.pick(e.offsetX, e.offsetY);
   if (!hover || hover[0] !== cx || hover[1] !== cy) { hover = [cx, cy]; updateStatus(); requestDraw(); if (!drag) cv.style.cursor = grabAt(cx, cy) ? 'grab' : ''; }
   if (!drag) return;
   if (drag.kind === 'grpmove') {
@@ -3026,7 +3040,7 @@ function onMove(e) {
     return;
   }
   if (drag.kind === 'pending') { if (Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) < 5) return; const d = drag; drag = null; startAction(d.cx, d.cy, d.sx, d.sy); if (!drag) return; }
-  if (drag.kind === 'pan') { if (!drag.moved && Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) >= 6) drag.moved = true; view.px = drag.px + e.offsetX - drag.sx; view.py = drag.py + e.offsetY - drag.sy; requestDraw(); return; }
+  if (drag.kind === 'pan') { if (!drag.moved && Math.hypot(e.offsetX - drag.sx, e.offsetY - drag.sy) >= 6) drag.moved = true; mapView.setCam(drag.cam); mapView.panBy(e.offsetX - drag.sx, e.offsetY - drag.sy); return; }
   if (drag.kind === 'stroke') {
     const [lx, ly] = drag.last; if (lx === cx && ly === cy) return;
     lineCells(lx, ly, cx, cy, (x, y) => { if (tool === 'place') placeCell(x, y, drag.seen); else eraseCell(x, y, drag.seen); });
@@ -3041,7 +3055,7 @@ function onUp(e) {
   if (!drag) return;
   if (drag.kind === 'pending') { const p = drag; drag = null; startAction(p.cx, p.cy, p.sx, p.sy); if (!drag) return; }
   const d = drag; drag = null; cv.style.cursor = '';
-  if (d.kind === 'pan') { if (d.tap && !d.moved && e.type !== 'pointercancel') { view.px = d.px; view.py = d.py; pickTap(d.cx, d.cy); requestDraw(); } return; }
+  if (d.kind === 'pan') { if (d.tap && !d.moved && e.type !== 'pointercancel') { mapView.setCam(d.cam); pickTap(d.cx, d.cy); requestDraw(); } return; }
   if (d.kind === 'grpmove') {
     if (e.type === 'pointercancel') { requestDraw(); return; }
     if (d.moved) { if (d.P && (d.P.ox !== d.F.x || d.P.oy !== d.F.y)) { const g = grpPut(d.sn, d.P, true, 'Move'); if (g) grpSelect(g); } requestDraw(); return; }
@@ -3076,18 +3090,15 @@ let spaceDown = false;
 cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove); cv.addEventListener('pointerup', onUp); cv.addEventListener('pointercancel', onUp);
 cv.addEventListener('pointerleave', () => { hover = null; updateStatus(); requestDraw(); });
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('dblclick', e => { if (!plan) return; const [x, y] = toCell(e.offsetX, e.offsetY); if (!inB(plan, x, y)) return; const ob = shownStack(y * plan.w + x).find(q => q && ITEMS[q.i].cap); if (ob && ['select', 'pan'].includes(tool)) interiorEditor(ob); });
+cv.addEventListener('dblclick', e => { if (!plan) return; const [x, y] = mapView.pick(e.offsetX, e.offsetY); if (!inB(plan, x, y)) return; const ob = shownStack(y * plan.w + x).find(q => q && ITEMS[q.i].cap); if (ob && ['select', 'pan'].includes(tool)) interiorEditor(ob); });
 cv.addEventListener('wheel', e => {
-  e.preventDefault(); stopGlide();
-  if (e.ctrlKey || e.metaKey || (S.wheel === 'zoom' && Math.abs(e.deltaY) > 0 && !e.shiftKey && Math.abs(e.deltaX) < 1)) { const z = clamp(view.zoom * Math.exp(-e.deltaY * (e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaY) < 50 ? 0.01 : 0.0015)), 0.15, 5); zoomAt(z, e.offsetX, e.offsetY); }
-  else { view.px -= e.deltaX; view.py -= e.deltaY; requestDraw(); }
+  e.preventDefault(); mapView.stop();
+  if (e.ctrlKey || e.metaKey || (S.wheel === 'zoom' && Math.abs(e.deltaY) > 0 && !e.shiftKey && Math.abs(e.deltaX) < 1)) { const z = clamp(mapView.zoom() * Math.exp(-e.deltaY * (e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaY) < 50 ? 0.01 : 0.0015)), 0.15, 5); mapView.zoomAt(z, e.offsetX, e.offsetY); }
+  else mapView.panBy(-e.deltaX, -e.deltaY);
 }, { passive: false });
-function zoomAt(z, sx, sy, smooth) { if (smooth) { glideView({ zoom: z }, [sx, sy], 200); return; } stopGlide(); const k = z / view.zoom; view.px = sx - (sx - view.px) * k; view.py = sy - (sy - view.py) * k; view.zoom = z; requestDraw(); updateStatus(); }
-function fitView(smooth) { if (!plan) return; const pad = 24; const sheet = innerWidth < 900 ? sheetStops().peek : 0; const avH = H - sheet - 24; const z = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / (plan.w * view.cs), (avH - 56) / (plan.h * view.cs)), 0.15, 3); const s = view.cs * z; const ob = ($('#optbar').getBoundingClientRect().height || 36) + 18; const to = { zoom: z, px: (W - plan.w * s) / 2, py: ob + Math.max(0, (avH - ob - plan.h * s) / 3) }; if (smooth) { glideView(to); return; } stopGlide(); Object.assign(view, to); requestDraw(); updateStatus(); }
-const zoomGoal = () => glide && glideTo ? glideTo.zoom : view.zoom;
-$('#zin').onclick = () => zoomAt(clamp(zoomGoal() * 1.3, 0.15, 5), W / 2, H / 2, true);
-$('#zout').onclick = () => zoomAt(clamp(zoomGoal() / 1.3, 0.15, 5), W / 2, H / 2, true);
-$('#zfit').onclick = () => fitView(true);
+$('#zin').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() * 1.3, 0.15, 5), W / 2, H / 2, true);
+$('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, 0.15, 5), W / 2, H / 2, true);
+$('#zfit').onclick = () => mapView.fit(true);
 function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); $('#zarea').setAttribute('aria-pressed', v ? 'true' : 'false'); requestDraw(); }
 $('#zlayers').onclick = () => openLayers();
 $('#zarea').onclick = () => { setShowAreas(!showAreas); toast(showAreas ? 'Active areas shown' : 'Active areas hidden'); };
@@ -3131,7 +3142,7 @@ function updateStatus() {
     const homes = []; for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (r && r.area && inArea(r.area, hover[0], hover[1])) homes.push(z.kind === 'habitat' && r.ok ? r.best.hb.n : (z.name || 'Zone')); } for (const hs of autoHouses) if (hs.cells.has(hover[1] * plan.w + hover[0])) homes.push(hs.ok ? 'House' : 'unfinished house');
     if (homes.length) st.append(h('span', { class: 'chip', style: 'color:var(--accent)' }, 'In range of ' + homes.slice(0, 3).join(', ') + (homes.length > 3 ? ' +' + (homes.length - 3) : '')));
   }
-  st.append(h('span', { class: 'chip hide-sm' }, Math.round(view.zoom * 100) + '%'));
+  st.append(h('span', { class: 'chip hide-sm' }, Math.round(mapView.zoom() * 100) + '%'));
 }
 
 let swatchCache = new Map();
@@ -4428,7 +4439,7 @@ function renderHabitats() {
   root.append(h('h2', { class: 'hrow' }, 'Habitats', tipBtn('Zones check what you placed against the Habitat Dex. Stamp any habitat to lay out its items and a zone in one tap.')));
   root.append(h('h4', { class: 'hrow' }, 'Houses you built (' + autoHouses.length + ')', tipBtn('Build walls or fences all the way round a space (Fill → Outline makes this quick), put a door or gate in the wall, and add 3 kinds of furniture at the door\'s level. The planner finds it automatically.')));
   if (!autoHouses.length) root.append(h('p', { class: 'note' }, 'None yet'));
-  const showHs = (hs) => { centerOn(hs.x + hs.w / 2, hs.y + hs.h / 2); if (innerWidth < 900) setSheet('peek'); selectHouse(hs); };
+  const showHs = (hs) => { mapView.centerOn(hs.x + hs.w / 2, hs.y + hs.h / 2); if (innerWidth < 900) setSheet('peek'); selectHouse(hs); };
   for (const hs of autoHouses) {
     const ct = areaContents(hs.area);
     if (hs.enclosure) { root.append(h('div', { class: 'card zone-none' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Enclosure at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip', style: 'margin-left:auto' }, hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : ''))), h('div', { class: 'acts' }, ibtn('map', 'Show on map', () => showHs(hs), 'sm'), ibtn('trash', 'Delete', () => confirmDeleteHouse(hs), 'sm danger', { style: 'margin-left:auto' })))); continue; }
@@ -4446,7 +4457,7 @@ function renderHabitats() {
       root.append(h('div', { class: 'card ' + (n >= 3 ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, swatchEl(it), h('span', { class: 'title' }, it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y), h('span', { class: 'note', style: 'margin-left:auto' }, l.length + '/' + it.cap)),
         h('div', { class: 'note' }, 'required (' + n + '/3)' + (cv.total ? ' · favourite (' + cv.have + '/' + cv.total + ')' : '') + (hm.floors > 1 ? ' · 2 floors' : '') + (host ? ' · in ' + (host.enclosure ? 'an enclosure' : 'a house') : '')),
         l.length ? pkChips(l.map(r => r.p), 22, openPokemon, hm.floors > 1 ? (p) => h('span', { class: 'note' }, (l.find(r => r.p === p.n) || {}).f ? '2F' : '1F') : null) : h('div', { class: 'mons', style: 'margin-top:4px' }, 'Nobody yet'),
-        h('div', { class: 'acts' }, ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'sm primary'), ibtn('map', 'Show on map', () => { centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); selection = { obj: ob }; showObjInspector(ob); }, 'sm'), ibtn('trash', 'Delete', () => deleteObjNow(ob), 'sm danger', { style: 'margin-left:auto' }))));
+        h('div', { class: 'acts' }, ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'sm primary'), ibtn('map', 'Show on map', () => { mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); selection = { obj: ob }; showObjInspector(ob); }, 'sm'), ibtn('trash', 'Delete', () => deleteObjNow(ob), 'sm danger', { style: 'margin-left:auto' }))));
     }
   }
   const zs = plan.zones.filter(z => z.kind !== 'label');
@@ -4495,7 +4506,7 @@ function renderHabList() {
   if (!arr.length) { list.append(h('p', { class: 'empty' }, 'No habitats match.')); return; }
   fillLazy(list, arr, (hb) => habCard(hb), $('#tab-habitats'), 30, null, arr.findIndex(hb => hb.id === openHab) + 1);
 }
-function focusZone(z) { centerOn(z.x + z.w / 2, z.y + z.h / 2); if (innerWidth < 900) setSheet('peek'); selectZone(z); }
+function focusZone(z) { mapView.centerOn(z.x + z.w / 2, z.y + z.h / 2); if (innerWidth < 900) setSheet('peek'); selectZone(z); }
 
 const PKF0 = () => ({ q: '', st: '', dex: [], ty: [], tyAll: false, sp: [], spAll: false, id: [], sz: [], fl: [], fv: [], fvAll: false, hb: '', sort: 'no', desc: false, view: 'cards', open: false });
 let PKF = PKF0(), openPk = null, pkHabAll = false;
@@ -4762,7 +4773,7 @@ function pkTray() {
 function pkHitHome(x, y) {
   const el = document.elementFromPoint(x, y); if (!el) return null;
   const t = el.closest('[data-home]'); if (t) return pkDrag.homes.find(hm => hm.key === t.dataset.home) || null;
-  if (el !== cv) return null; const r = cv.getBoundingClientRect(), [cx, cy] = toCell(x - r.left, y - r.top); return homeAt(cx, cy);
+  if (el !== cv) return null; const r = cv.getBoundingClientRect(), [cx, cy] = mapView.pick(x - r.left, y - r.top); return homeAt(cx, cy);
 }
 function pkTrack(force) {
   for (const el of [$('.app'), $('.main')]) if (el && el.scrollTop) el.scrollTop = 0;
@@ -5038,9 +5049,9 @@ function loadLocalPlans() { try { plansIndex = JSON.parse(LS.get(LSK + 'index') 
 function readLocalPlan(id) { try { const s = LS.get(LSK + 'plan:' + id); return s ? deserialize(JSON.parse(s)) : null; } catch (e) { return null; } }
 function openPlan(id) { if (dirty) persistNow(); const p = readLocalPlan(id) || (cloudCache.has(id) ? deserialize(cloudCache.get(id)) : null); if (!p) { toast('That plan could not be opened'); return; } installPlan(p); LS.set(LSK + 'current', id); }
 function installPlan(p) {
-  plan = p; loadLayers(); undoStack.length = 0; redoStack.length = 0; selection = null; closeInspector(); if (decorMini) { decorMini = null; renderMini(); } firstEval = true; evaluateAll();
+  plan = p; mapView.loaded(); loadLayers(); undoStack.length = 0; redoStack.length = 0; selection = null; closeInspector(); if (decorMini) { decorMini = null; renderMini(); } firstEval = true; evaluateAll();
   if (!plansIndex.find(q => q.id === p.id)) { plansIndex.push(indexEntry(p)); saveIndex(); }
-  updateHeader(); fitView(); renderPanel(); $('#undoBtn').disabled = true; $('#redoBtn').disabled = true;
+  updateHeader(); mapView.fit(); renderPanel(); $('#undoBtn').disabled = true; $('#redoBtn').disabled = true;
 }
 function updateHeader() { $('#hdrPlan').textContent = plan.name; $('#hdrArea').textContent = plan.area; const e = plansIndex.find(q => q.id === plan.id); if (e) Object.assign(e, indexEntry(plan)); }
 const cloudCache = new Map();
@@ -5252,7 +5263,7 @@ function reconcile() {
     if (p) { installPlan(p); LS.set(LSK + 'current', p.id); if (pulled.length) toast('Opened “' + p.name + '” from your other device'); }
     else { const ex = makeExample(); installPlan(ex); LS.set(LSK + 'example', ex.id + ':' + ex.updated); persistNow(true); }
   } else if (plan && pulled.includes(plan.id) && !dirty) {
-    const p = readLocalPlan(plan.id); if (p) { const v = { ...view }; installPlan(p); Object.assign(view, v); requestDraw(); toast('Updated “' + p.name + '” from your other device'); }
+    const p = readLocalPlan(plan.id); if (p) { const v = mapView.cam(); installPlan(p); mapView.setCam(v); toast('Updated “' + p.name + '” from your other device'); }
   }
   if (pulled.length || removed.length) { updateHeader(); if (activeTab === 'plans') renderPlans(); }
   done();
@@ -5281,7 +5292,7 @@ function otherWindow(e) {
   if (!e.key || !e.key.startsWith(LSK)) return;
   if (e.key === LSK + 'index') { loadLocalPlans(); if (activeTab === 'plans') renderPlans(); return; }
   if (e.key === LSK + 'sync') { try { const s = JSON.parse(e.newValue || 'null'); if (s && sync && s.uid === sync.uid) sync = Object.assign(s, { on: sync.on }); } catch (er) { } return; }
-  if (plan && e.key === LSK + 'plan:' + plan.id && !dirty && e.newValue) { try { const s = JSON.parse(e.newValue); if ((s.updated || 0) > (plan.updated || 0)) { const v = { ...view }; installPlan(deserialize(s)); Object.assign(view, v); requestDraw(); } } catch (er) { } }
+  if (plan && e.key === LSK + 'plan:' + plan.id && !dirty && e.newValue) { try { const s = JSON.parse(e.newValue); if ((s.updated || 0) > (plan.updated || 0)) { const v = mapView.cam(); installPlan(deserialize(s)); mapView.setCam(v); } } catch (er) { } }
 }
 const COPY_TAG = / \((from another device|from this device)\)$/;
 const copyBase = (n) => { while (COPY_TAG.test(n)) n = n.replace(COPY_TAG, ''); return n; };
@@ -5325,7 +5336,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T03:30';
+const APP_BUILD = '2026-11-22T06:45';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
