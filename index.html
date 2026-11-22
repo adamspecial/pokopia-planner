@@ -2869,16 +2869,16 @@ function kitBadge(c, ob, s, rix) {
   c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
   if (s >= 10 && S.faces) { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, e.list.map(r => r.p), view.px + ob.x * s + 3, view.py + (ob.y + ob.h) * s - d * 0.62, d); }
 }
-function drawGhost(c, it, x, y, w, h, z, s) { const d = z - standOver(x, y, w, h), g = { i: it.i, x, y, w, h, z }; if (d === 0) drawPicItem(c, it, view.px + x * s, view.py + y * s, s, w, h, false, [x, y, w, h, z]); else if (structural(it)) drawUp(c, g, s, d); else drawRaised(c, g, s, d); }
+function drawGhost(c, it, x, y, w, h, z, s) { const d = z - standOver(x, y, w, h), g = { i: it.i, x, y, w, h, z }; if (d === 0) drawPicItem(c, it, view.px + x * s, view.py + y * s, s, w, h, false, [x, y, w, h, z]); else if (structural(it)) drawUp(c, g, s, d); else if (it.c === 'Kits') drawKitUp(c, g, s, d); else drawRaised(c, g, s, d); }
 function drawObjs(c, z, s, V, rix) {
   if (hidden.has(z)) return; const L = z ? plan.up.get(z) : plan.occ; if (!L) return; const small = [], big = [], seen = new Set();
   for (let y = V.y0; y < V.y1; y++) for (let x = V.x0; x < V.x1; x++) { const oid = L[y * plan.w + x]; if (!oid || seen.has(oid)) continue; seen.add(oid); const ob = plan.objs.get(oid); if (ob && zOf(ob) === z) (ob.w > 1 || ob.h > 1 ? big : small).push(ob); }
   const list = [...small, ...big].filter(ob => { for (let y = ob.y; y < ob.y + ob.h; y++) for (let x = ob.x; x < ob.x + ob.w; x++) { const t = V.at(x, y); if (t === NONE_Z || t < z) return true; } return false; }).map(ob => [ob, z - V.rest(ob)]);
-  for (const [ob, d] of list) if (d > 0 && solidUp(ITEMS[ob.i])) upShadow(c, ob, s);
+  for (const [ob, d] of list) if (d > 0 && (solidUp(ITEMS[ob.i]) || ITEMS[ob.i].c === 'Kits')) upShadow(c, ob, s);
   for (const [ob, d] of list) {
     const it = ITEMS[ob.i];
     if (d === 0) { const px = view.px + ob.x * s, py = view.py + ob.y * s; if (s < 6) { c.fillStyle = itemColour(it); c.fillRect(px, py, ob.w * s + 0.5, ob.h * s + 0.5); } else drawPicItem(c, it, px, py, s, ob.w, ob.h, true, [ob.x, ob.y, ob.w, ob.h, z]); kitBadge(c, ob, s, rix); }
-    else if (structural(it)) drawUp(c, ob, s, d); else drawRaised(c, ob, s, d);
+    else if (structural(it)) drawUp(c, ob, s, d); else if (it.c === 'Kits') drawKitUp(c, ob, s, d, rix, false); else drawRaised(c, ob, s, d);
   }
 }
 function drawArea(c, a, s, strong) {
@@ -3363,6 +3363,14 @@ function drawFurniture(c, it, kind, x, y, s, wc, hc) {
     case 'tv': { const t = (vert ? W : H) * 0.3; const bx = vert ? cx - t / 2 : x + P(0.08), by = vert ? y + P(0.08) : cy - t / 2, bw = vert ? t : W - P(0.16), bh = vert ? H - P(0.16) : t; shadow(bx, by, bw, bh, P(0.03)); shape(bx, by, bw, bh, P(0.03), it.look ? col : '#2c2f36', it.look ? dk : '#14161a'); c.fillStyle = alt || '#6fc3ff'; if (vert) c.fillRect(bx + bw - Math.max(1.5, bw * 0.25), by + P(0.04), Math.max(1.5, bw * 0.25), bh - P(0.08)); else c.fillRect(bx + P(0.04), by + bh - Math.max(1.5, bh * 0.25), bw - P(0.08), Math.max(1.5, bh * 0.25)); break; }
   }
   c.restore();
+}
+function drawKitUp(c, ob, s, d, rix, sh = true) {
+  const it = ITEMS[ob.i], z = zOf(ob), x = view.px + ob.x * s, y = view.py + ob.y * s, W = ob.w * s, H = ob.h * s;
+  if (d > 0 && sh) upShadow(c, ob, s);
+  if (s < 6) { c.fillStyle = itemColour(it); c.fillRect(x, y, W + 0.5, H + 0.5); } else drawPicItem(c, it, x, y, s, ob.w, ob.h, true, [ob.x, ob.y, ob.w, ob.h, z]);
+  if (d < 0) { const a = c.globalAlpha; c.globalAlpha = a * Math.min(0.45, 0.12 - 0.06 * d); c.fillStyle = '#000'; c.fillRect(x, y, W, H); c.globalAlpha = a; }
+  if (rix) kitBadge(c, ob, s, rix);
+  if (s >= 18) lvBadge(c, z, x, y, s);
 }
 function drawRaised(c, ob, s, d = zOf(ob)) {
   const it = ITEMS[ob.i], z = zOf(ob), k = 0.72, w = ob.w * s, hh = ob.h * s, ix = view.px + ob.x * s + w * (1 - k) / 2, iy = view.py + ob.y * s + hh * (1 - k) / 2 - clamp(d, 0, 3) * s * 0.03;
@@ -5317,7 +5325,7 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T02:30';
+const APP_BUILD = '2026-11-22T03:30';
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
