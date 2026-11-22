@@ -87,7 +87,14 @@ Moving around:
 - **Turn** a quarter turn at a time with the turn button (Shift turns it the other way), or with , and . on a keyboard. On a phone or tablet, twist two fingers; with a mouse, drag sideways with the right button. When you let go, the view settles on the nearest quarter turn.
 - Drag to pan, and pinch or use the wheel to zoom, as on the flat map. Fit, Zoom in and Zoom out work the same way.
 
-For now the 3D view is for looking. Tap anything to see its details, and double-click a kit house to decorate inside. Picking any tool other than Pan, or anything to place, goes back to the flat map, where you edit as usual. Labels, zones, active areas and resident portraits show on the flat map only for now. Each device remembers whether you were in 3D and how the view was tilted. The 3D view needs WebGL 2, which Chrome and Edge have. If the browser stops it, the planner goes back to the flat map and you can open 3D again.
+Every tool works in 3D, the same way as on the flat map:
+
+- **Previews are see-through boxes.** What you're placing shows where it will land, at its own level and height, with an outline on the squares it covers: in the accent colour when it fits and red when it doesn't. Things it would replace turn red. Moving an item or a group shows it at its new spot, with the old spot outlined.
+- **Drags stay at one height.** A stroke, a filled area, a zone or a move follows the height of the surface where you started it, so dragging across a hill or a wall doesn't jump between levels.
+- **Zones, homes and labels.** Zones, active areas, Community box reach and the outline of where a Pokémon can go are drawn over the ground. Zone and house labels, kit badges and resident portraits float above them.
+- **Levels.** When you pick a level to work on in Layers, everything above it fades and taps go through it, so you can see and build inside a basement or under a roof.
+
+Each device remembers whether you were in 3D and how the view was tilted. The 3D view needs WebGL 2, which Chrome and Edge have. If the browser stops it, the planner goes back to the flat map and you can open 3D again.
 
 ## Pokémon and homes
 
