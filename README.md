@@ -109,7 +109,7 @@ While you pan, zoom or turn, the 3D view draws at a lower resolution to stay smo
 Open **…/pokopia-planner/#review** to check every item's 3D model against its game picture. Items are grouped by kind, and each card shows the picture, the model on its footprint, and its size; dashed sizes are guesses.
 
 - **Scroll past the ones that look right.** A card on screen for a moment counts as seen and loses its dot. The counters show how many are seen, flagged and changed.
-- **Tap one that's wrong.** Set the right width, length and height, pick the main and second colour by tapping the picture, and say what's wrong with the shape. The model on the right shows the new size and colours, and you can drag it to turn it. Changes save as you go. **‹ ›** (or the arrow keys) move to the next item.
+- **Tap one that's wrong.** Set the right width, length and height, pick the main and second colour by tapping the picture, and say what's wrong with the shape. The model on the right shows the new size and colours, and you can drag it to turn it. Changes save as you go. **‹ ›** (or the arrow keys) move to the next item. If no part of an item's model uses the second colour yet, the panel says so; pick one anyway and a part in it gets added.
 - **Send** lists the flagged items, ready to share into the Claude app on Android or to copy and paste on Windows. Items already sent are marked, and the next Send covers only new and edited ones.
 - After a fix, the item shows **Changed**. Open it and tap **It's fixed**, or say what's still wrong.
 

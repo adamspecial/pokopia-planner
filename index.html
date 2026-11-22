@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-22T19:30';
+<script>const APP_BUILD = '2026-11-22T21:10';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -573,6 +573,7 @@ button.szb.edit{border:0;font:inherit;font-size:10.5px;font-weight:800;line-heig
 .rvd .insp-head h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rvd .insp-head .close{margin-left:2px}
 .rvsws{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rvnob{margin:6px 0 0}
 .rvsw{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:4px 6px 4px 4px;font-weight:700;font-size:13px}
 .rvsw[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .rvsw .swatch{border:1px solid color-mix(in srgb,var(--ink) 18%,transparent)}
