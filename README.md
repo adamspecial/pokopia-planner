@@ -94,7 +94,7 @@ Every tool works in 3D, the same way as on the flat map:
 
 - **Previews are see-through.** What you're placing shows its shape where it will land, facing the way it will face, at its own level and height, with an outline on the squares it covers: in the accent colour when it fits and red when it doesn't. Things it would replace turn red. Moving an item or a group shows it at its new spot, with the old spot outlined.
 - **Drags stay at one height.** A stroke, a filled area, a zone or a move follows the height of the surface where you started it, so dragging across a hill or a wall doesn't jump between levels.
-- **Zones, homes and labels.** Zones, active areas, Community box reach and the outline of where a Pokémon can go are drawn over the ground. Zone and house labels, kit badges and resident portraits float above them.
+- **Zones, homes and labels.** Zones, active areas, Community box reach, item reach and the outline of where a Pokémon can go are drawn over the ground. Zone and house labels, kit badges and resident portraits float above them.
 - **Seeing inside.** In a tilted view, walls, roofs and anything else standing in front of the pointer and higher than where it points turn see-through around it, so you can see and work behind them. Taps go through the see-through part too. To pick one of those walls, point at it from outside first.
 - **Levels.** When you pick a level to work on in Layers, everything above it fades and taps go through it, so you can see and build inside a basement or under a roof.
 
@@ -152,6 +152,34 @@ Furniture, storage, shelves, lamps and appliances show on the map, and in kit ro
 The pictures live in `pics/` inside the app, so they show without internet: items in `pics/`, floor tiles in `pics/top/` and Pokémon in `pics/pk/`. The first time the planner opens, it saves all of them on the device in the background (about 11 MB). The Plans tab shows how far it has got.
 
 `tools/pictures.py` copies them from Serebii and makes the floor tiles (`pics/top/`) from them in one batch. Most floor pictures are the same 3D cube drawn from the same angle, so one calibration unwarps the top face of all of them; water is cropped instead. In `data.json`, an item's `im` is `1` when Serebii names the picture after the item, or Serebii's own file name when that differs, such as `stylishwall(upper)`. A Pokémon's `im` is Serebii's file name for it, usually its National Dex number (`001`), or a form such as `978-tatsugiridroopyform`. The tool saves Pokémon pictures as WebP and works out each portrait's automatic framing, kept in `pics/index.json` as the centre and size of the circle in thousandths of the picture. GitHub runs the tool for you (`.github/workflows/pictures.yml`) whenever `data.json` changes, once a week to retry any that failed, or from **Actions → Pictures → Run workflow**.
+
+## Reach, limits and problems
+
+The **Show on the map** button by the zoom controls (S) turns on what's drawn over the map:
+
+- **Active areas** (A): the dotted line around each home. Everything inside it counts for that home.
+- **Reach**: how far these items work in the game.
+
+  | Item | Reach |
+  |---|---|
+  | Sprinkler | Waters fields within 5 tiles, counted along each axis and added up (61 tiles) |
+  | Smooth Rock | Dries within 4 tiles, from 1 level up to 2 down |
+  | Bubble machine | The 3×3 around it |
+  | Floor switch | A 5×5×5 cube |
+  | Wall switch, Card reader | A 7×7×7 cube |
+  | Laser sensor | The 2 tiles in front of it, shaded darker, and the cells it switches beside, behind and above and below it |
+  | Transmitters | 10 tiles to items and generators, 15 to other transmitters, up to 5 levels up or down |
+  | Generators | A transmitter within 10 tiles, counted from the kit's front-left tile |
+
+  The selected item always shows its reach, with a label, and so does an item while you place it.
+
+An item's info and its panel say what it does in the game: how much power it makes or uses, what a switch or sensor works, how far a liquid flows and whether it waters fields, and how many days a crop or plant takes to grow.
+
+The **Materials** tab ends with **Limits**: how many of the things the game caps per area this plan has, against each cap. Over a cap, a **⚠ problem** chip appears at the bottom left of the map, even when the info chips are off. Tap it to see what's wrong.
+
+The game decides some things by the order you build them, such as which transmitter an item joins. The planner keeps items in the order you placed them, saved with the plan. Moving an item counts as placing it again.
+
+The rules behind all this, with their sources, are in [the research report](reports/Pokopia%20liquids%20sensors%20and%20crops.md), and [plans/World mechanics.md](plans/World%20mechanics.md) is the plan for the checks still to come.
 
 ## Light, warmth and humidity
 

@@ -146,7 +146,7 @@ function initials(name) {
   return (w[0][0] + (w[1] ? w[1][0] : (w[0][1] || ''))).toUpperCase();
 }
 const BODY_FONT = '"Atkinson Hyperlegible", system-ui, sans-serif';
-const LIQUID = new Set(['Water', 'Ocean water', 'Muddy water', 'Hot-spring water', 'Lava', 'Waterfall']);
+const LIQUID = new Set();
 const BERRY_COL = { Leppa: '#e0443c', Chesto: '#6b4fb8', Rawst: '#3a8fd1', Aspear: '#f2d33c', Pecha: '#f28bb5', Lum: '#5cc45a' };
 const SPEC_FOR_MAT = { Lumber: 'Chop', 'Iron ingot': 'Burn', 'Copper ingot': 'Burn', 'Gold ingot': 'Burn', Pokémetal: 'Burn', Glass: 'Burn', Brick: 'Burn', Paper: 'Recycle', Concrete: 'Crush', Tinkagear: 'Engineer' };
 
@@ -168,7 +168,7 @@ function buildIndex(d) {
     o.key = o.n.toLowerCase();
     return o;
   });
-  for (const it of ITEMS) BY_NAME.set(it.n, it);
+  for (const it of ITEMS) { BY_NAME.set(it.n, it); if (it.lq) LIQUID.add(it.n); }
   for (const g in d.groups) { const set = new Set(d.groups[g].map(n => BY_NAME.get(n)).filter(Boolean).map(x => x.i)); GROUPS.set(g, set); for (const i of set) { if (!GROUP_OF.has(i)) GROUP_OF.set(i, []); GROUP_OF.get(i).push(g); } }
   HAB = d.habitats; for (const hb of HAB) HAB_BY_ID.set(hb.id, hb);
   PK = d.pokemon; for (const p of PK) { if (!PK_BY_NAME.has(p.n)) PK_BY_NAME.set(p.n, p); }
@@ -201,7 +201,7 @@ function serialize(p) {
   const dict = []; const dmap = new Map();
   const ref = (itemIdx) => { const name = ITEMS[itemIdx].n; if (!dmap.has(name)) { dmap.set(name, dict.length + 1); dict.push(name); } return dmap.get(name); };
   const tg = []; for (let j = 0; j < p.tz.length; j++) { const T = p.tt[j], g = new Uint16Array(T.length); let any = false; for (let k = 0; k < g.length; k++) if (T[k]) { g[k] = ref(T[k] - 1); any = true; } if (any || !p.tz[j]) tg.push([p.tz[j], rle(g)]); }
-  const o = [], ints = {}; for (const ob of p.objs.values()) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].concat(ob.r != null ? [zOf(ob), htOf(ob), ob.r & 3] : htOf(ob) !== 1 ? [zOf(ob), htOf(ob)] : ob.z ? [ob.z] : []).map(v => v.toString(36)).join('.')); }
+  const o = [], ints = {}; for (const ob of [...p.objs.values()].sort((a, b) => a.id - b.id)) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].concat(ob.r != null ? [zOf(ob), htOf(ob), ob.r & 3] : htOf(ob) !== 1 ? [zOf(ob), htOf(ob)] : ob.z ? [ob.z] : []).map(v => v.toString(36)).join('.')); }
   const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h, zOf(r)].map(v => v.toString(36)).join('.'));
   return { v: 3, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: tg, o: o.join(';'), u: u.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
@@ -733,7 +733,45 @@ function envFx(it) {
   return envFxMap.get(it.i) || null;
 }
 const envT = (fx, ac) => fx.ac ? ac * 60 : fx.t;
-const envKind = (home) => home.kind === 'kit' && kitInfo(home.ob).kind !== 'ow' ? 'kit' : 'block';
+const PGN = { n: 'while liquid turns its wheel', r: 'while it has fuel' };
+const SIG_IN = { l: 'When anything changes in the 2 tiles in front of it, it switches what\'s beside it, behind it and above and below it', f: 'Opens every door within 2 tiles (5×5×5) when stepped on, and closes them soon after', w: 'Switches everything within 3 tiles (7×7×7) on or off', c: 'Switches everything within 3 tiles (7×7×7) on or off with a key card' };
+const REACH_TXT = { Sprinkler: 'Waters fields within 5 tiles (61 tiles) while there\'s water at its own height in that reach. Still works buried.', 'Smooth rock': 'Dries the top block within 4 tiles, from a level above it to 2 below, except in rain or by a running sprinkler.', 'Bubble machine': 'Blows bubbles over the 3×3 around it, which underwater crops need.' };
+const isPowerGen = (it) => !!it && !!it.pg, isTransmitter = (it) => !!it && !!it.pt, isPowered = (it) => !!it && it.pd != null;
+const signalTarget = (it) => !!it && (!!it.so || it.pt === 'ws' || inWall(it) || isPowered(it) && it.c !== 'Kits');
+function howItWorks(it) {
+  const out = [];
+  if (it.pg) out.push('Makes ' + it.pg + ' power' + (it.pgh ? ', or ' + it.pgh + ' on high ground' : '') + (it.pgn ? ' ' + PGN[it.pgn] : '') + '. A transmitter within 10 tiles carries it.');
+  if (it.pt) out.push('Carries power to items and generators within 10 tiles, and to other transmitters within 15, up to 5 levels up or down. Takes one generator and up to 20 items.' + (it.pt === 'p' ? ' A block between it and another pole or a generator stops the wire.' : ' Goes through walls.') + (it.pt === 'ws' ? ' Switches off by hand or from a switch.' : ''));
+  if (it.pd != null) out.push(it.pd ? 'Uses 1 power.' : 'Needs power but uses none.');
+  if (it.si) out.push(SIG_IN[it.si] + '. Needs no power.');
+  if (!it.si && signalTarget(it)) out.push('Switches and sensors nearby can work it.');
+  if (REACH_TXT[it.n]) out.push(REACH_TXT[it.n]);
+  if (it.lq) { const [r, wet, fall] = it.lq; out.push(fall ? 'Falling water: each falling tile adds 20 humidity, and a fall restarts the flow below it.' : 'Reaches ' + r + ' tiles along a 1-wide channel, ' + Math.floor(r / 2) + ' at low level, and starts again below a drop. ' + (wet ? 'Waters fields beside it' + (wet === 2 ? ' (untested)' : '') + '.' : 'Doesn\'t water fields.')); }
+  if (it.cg) { const [n, again] = it.cg; out.push(it.sub === 'Crops' ? 'Ripe in ' + n + ' days if it stays wet, or 1 with a Grow Pokémon. ' + (again == null ? '' : again >= n ? 'Starts again from seed after harvest.' : 'Fruits again a day after harvest.') : 'Grows in ' + n + ' day' + (n > 1 ? 's' : '') + ' if watered' + (it.sub === 'Trees' ? ' (some guides say 4)' : '') + '.'); }
+  return out;
+}
+const REACH_COL = { power: '#d39b14', water: '#2f8fd8', dry: '#b07a3c', signal: '#a05bd6' };
+function reachOf(ob) {
+  const it = ITEMS[ob.i], z = zOf(ob), rc = it.rc, cx = ob.x, cy = ob.y;
+  const diamond = (x0, y0, r) => { const cells = []; for (let dy = -r; dy <= r; dy++) for (let dx = -(r - Math.abs(dy)); dx <= r - Math.abs(dy); dx++) { const x = x0 + dx, y = y0 + dy; if (inB(plan, x, y)) cells.push(y * plan.w + x); } return cells; };
+  const pl = (n) => n + ' level' + (n > 1 ? 's' : ''), lv = (up, down) => !up && !down ? 'this level only' : up === down ? pl(up) + ' up and down' : up && down ? pl(up) + ' up, ' + down + ' down' : up ? pl(up) + ' up' : pl(down) + ' down';
+  if (it.pt || it.pg) {
+    const f = faceOf(ob), foot = it.pg && (ob.w > 1 || ob.h > 1) ? [[ob.x, ob.y + ob.h - 1], [ob.x, ob.y], [ob.x + ob.w - 1, ob.y], [ob.x + ob.w - 1, ob.y + ob.h - 1]][f] : [cx, cy];
+    return { kind: 'power', col: REACH_COL.power, cells: diamond(foot[0], foot[1], 10), far: it.pt ? diamond(foot[0], foot[1], 15) : null, z, label: it.pt ? '10 tiles to items, 15 to transmitters' : '10 tiles to a transmitter', lv: lv(5, 5) };
+  }
+  if (!rc) return null;
+  const [shape, r, up = 0, dn = 0] = rc, kind = it.si ? 'signal' : it.n === 'Smooth rock' ? 'dry' : 'water', col = REACH_COL[kind];
+  if (shape === 'd') return { kind, col, cells: diamond(cx, cy, r), z, label: r + ' tiles', lv: lv(up, -dn) };
+  if (shape === 's') { const x0 = Math.max(0, ob.x - r), y0 = Math.max(0, ob.y - r), x1 = Math.min(plan.w - 1, ob.x + ob.w - 1 + r), y1 = Math.min(plan.h - 1, ob.y + ob.h - 1 + r), cells = []; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cells.push(y * plan.w + x); return { kind, col, cells, box: { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, z0: z + dn, z1: z + up }, z, label: (2 * r + 1) + '×' + (2 * r + 1) + '×' + (up - dn + 1), lv: lv(up, -dn) }; }
+  if (shape === 'l') {
+    const [fx, fy] = [[0, 1], [-1, 0], [0, -1], [1, 0]][faceOf(ob)], watch = [], cells = [];
+    for (let i = 1; i <= r; i++) { const x = cx + fx * i, y = cy + fy * i; if (inB(plan, x, y)) watch.push(y * plan.w + x); }
+    for (const [x, y] of [[cx - fy, cy + fx], [cx + fy, cy - fx], [cx - fx, cy - fy], [cx, cy]]) if (inB(plan, x, y)) cells.push(y * plan.w + x);
+    return { kind, col, cells, watch, z, label: 'watches ' + r + ' tiles, switches 11 cells', lv: lv(1, 1) };
+  }
+  return null;
+}
+const envKind =(home) => home.kind === 'kit' && kitInfo(home.ob).kind !== 'ow' ? 'kit' : 'block';
 function envGap(ideal, v, kind) {
   const lim = ENV_LIM[kind][ideal]; if (lim == null) return 0;
   return ENV_AX[ideal][1] > 0 ? Math.max(0, lim - v) : Math.max(0, v - lim);
@@ -1413,6 +1451,28 @@ function drawBoxReach(c, ob, s) {
   for (const x of boxReport(ob)) { const Z = x.Z, full = x.n === x.all; c.save(); c.strokeStyle = full ? theme.good : theme.warn; c.lineWidth = 2; c.setLineDash([7, 5]); c.globalAlpha = 0.9; c.strokeRect(view.px + Z.x * s + 1, view.py + Z.y * s + 1, Z.w * s - 2, Z.h * s - 2); c.restore();
     if (s >= 7) { c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top'; const t = 'Box reach: ' + x.hm.label; const tw = c.measureText(t).width + 8; c.fillStyle = full ? theme.good : theme.warn; roundRect(c, view.px + Z.x * s + 2, view.py + (Z.y + Z.h) * s + 2, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(t, view.px + Z.x * s + 6, view.py + (Z.y + Z.h) * s + 4); } }
 }
+let showReach = LS.get(LSK + 'reach') === '1';
+const hasReach = (it) => !!it && (!!it.rc || !!it.pt || !!it.pg);
+function reachList() { const out = []; for (const ob of plan.objs.values()) if (hasReach(ITEMS[ob.i]) && obShown(ob)) out.push(ob); return out; }
+function drawReachShape(c, s, R, strong) {
+  const W = plan.w, edges = (cells, set) => { c.beginPath(); for (const k of cells) { const x = k % W, y = (k / W) | 0, px = view.px + x * s, py = view.py + y * s; if (!set.has(k - W)) { c.moveTo(px, py); c.lineTo(px + s, py); } if (!set.has(k + W)) { c.moveTo(px, py + s); c.lineTo(px + s, py + s); } if (x === 0 || !set.has(k - 1)) { c.moveTo(px, py); c.lineTo(px, py + s); } if (x === W - 1 || !set.has(k + 1)) { c.moveTo(px + s, py); c.lineTo(px + s, py + s); } } c.stroke(); };
+  c.save(); c.fillStyle = R.col; c.globalAlpha = strong ? 0.16 : 0.07; c.beginPath(); for (const k of R.cells) c.rect(view.px + (k % W) * s, view.py + ((k / W) | 0) * s, s, s); c.fill();
+  if (R.watch && R.watch.length) { c.globalAlpha = 0.4; c.beginPath(); for (const k of R.watch) c.rect(view.px + (k % W) * s, view.py + ((k / W) | 0) * s, s, s); c.fill(); }
+  c.strokeStyle = R.col; c.lineWidth = strong ? 2 : 1.5; c.globalAlpha = strong ? 0.95 : 0.6; c.setLineDash(R.kind === 'power' ? [] : [6, 4]); edges(R.cells, new Set(R.cells));
+  if (strong && R.far) { c.globalAlpha = 0.6; c.lineWidth = 1.5; c.setLineDash([3, 4]); edges(R.far, new Set(R.far)); }
+  if (strong && s >= 7) {
+    let x0 = Infinity, y0 = Infinity; for (const k of R.far || R.cells) { x0 = Math.min(x0, k % W); y0 = Math.min(y0, (k / W) | 0); }
+    const t = R.label + ' · ' + R.lv; c.setLineDash([]); c.globalAlpha = 1; c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top';
+    const tw = c.measureText(t).width + 8, lx = Math.max(view.px + x0 * s, 2), ly = Math.max(view.py + y0 * s - 17, 2); c.fillStyle = R.col; roundRect(c, lx, ly, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(t, lx + 4, ly + 2);
+  }
+  c.restore();
+}
+function drawReach(c, s) {
+  const sel = selection && selection.obj && plan.objs.has(selection.obj.id) ? selection.obj : null;
+  if (showReach) for (const ob of reachList()) if (ob !== sel) { const R = reachOf(ob); if (R) drawReachShape(c, s, R, false); }
+  if (sel && hasReach(ITEMS[sel.i])) { const R = reachOf(sel); if (R) drawReachShape(c, s, R, true); }
+}
+function setShowReach(v) { showReach = v; LS.set(LSK + 'reach', v ? '1' : '0'); sysSync(); requestDraw(); }
 function houseAt(x, y) { if (!cellHouse || !inB(plan, x, y)) return null; const i = cellHouse[y * plan.w + x]; return i >= 0 ? autoHouses[i] : null; }
 function houseIssues(hs) { const out = []; if (!hs.doors.size) out.push('needs a door'); else if (!hs.clearDoors) out.push('door blocked'); if (!hs.sizeOk) out.push(hs.w < 2 || hs.h < 2 ? 'too small' : 'too big'); if (hs.furn < 3) out.push(hs.furn + '/3 furniture kinds'); return out; }
 function countsFor(hb, it) { for (const [tok] of hb.r) { if (GROUPS.has(tok) ? GROUPS.get(tok).has(it.i) : BY_NAME.get(DATA.terrainReq[tok] || tok) === it) return true; } return false; }
@@ -1464,6 +1524,7 @@ function evaluateAll() {
   const prev = zoneStatus; zoneStatus = new Map();
   for (const z of plan.zones) { const r = evaluateZone(z); r.area = computeArea(z, r); zoneStatus.set(z.id, r); const p = prev.get(z.id); if (!firstEval && r.ok && (!p || !p.ok) && r.kind !== 'label') celebrate(z, r); }
   detectHouses();
+  checkProblems(); updateStatus();
   firstEval = false;
 }
 function planPokemon() { const set = new Map(); for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (r && r.kind === 'habitat' && r.ok) for (const n of r.best.hb.p) if (!set.has(n)) set.set(n, r.best.hb); } return set; }
@@ -1490,6 +1551,45 @@ function materialTotals(raw) {
     for (const [n, q] of out) out.set(n, Math.ceil(q - 1e-9));
   }
   return { need: out, processed: need, gather, crafted, natural };
+}
+
+const LIMITS = [
+  ['Generators', (it) => !!it.pg && it.n !== 'Furnace kit', 128, 'Mini generators, windmills and waterwheels. It was 64 before Ver. 2.0.0. Furnace kits have their own count.'],
+  ['Transmitters', (it) => !!it.pt, 252, 'Utility poles and wireless transmitters. Serebii says 256. Past the cap, new ones don\'t work.'],
+  ['Powered items', (it) => it.pd != null, 1024, 'Everything that needs power, including lights that use none. It was 512 before Ver. 1.1.0.'],
+  ['Field crops', (it) => it.sub === 'Crops', (p) => p.area === 'Cloud Island' ? 576 : 511, 'One per field tile, 576 on Cloud Islands. The game warns when they fruit.'],
+  ['Growing plants', (it) => !!it.cg, 1024, 'Trees, flowers, hedges and crops while they grow. Fully grown plants don\'t count, so plant in batches if you\'re over.'],
+  ['Berry trees', (it) => GROUPS.has('Berry tree (any)') && GROUPS.get('Berry tree (any)').has(it.i), 226, 'Past the cap, trees can\'t be headbutted.'],
+  ['Pointy trees', (it) => it.n === 'Pointy tree', 251, ''],
+  ['Furnaces and mixers', (it) => /^(Smelting furnace|Metallic smelting furnace|Concrete mixer)$/.test(it.n), 128, 'Smelting furnaces, metallic smelting furnaces and concrete mixers together.'],
+  ['Workbenches and cooking pots', (it) => /^(Workbench|Cooking pot|Stylish cooking pot|Camping cooking pot)$/.test(it.n), 128, ''],
+  ['Community boxes', (it) => isBox(it), 32, ''],
+  ['Lift platforms', (it) => it.n === 'Lift platform', 32, ''],
+  ['Elevator platforms', (it) => it.n === 'Elevator platform', 32, ''],
+  ['Cameras', (it) => /camera$/i.test(it.n), 8, '']
+];
+function placedCounts() {
+  const n = new Map(), add = (i) => n.set(i, (n.get(i) || 0) + 1);
+  for (const ob of plan.objs.values()) { add(ob.i); if (ob.int) for (const f of ob.int.f || []) if (f) for (const o of f.o) add(o[0]); }
+  return n;
+}
+function limitRows() {
+  const cnt = placedCounts();
+  return LIMITS.map(([label, test, cap, tip]) => { let n = 0; for (const [i, q] of cnt) if (test(ITEMS[i])) n += q; return { label, n, cap: typeof cap === 'function' ? cap(plan) : cap, tip }; });
+}
+let PROBS = [];
+function checkProblems() {
+  const out = [];
+  for (const r of limitRows()) if (r.n > r.cap) out.push({ text: r.label + ': ' + fmt(r.n) + ' of ' + fmt(r.cap), tip: 'Over the game\'s cap for one area. ' + r.tip, tab: 'materials' });
+  PROBS = out;
+}
+function showProblems() {
+  modal(PROBS.length === 1 ? '1 problem' : PROBS.length + ' problems', (box) => {
+    const l = h('div', { class: 'list' });
+    for (const p of PROBS) l.append(h('div', { class: 'row', style: 'cursor:default;align-items:flex-start' }, h('span', { class: 'req miss', style: 'flex:none' }, '!'), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, p.text), h('div', { class: 'ds', style: 'white-space:normal' }, p.tip))));
+    box.append(l);
+  }, 'See limits', () => { showTab('materials'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); });
+  const b = $('#modalBox .acts .btn'); if (b) b.textContent = 'Close';
 }
 
 const cv = $('#map'); const ctx = cv.getContext('2d');
@@ -1576,6 +1676,10 @@ function mapOverlay3d(o) {
   for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (!r || !r.area) continue; const on = !!(sel && sel.zone && sel.zone.id === z.id); if (showAreas || on) area(r.area, on); }
   for (const hs of autoHouses) { const on = !!(sel && sel.house === hs.id), R = hs.area.outer; if ((showAreas || on) && !hs.enclosure) area(hs.area, on); if (!showAreas && !on) o.ring(R.x, R.y, R.w, R.h, hs.ok ? theme.good : hs.enclosure ? theme.muted : theme.warn, 0.9, 0.1); }
   if (sel && sel.obj && plan.objs.has(sel.obj.id) && isBox(ITEMS[sel.obj.i])) for (const x of boxReport(sel.obj)) o.ring(x.Z.x, x.Z.y, x.Z.w, x.Z.h, x.n === x.all ? theme.good : theme.warn, 0.9, 0.1);
+  const reach3d = (R, strong) => { for (const k of R.cells) o.cell(k % plan.w, (k / plan.w) | 0, R.col, strong ? 0.3 : 0.14); if (R.watch) for (const k of R.watch) o.cell(k % plan.w, (k / plan.w) | 0, R.col, 0.55); if (R.box && strong) o.box(R.box.x, R.box.y, R.box.w, R.box.h, R.box.z0, R.box.z1 - R.box.z0 + 1, R.col, 0.07); };
+  const selOb = sel && sel.obj && plan.objs.has(sel.obj.id) ? sel.obj : null;
+  if (showReach) for (const ob of reachList()) if (ob !== selOb) { const R = reachOf(ob); if (R) reach3d(R, false); }
+  if (selOb && hasReach(ITEMS[selOb.i])) { const R = reachOf(selOb); if (R) reach3d(R, true); }
   if (pkDrag) {
     const R = (hm) => hm.kind === 'kit' ? hm.ob : hm.hs.area.outer;
     for (const hm of pkDrag.homes) { const r = R(hm); if (hm.kind === 'kit') o.box(r.x, r.y, r.w, r.h, zOf(r), htOf(r), A, 0.12); else o.ring(r.x, r.y, r.w, r.h, A, 0.9, 0.1); }
@@ -2325,6 +2429,7 @@ function draw(t, c = ctx) {
       c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore();
     }
   }
+  drawReach(c, s);
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
   if (pkDrag && c === ctx) drawPkDrop(c, s);
   if (selection && ((selection.obj && plan.objs.has(selection.obj.id)) || (selection.rug && plan.rugs.has(selection.rug.id)))) { const ob = selection.obj || selection.rug; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
@@ -2340,6 +2445,7 @@ function draw(t, c = ctx) {
       if ((terr || rug) && s >= 18 && lz <= ZMAX && lz >= ZMIN) lvBadge(c, lz, view.px + hx * s, view.py + hy * s, s);
       if (chk && ((chk.gone && chk.gone.length) || (chk.goneT && chk.goneT.length))) { c.globalAlpha = 0.3; c.fillStyle = theme.bad; for (const q of chk.gone) for (let y = Math.max(q.y, hy); y < Math.min(q.y + q.h, hy + ph); y++) for (let x = Math.max(q.x, hx); x < Math.min(q.x + q.w, hx + pw); x++) c.fillRect(view.px + x * s, view.py + y * s, s, s); for (const [k] of chk.goneT) c.fillRect(view.px + (k % plan.w) * s, view.py + ((k / plan.w) | 0) * s, s, s); c.globalAlpha = 1; }
       c.strokeStyle = ok ? theme.accent : theme.bad; c.lineWidth = 2; c.strokeRect(view.px + hx * s, view.py + hy * s, fw * s, fh * s);
+      if (hasReach(it) && !terr && !rug && lz <= ZMAX && lz >= ZMIN) { const R = reachOf({ i: it.i, x: hx, y: hy, w: pw, h: ph, z: lz, r: placeR }); if (R) drawReachShape(c, s, R, true); }
     } else if (tool === 'move' && moving && inB(plan, hx, hy)) { if (moving.grp) { const [ox, oy] = grpMoveOrigin(moving, hx, hy); drawSnapPreview(c, s, moving.sn, snapPlanAt(moving.sn, ox, oy, true), moving.F); } else drawMovePreview(c, s, moving, fitMove(moving, hx, hy, 0, 0)); }
     else if (tool === 'paste' && clip && inB(plan, hx, hy)) drawSnapPreview(c, s, clip, snapPlanAt(clip, hx, hy, false), null);
     else if (tool === 'stamp' && inB(plan, hx, hy)) {
@@ -2607,9 +2713,22 @@ $('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, 0.15, 
 $('#zfit').onclick = () => mapView.fit(true);
 $('#zturn').onclick = (e) => turn3d(e.shiftKey ? -1 : 1);
 $('#ztilt').onclick = tilt3d;
-function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); $('#zarea').setAttribute('aria-pressed', v ? 'true' : 'false'); requestDraw(); }
+function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); sysSync(); requestDraw(); }
+const SYS = [
+  ['areas', 'Active areas', 'The dotted line around each home: everything inside it counts for that home.', 'A', () => showAreas, v => setShowAreas(v)],
+  ['reach', 'Reach', 'How far sprinklers, Smooth Rocks, switches, sensors and power reach. A selected one always shows it.', '', () => showReach, v => setShowReach(v)]
+];
+function sysSync() { const b = $('#zsys'), m = $('#sysmenu'); if (b) b.setAttribute('aria-pressed', SYS.some(x => x[4]()) ? 'true' : 'false'); if (m) for (const e of m.querySelectorAll('.mi')) { const x = SYS.find(q => q[0] === e.dataset.k); if (x) e.setAttribute('aria-checked', x[4]() ? 'true' : 'false'); } }
+function sysRender() {
+  const m = $('#sysmenu'); m.textContent = '';
+  m.append(h('div', { class: 'shd' }, 'Show on the map'));
+  for (const [k, name, ds, key, get, set] of SYS) m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemcheckbox', 'aria-checked': get() ? 'true' : 'false', 'data-k': k, onclick: () => set(!get()) }, h('span', { class: 'ck' }), h('span', null, h('span', { class: 'mt' }, name, key ? h('kbd', null, key) : ''), h('span', { class: 'md' }, ds))));
+}
+function sysOpen(open) { const m = $('#sysmenu'), b = $('#zsys'); if (open == null) open = m.hidden; if (open === !m.hidden) return; m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { sysRender(); const f = m.querySelector('.mi'); if (f) f.focus(); } }
+function toggleAreas() { setShowAreas(!showAreas); toast(showAreas ? 'Active areas shown' : 'Active areas hidden'); }
 $('#zlayers').onclick = () => openLayers();
-$('#zarea').onclick = () => { setShowAreas(!showAreas); toast(showAreas ? 'Active areas shown' : 'Active areas hidden'); };
+$('#zsys').onclick = () => sysOpen();
+addEventListener('pointerdown', e => { const m = $('#sysmenu'); if (m && !m.hidden && !e.target.closest('.sysw')) sysOpen(false); }, true);
 $$('.tbtn[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 $('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
 addEventListener('keydown', e => {
@@ -2617,6 +2736,7 @@ addEventListener('keydown', e => {
   if (RV.on) { rvKey(e); return; }
   if (IED.ob) { iedKey(e); return; }
   if (e.target.matches('input, textarea, select')) return;
+  if (e.key === 'Escape' && !$('#sysmenu').hidden) { sysOpen(false); $('#zsys').focus(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (e.key === ' ') { spaceDown = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
@@ -2629,7 +2749,8 @@ addEventListener('keydown', e => {
   if (e.key.startsWith('Arrow') && G0 && !ctl && !e.altKey) { e.preventDefault(); const st = e.shiftKey ? 5 : 1; grpRun(G0, { dx: e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy: e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0 }); return; }
   const map = { h: 'pan', b: 'place', r: 'rect', e: 'erase', v: 'select', z: 'zone', i: 'pick' };
   if (map[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) setTool(map[e.key.toLowerCase()]);
-  if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) $('#zarea').click();
+  if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) toggleAreas();
+  if (kl === 's' && !ctl && !e.altKey) sysOpen();
   if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey) openLayers();
   if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); setLayerZ((layerZ == null ? 0 : layerZ) + (e.key === 'PageUp' ? 1 : -1)); toast('Working on level ' + lvNum(layerZ), 2400, null, 'level'); }
   if (e.key === '[') { brush = Math.max(1, brush - 1); renderOptbar(); }
@@ -2641,8 +2762,11 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; cv.style.cursor = ''; } });
 
+let probChip = null;
 function updateStatus() {
-  const st = $('#status'); st.textContent = '';
+  const st = $('#status'); st.textContent = ''; st.hidden = !S.status && !PROBS.length;
+  if (PROBS.length) { const t = PROBS.length === 1 ? '1 problem' : PROBS.length + ' problems'; if (!probChip) probChip = h('button', { class: 'chip warn act', type: 'button', onclick: showProblems }); probChip.textContent = '⚠ ' + t; probChip.setAttribute('aria-label', t + ': see what\'s wrong'); probChip.setAttribute('data-tip', t); st.append(probChip); }
+  if (!S.status) return;
   if (hover && plan && inB(plan, hover[0], hover[1])) {
     const k = hover[1] * plan.w + hover[0], pile = shownStack(k), tz = topTerrShown(k), tv = tz == null ? 0 : terrAt(plan, k, tz), rg0 = rugAt(hover[0], hover[1]), top = pickTop(pile[pile.length - 1], tz, rg0), ob = top && top !== 'terr' && !top.rug ? top : null;
     st.append(h('span', { class: 'chip' }, hover[0] + ', ' + hover[1] + (tz != null && tz !== 0 ? ' · ground ' + lvTxt(tz) : '')));
@@ -3108,6 +3232,7 @@ function showObjInspector(ob) {
     if (it.wk) facts.append(h('span', { class: 'req', 'data-tip': 'Pokémon needed to build it' }, 'Builders ' + it.wk));
     box.append(facts);
   }
+  const how = howItWorks(it); if (how.length) box.append(h('div', { class: 'note', style: 'margin-top:6px' }, how.join(' ')));
   if (it.cap) { box.append(residentsSection(kitHome(ob))); box.append(boxLine('kit:' + ob.id)); }
   if (isBox(it)) boxInspector(ob, box);
   const groups = GROUP_OF.get(it.i) || [];
@@ -3897,6 +4022,7 @@ function showItemInfo(it) {
     const groups = GROUP_OF.get(it.i); if (groups) box.append(h('p', { class: 'note' }, 'Counts as: ' + groups.join(', ')));
     if (it.fv) { const fans = PK.filter(p => (p.fv || []).some(f => it.fv.includes(f))).length; box.append(h('p', { class: 'note' }, 'Favourite kind: ' + it.fv.map(f => FAVS[f]).join(', ') + (it.tg ? ' · ' + it.tg : '') + ' · liked by ' + fans)); }
     if (envFx(it)) box.append(h('p', { class: 'note' }, envFxText(it)));
+    for (const t of howItWorks(it)) box.append(h('p', { class: 'note' }, t));
     const used = USED_IN.get(it.i);
     if (used && used.length) { box.append(h('h4', null, 'In habitats (' + used.length + ')')); const l = h('div', { class: 'mons' }); used.forEach((id, k) => { const hb = HAB_BY_ID.get(id); l.append(h('button', { onclick: () => { closeModal(); openHabitat(id); } }, hb.n), k < used.length - 1 ? ', ' : ''); }); box.append(l); }
   }, 'Place it', () => { selectItem(it.n); if (innerWidth < 900) setSheet('peek'); });
@@ -3933,13 +4059,21 @@ function renderMaterials() {
   if (proc.length) {
     root.append(h('h4', null, 'Processing jobs'));
     const l = h('div', { class: 'list' });
-    for (const [m, q] of proc) { const [rawm, k] = DATA.process[m]; l.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, fmt(Math.ceil(q)) + ' ' + m), h('span', { class: 'spec', style: 'margin-left:auto' }, SPEC_FOR_MAT[m] || '')), h('div', { class: 'note' }, 'Give ' + fmt(Math.ceil(q * k)) + ' ' + rawm + ' · ' + (MAT_BY_NAME.get(m) ? MAT_BY_NAME.get(m).g : '')))); }
+    for (const [m, q] of proc) { const [rawm, k, alt] = DATA.process[m]; l.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, fmt(Math.ceil(q)) + ' ' + m), h('span', { class: 'spec', style: 'margin-left:auto' }, SPEC_FOR_MAT[m] || '')), h('div', { class: 'note' }, 'Give ' + fmt(Math.ceil(q * k)) + ' ' + (alt && alt.length ? [rawm, ...alt].slice(0, -1).join(', ') + ' or ' + alt[alt.length - 1] : rawm) + ' · ' + (MAT_BY_NAME.get(m) ? MAT_BY_NAME.get(m).g : '')))); }
     root.append(l);
   }
   if (t.gather.size) {
     root.append(h('h4', null, 'Gather, plant & find'));
     const tb = h('tbody'); for (const [n, q] of [...t.gather.entries()].sort((a, b) => b[1] - a[1])) { const it = BY_NAME.get(n); tb.append(h('tr', null, h('td', null, h('div', { style: 'display:flex;gap:8px;align-items:center' }, swatchEl(it), h('span', null, n))), h('td', null, fmt(q)))); }
     root.append(h('table', { class: 'mats' }, h('thead', null, h('tr', null, h('th', null, 'Item'), h('th', null, 'Count'))), tb));
+  }
+  const lim = limitRows().filter(r => r.n > 0);
+  root.append(h('h4', { class: 'hrow' }, 'Limits', tipBtn('The game caps how many of these one area can hold. Items inside kit houses count too.')));
+  if (!lim.length) root.append(h('p', { class: 'empty' }, 'Nothing here has a cap'));
+  else {
+    const tb = h('tbody');
+    for (const r of lim) { const over = r.n > r.cap, near = !over && r.n >= r.cap * 0.9; tb.append(h('tr', null, h('td', null, h('div', { class: 'hrow', style: 'font-weight:700' }, r.label, tipBtn(r.tip))), h('td', { style: over ? 'color:var(--bad);font-weight:700' : near ? 'color:var(--warn);font-weight:700' : '' }, fmt(r.n)), h('td', null, fmt(r.cap)), h('td', over ? { style: 'color:var(--bad);font-weight:700' } : { class: 'left0' }, over ? '⚠ ' + fmt(r.n - r.cap) + ' over' : '✓'))); }
+    root.append(h('table', { class: 'mats' }, h('thead', null, h('tr', null, h('th', null, 'What'), h('th', null, 'Here'), h('th', null, 'Cap'), h('th', null, ''))), tb));
   }
 }
 function materialsText(t) { const lines = ['Pokopia plan: ' + plan.name + ' (' + plan.area + ')', '']; for (const [m, q] of [...t.need.entries()].sort((a, b) => b[1] - a[1])) { const have = +(plan.inv[m] || 0); const left = Math.max(0, Math.ceil(q) - have); lines.push(`${m}: ${Math.ceil(q)}${have ? ` (have ${have}, need ${left} more)` : ''}`); } if (t.gather.size) { lines.push('', 'Gather / plant:'); for (const [n, q] of t.gather) lines.push(`${n}: ${q}`); } return lines.join('\n'); }
@@ -4414,7 +4548,7 @@ function deletePlanDialog(id) {
 
 const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['data', 'Data', 'list']];
 const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
-const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map: active areas and reach'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
 let setsBack = null, setsAfter = null, setsWant = null;
 const setsOpen = () => !$('#sets').hidden;
 function applyLook() { pokopiaLook(S); readTheme(); }
@@ -4424,7 +4558,7 @@ function setPref(k, v) {
   S[k] = v; savePrefs();
   if (['theme', 'accent', 'motion', 'side', 'width'].includes(k)) applyLook();
   if (k === 'tool' && ['pan', 'select'].includes(tool)) setTool(v);
-  if (k === 'status') $('#status').hidden = !v;
+  if (k === 'status') updateStatus();
   if (k === 'map3d') { if (v) enter3d(); else leave3d(); }
   if (k === 'tips' && !v) tipHide();
   if (k === 'offline') { if (v) fillPictures(); else picFill.force = false; picUI(); setsPics(); }
@@ -4481,7 +4615,7 @@ function renderSettings() {
     row('Pictures on the map', 'Item and terrain pictures from the game. Off draws simple shapes and colours, which is quicker on older phones.', sw('pics', 'Pictures on the map')),
     row('Portraits on homes', 'Faces of the Pokémon living in each house and kit home.', sw('faces', 'Portraits on homes')),
     row('Labels on zones and houses', 'The name and status above each zone and each house you built.', sw('labels', 'Labels on zones and houses')),
-    row('Every home\'s active area', 'The dotted line 4 tiles around each home. The dotted button by the zoom controls, or A, does the same.', sw(null, 'Every home\'s active area', () => showAreas, v => setShowAreas(v))),
+    row('Every home\'s active area', 'The dotted line 4 tiles around each home. Show on the map, by the zoom controls, or A, does the same.', sw(null, 'Every home\'s active area', () => showAreas, v => setShowAreas(v))),
     row('Info at the bottom of the map', 'Tile position, what\'s under the pointer and the zoom level.', sw('status', 'Info at the bottom of the map')));
   sec('controls',
     row('Default tool', 'The tool when the app opens, and after you finish stamping, pasting or moving. Pan: dragging moves the map and a tap shows details. Select: dragging moves items or selects an area.', seg('tool', [['pan', 'Pan'], ['select', 'Select']], 'Default tool')),
@@ -4528,7 +4662,7 @@ async function setsStore() {
 }
 function resetSettingsDialog() {
   modal('Reset settings?', (box) => box.append(h('p', { class: 'sub' }, 'Every setting goes back as it was at the start. Your plans stay as they are.')), 'Reset', () => {
-    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); enter3d(); setShowAreas(false); $('#status').hidden = !S.status; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast('Settings reset');
+    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); enter3d(); setShowAreas(false); $('#status').hidden = !S.status && !PROBS.length; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast('Settings reset');
   }, true);
 }
 $('#setBtn').onclick = () => openSettings();
@@ -5182,7 +5316,7 @@ async function boot() {
   if (!p && plansIndex.length) p = readLocalPlan(plansIndex[plansIndex.length - 1].id);
   if (!p) { p = makeExample(); exampleUntouched = true; LS.set(LSK + 'example', p.id + ':' + p.updated); }
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
-  selectItem('Field grass', false); setTool(S.tool); setShowAreas(showAreas); $('#status').hidden = !S.status;
+  selectItem('Field grass', false); setTool(S.tool); setShowAreas(showAreas); $('#status').hidden = !S.status && !PROBS.length;
   { const was = LS.get(LSK + '3d'); if (was != null) { if (was === '0' && S.map3d) { S.map3d = false; savePrefs(); } LS.del(LSK + '3d'); } }
   if (S.map3d) enter3d(true); else { hold2d = false; requestDraw(); }
   { const want = location.hash.slice(1), last = LS.get(LSK + 'tab'); showTab(VALID_TABS.includes(want) ? want : S.start === 'last' && VALID_TABS.includes(last) ? last : 'build', true); }
