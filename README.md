@@ -104,6 +104,17 @@ While you pan, zoom or turn, the 3D view draws at a lower resolution to stay smo
 
 **The flat map.** Turn off **3D view** in Settings → Map to use the flat map instead, with height shading and level numbers. Its Save picture is the flat plan. The planner also uses the flat map on its own when the browser doesn't have WebGL 2 (Chrome and Edge do), or when the browser stops the 3D view. A notice then offers **Try 3D again**. Each device remembers how the 3D view was tilted.
 
+## Reviewing items
+
+Open **…/pokopia-planner/#review** to check every item's 3D model against its game picture. Items are grouped by kind, and each card shows the picture, the model on its footprint, and its size; dashed sizes are guesses.
+
+- **Scroll past the ones that look right.** A card on screen for a moment counts as seen and loses its dot. The counters show how many are seen, flagged and changed.
+- **Tap one that's wrong.** Set the right width, length and height, pick the main and second colour by tapping the picture, and say what's wrong with the shape. The model on the right shows the new size and colours, and you can drag it to turn it. Changes save as you go. **‹ ›** (or the arrow keys) move to the next item.
+- **Send** lists the flagged items, ready to share into the Claude app on Android or to copy and paste on Windows. Items already sent are marked, and the next Send covers only new and edited ones.
+- After a fix, the item shows **Changed**. Open it and tap **It's fixed**, or say what's still wrong.
+
+Your review syncs with your other devices, like plans.
+
 ## Pokémon and homes
 
 Every Pokémon has its picture from the game, the 3D model the Pokédex shows. The planner uses one of three sizes, depending on the room:
@@ -173,7 +184,7 @@ Fires count only when lit by a Burn Pokémon; the cooking stove and the Magby st
 
 ## Sync between devices
 
-Plans → **Sync between devices** → **Sign in with Google**, once on each device. Plans and item sizes then stay the same everywhere: changes show up on your other devices within seconds, and edits made offline are sent when the device is back online. Each device keeps its own copy too, so the planner works the same without internet.
+Plans → **Sync between devices** → **Sign in with Google**, once on each device. Plans, item sizes and item reviews then stay the same everywhere: changes show up on your other devices within seconds, and edits made offline are sent when the device is back online. Each device keeps its own copy too, so the planner works the same without internet.
 
 The plans are stored in Firestore, in the free Firebase project GM Companion already uses (`my-gm-companion`), under `users/<you>/pokopiaPlans` and `users/<you>/pokopiaMeta`, apart from GM Companion's data; its existing rules let only you read and write them. One-time step: Firebase console → Authentication → Settings → Authorized domains → add `adamspecial.github.io`.
 
