@@ -120,10 +120,11 @@ void main() {
   const cc = document.createElement('canvas').getContext('2d');
   function rgba(c, a = 1) { if (typeof c === 'string' && c.length === 7 && c[0] === '#') { const n = parseInt(c.slice(1), 16); if (n === n) return ((n >> 16 & 255) | (n & 0xff00) | (n & 255) << 16 | Math.round(a * 255) << 24) >>> 0; } cc.fillStyle = '#000'; cc.fillStyle = c || '#888'; const s = cc.fillStyle; let r, g, b; if (s[0] === '#') { r = parseInt(s.slice(1, 3), 16); g = parseInt(s.slice(3, 5), 16); b = parseInt(s.slice(5, 7), 16); } else { const m = s.match(/[\d.]+/g) || [0, 0, 0]; r = +m[0]; g = +m[1]; b = +m[2]; } return (r | g << 8 | b << 16 | Math.round(a * 255) << 24) >>> 0; }
   const bytes = (u) => [(u & 255) / 255, (u >> 8 & 255) / 255, (u >> 16 & 255) / 255];
+  const PILLAR = /^(?!Wooden|Stone).*pillar \((upper|middle|lower)\)$|^Iron pillar$/i;
   const NI = ITEMS.length, SOLID = new Uint8Array(NI), LIQ = new Uint8Array(NI), COL = new Uint32Array(NI), COLB = new Uint32Array(NI), FLOOR = new Uint8Array(NI);
   for (const it of ITEMS) {
     const i = it.i, liq = it.L === 'g' && /water|^lava$/i.test(it.n);
-    LIQ[i] = liq ? 1 : 0; FLOOR[i] = it.L === 'g' && !isRug(it) ? 1 : 0; SOLID[i] = it.L !== 'g' && isWall(it) && !inWall(it) && !fenceLike(it) ? 1 : 0;
+    LIQ[i] = liq ? 1 : 0; FLOOR[i] = it.L === 'g' && !isRug(it) ? 1 : 0; SOLID[i] = it.L !== 'g' && isWall(it) && !inWall(it) && !fenceLike(it) && !PILLAR.test(it.n) ? 1 : 0;
     const base = FLOOR[i] ? picsFor(it)[2] || it.col : it.look ? it.look.a : it.col;
     COL[i] = rgba(base, liq ? 0.72 : 1); COLB[i] = rgba(it.look && it.look.b ? it.look.b : shade(base, -0.25));
   }
@@ -528,14 +529,14 @@ void main() {
     toolbox: 'ba,14,30,86,70,0,46 bb,30,46,70,54,46,62',
     tower: 'ba,30,14,70,86,0,90 bb,32,86,68,87,20,80',
     transmitter: 'ba,14,14,86,86,0,70 bs,13,13,87,87,16,26',
-    tree: 'ct,50,50,12,0,46,9 sa,50,50,64,34,100',
+    tree: 'ct,50,50,14,0,40,10 sa,50,50,80,34,94 sb,50,136,14,50,68 sb,6,114,14,58,76 sb,136,50,14,54,72',
     tv: 'bb,6,40,94,84,0,26 bb,10,46,90,60,26,90 ba,14,60,86,61,30,86',
     ufo: 'ca,50,50,30,10,30,46 ca,50,50,46,30,50,30 sg,50,50,24,46,90 Lk,24,24,76,76,5,0,20',
     uplog: 'ca,50,50,34,0,100',
     vane: 'ca,50,50,4,0,92 ba,22,48,78,52,82,88 da,50,50,8,88,100',
     vase: 'ca,50,50,16,0,50,10 cn,50,50,2,50,74 cb,50,50,13,74,82',
     vending: 'bb,8,20,92,92,0,100 ba,14,92,62,94,40,92 bk,68,92,84,94,40,70',
-    vine: 'Pa,4,0,96,8,10,96',
+    vine: 'ta,50,50,8,0,100,0,0 sa,36,40,12,40,62 sa,62,56,12,58,80 sa,44,62,10,20,40',
     wagon: '!w ba,8,14,92,86,24,60 zk,4,14,20,22,22 zk,86,96,20,22,22 zk,4,14,80,22,22 zk,86,96,80,22,22 bb,92,46,100,54,30,34',
     wallclock: 'zb,0,5,50,36,62 za,5,7,50,30,62 bk,49,7,51,8,60,82',
     washer: 'ba,8,10,92,92,0,90 zk,92,94,50,28,44 zg,93,95,50,22,44',
@@ -573,6 +574,10 @@ void main() {
     paperlantern: 'sa,50,50,32,10,80 cb,50,50,10,80,86 cb,50,50,10,4,10',
     candle: 'cb,50,50,22,0,8 ca,50,50,10,8,52 to,50,50,6,52,74,0,0',
     figurelamp: 'cb,50,50,24,0,8 sa,50,50,32,8,72',
+    grassbush: 'ca,50,50,34,0,26,22 ta,32,36,10,10,70,-10,-8 ta,66,34,10,10,74,10,-8 ta,50,66,10,10,68,0,12 ta,50,46,10,10,80,0,0',
+    pillarlow: 'ca,50,50,46,0,18 ca,50,50,36,18,100',
+    pillarmid: 'ca,50,50,36,0,100',
+    pillartop: 'ca,50,50,36,0,82 ca,50,50,46,82,100',
   };
   const ALIAS = { arrowleft: 'arrowsign' };
   const WALLM = { storage: 'wstorage', table: 'wtable', mirror: 'wmirror', lamp: 'wlamp', switch: 'wswitch', gem: 'wdeco', star: 'wdeco', frame: 'wframe', clock: 'wallclock' };
@@ -583,8 +588,6 @@ void main() {
     'White driftwood': 'log',
     'Large ventilation fan': 'ventfan',
     'Pumpkin lantern tower': 'pumptower',
-    'Iron pipe (downward T)': 'pipeupt',
-    'Arch bridge': 'planks',
     'Antique closet': 'closet',
     'Marine closet': 'closet',
     'Plain closet': 'closet',
@@ -659,6 +662,24 @@ void main() {
     'Painting (landscape)': 'easel',
     'Painting (portrait)': 'easel',
     'Painting (still life)': 'easel',
+    'Dry tall grass': 'grassbush',
+    'Pink tall grass': 'grassbush',
+    'Red tall grass': 'grassbush',
+    'Seabed tall grass': 'grassbush',
+    'Tall grass': 'grassbush',
+    'Yellow tall grass': 'grassbush',
+    'Seagrape stalk': 'vine',
+    'Twisty waterweed': 'vine',
+    'Vine': 'vine',
+    'Extravagant pillar (upper)': 'pillartop',
+    'Extravagant pillar (middle)': 'pillarmid',
+    'Extravagant pillar (lower)': 'pillarlow',
+    'Round pillar (upper)': 'pillartop',
+    'Round pillar (middle)': 'pillarmid',
+    'Round pillar (lower)': 'pillarlow',
+    'Twisty pillar (upper)': 'pillartop',
+    'Twisty pillar (middle)': 'pillarmid',
+    'Twisty pillar (lower)': 'pillarlow',
   };
   const ITEMM = {
     'Berry bed': 'cb,50,50,48,0,12 ca,50,50,42,12,32 cn,50,30,4,32,40',
@@ -747,16 +768,37 @@ void main() {
     'Colorful corals': 'sa,34,40,20,0,44 sb,66,56,20,0,40 sl,46,70,16,0,32',
     'Small coral': 'cd,50,50,10,0,30 ca,50,50,40,30,40,46',
     'Wheat field': 'bi,2,2,98,98,0,8 ta,22,22,10,8,78,0,0 ta,50,22,10,8,84,0,0 ta,78,22,10,8,78,0,0 ta,22,50,10,8,82,0,0 ta,50,50,10,8,88,0,0 ta,78,50,10,8,82,0,0 ta,22,78,10,8,78,0,0 ta,50,78,10,8,84,0,0 ta,78,78,10,8,78,0,0',
+    'Dense vines': 'sa,50,50,40,0,80 sl,36,40,12,50,74 sl,62,62,12,40,66',
+    'Lush seaweed': 'ta,40,44,12,0,96,-6,0 ta,60,56,12,0,84,6,0',
+    'Fern': 'ta,36,40,12,0,90,-10,-6 ta,64,58,10,0,70,10,6',
+    'Crystal cluster': 'ta,50,50,14,0,96,0,0 ta,32,56,12,0,64,-14,4 ta,68,44,12,0,70,14,-4 ta,46,30,10,0,56,-4,-14',
+    'Icicle': 'ta,40,44,14,0,90,0,0 ta,64,56,12,0,66,0,0 ta,32,66,10,0,46,0,0',
+    'Chimney rocks': 'ta,40,44,16,0,96,0,0 ta,66,60,14,0,70,0,0 ta,30,70,12,0,50,0,0',
+    'Stalactites': 'ta,38,44,16,0,96,0,0 ta,64,56,14,0,70,0,0',
+    'Stalagmites': 'ta,38,44,16,0,100,0,0 ta,66,58,14,0,70,0,0',
+    'Smooth rock': 'sa,50,52,40,-10,60',
+    'Harbor pole': 'cb,50,50,14,0,86 ca,50,50,16,86,100',
+    'Iron pipe (downward curve)': 'ca,50,50,16,0,50 xa,50,100,50,16,50',
+    'Iron pipe (downward T)': 'xa,0,100,50,16,50 ca,50,50,16,0,50',
+    'Iron pipe (upward T)': 'xa,0,100,50,16,50 ca,50,50,16,50,100',
+    'Arch bridge': 'ba,0,0,100,100,64,100 ba,0,0,30,100,0,64',
+    'Walkway': 'ba,0,4,100,30,84,100 ba,0,36,100,64,84,100 ba,0,70,100,96,84,100 ba,40,40,60,60,0,84',
+    'Iron pillar': 'ca,50,50,30,0,10 ca,50,50,12,10,90 ca,50,50,30,90,100',
+    'City den kit': 'sb,50,50,48,-50,64 bi,38,90,62,98,0,38',
+    'Leaf den kit': 'sb,50,50,48,-50,64 bi,38,90,62,98,0,38',
+    'Sand den kit': 'sb,50,50,48,-50,64 bi,38,90,62,98,0,38',
+    'Stone den kit': 'sb,50,50,48,-50,64 bi,38,90,62,98,0,38',
+    'Sand hut kit': 'sb,50,50,48,-40,56 bi,40,90,60,98,0,26',
   };
   const KITS = {
-    tent: 'sa,50,50,47,-70,78 bk,42,88,58,96,0,40',
+    tent: 'sa,50,50,47,-50,74 bk,42,90,58,97,0,34',
     pokeball: 'cs,50,50,44,0,56 ck,50,50,46,52,60 sa,50,50,44,20,100 zs,92,98,50,8,56 bk,44,90,56,96,0,30',
     sub: '!w xa,22,78,50,38,46 sa,22,50,38,-2,94 sa,78,50,38,-2,94 ba,42,38,58,62,80,100',
-    windmill: 'ca,50,50,42,0,70,30 cb,50,50,34,70,86,0 bs,44,88,56,94,36,100 bs,6,88,94,94,62,74',
+    windmill: 'ca,50,50,42,0,70,30 cb,50,50,34,70,86,0 bw,40,90,60,96,30,100 bw,0,90,100,96,58,72',
     wheel: 'ba,46,14,96,86,0,60 kb,42,10,100,90,60,92 xb,8,22,50,46,46 xk,6,24,50,12,46',
     furnace: 'bc,6,6,94,94,0,70 bk,30,94,70,96,8,44 bb,34,95,66,97,10,30 ca,70,30,12,70,100',
-    charger: 'bm,10,10,90,90,0,8 ba,30,30,70,70,8,90 by,34,70,66,71,40,80',
-    clocktower: 'ba,12,12,88,88,0,78 kb,6,6,94,94,78,100 zs,88,90,50,22,66 zk,90,91,50,4,66',
+    charger: 'ba,6,10,94,90,0,24 by,16,22,84,78,24,26 bb,6,70,94,90,24,40',
+    clocktower: 'ba,14,14,86,86,0,12 ca,50,50,22,12,84 zs,72,74,50,16,70 ca,50,50,26,84,90 cb,50,50,18,90,100,0',
     statue: 'bc,10,10,90,90,0,26 sa,50,50,30,26,80 sa,50,50,20,70,100',
     stage: 'ba,0,0,100,100,0,26 bb,2,0,98,8,26,100 bk,0,0,4,24,26,100 bk,96,0,100,24,26,100',
     park: 'bn,0,0,100,100,0,4 bc,0,46,100,54,4,6 ct,20,24,3,4,60 sn,20,24,12,40,100 ct,78,72,3,4,60 sn,78,72,12,40,100 bw,40,30,64,38,4,30',
@@ -816,9 +858,9 @@ void main() {
     }
   }
   function house(B, BT, ob, it, k) {
-    const T = tones(ob.i), t = FR.t, bh = Math.max(0.8, t * 0.55), iu = 0.1 / FR.mw, iv = 0.1 / FR.mh, Y = (y) => y / t;
+    const T = tones(ob.i), t = FR.t, flat = k === 'office' || k === 'shop', bh = flat ? Math.max(0.8, t - 0.3) : Math.max(0.8, t * 0.55), iu = 0.1 / FR.mw, iv = 0.1 / FR.mh, Y = (y) => y / t;
     abox(B, iu, iv, 1 - iu, 1 - iv, 0, Y(bh), T.a, 255, 0);
-    { const e = 0.02, xa = WX(e / FR.mw, e / FR.mh), za = WZ(e / FR.mw, e / FR.mh), xb = WX(1 - e / FR.mw, 1 - e / FR.mh), zb = WZ(1 - e / FR.mw, 1 - e / FR.mh); hip(B, Math.min(xa, xb), FR.y0 + bh, Math.min(za, zb), Math.max(xa, xb), FR.y0 + t - 0.02, Math.max(za, zb), T.b); }
+    if (flat) abox(B, 0.02 / FR.mw, 0.02 / FR.mh, 1 - 0.02 / FR.mw, 1 - 0.02 / FR.mh, Y(bh), 1, T.b, 255, 0); else { const e = 0.02, xa = WX(e / FR.mw, e / FR.mh), za = WZ(e / FR.mw, e / FR.mh), xb = WX(1 - e / FR.mw, 1 - e / FR.mh), zb = WZ(1 - e / FR.mw, 1 - e / FR.mh); hip(B, Math.min(xa, xb), FR.y0 + bh, Math.min(za, zb), Math.max(xa, xb), FR.y0 + t - 0.02, Math.max(za, zb), T.b); }
     const dw = Math.min(0.9, FR.mw * 0.3) / FR.mw, dh = Math.min(bh * 0.8, 1.5), fv = 1 - iv, th = 0.04 / FR.mh;
     abox(B, 0.5 - dw / 2, fv - th / 2, 0.5 + dw / 2, fv + th, 0, Y(dh), PAL.i, 255, 0);
     if (FR.mw >= 3 && bh >= 1) { const ww = Math.min(0.7, FR.mw * 0.14) / FR.mw, y0 = Y(Math.min(bh * 0.4, 0.6)), y1 = Y(Math.min(bh * 0.8, 1.3)); for (const u of [0.22, 0.78]) abox(B, u - ww / 2, fv - th / 2, u + ww / 2, fv + th, y0, y1, PAL.v, 255, 0); }
@@ -828,8 +870,11 @@ void main() {
     if (isDoor(it) || isWindow(it)) {
       const nb = structAround([ob.x, ob.y, ob.w, ob.h, z]), hz = ob.w !== ob.h ? ob.w > ob.h : !!(nb.w || nb.e) || !(nb.n || nb.s), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, th = isDoor(it) ? 0.1 : 0.06;
       const sx0 = hz ? x0 : cx - th, sx1 = hz ? x1 : cx + th, sz0 = hz ? cz - th : z0, sz1 = hz ? cz + th : z1, top = z + t;
-      if (isDoor(it)) { box(B, sx0, z, sz0, sx1, top - 0.04, sz1, a); return; }
-      box(B, x0, z, z0, x1, z + 0.25, z1, a); box(B, x0, top - 0.15, z0, x1, top, z1, a); box(BT, sx0, z + 0.25, sz0, sx1, top - 0.15, sz1, GLASS); return;
+      if (isDoor(it)) { box(B, sx0, z, sz0, sx1, top - 0.04, sz1, a); const kx = hz ? x0 + (x1 - x0) * 0.78 : cx, kz = hz ? cz : z0 + (z1 - z0) * 0.78, ky = z + Math.min(0.5, t * 0.45); box(B, hz ? kx - 0.04 : sx0 - 0.03, ky, hz ? sz0 - 0.03 : kz - 0.04, hz ? kx + 0.04 : sx1 + 0.03, ky + 0.08, hz ? sz1 + 0.03 : kz + 0.04, PAL.k); return; }
+      const fw = 0.12, ft = 0.1, gx0 = hz ? x0 + fw : sx0, gx1 = hz ? x1 - fw : sx1, gz0 = hz ? sz0 : z0 + fw, gz1 = hz ? sz1 : z1 - fw;
+      box(B, sx0, z + 0.12, sz0, sx1, z + 0.12 + ft, sz1, a); box(B, sx0, top - ft, sz0, sx1, top, sz1, a);
+      if (hz) { box(B, x0, z + 0.12 + ft, sz0, gx0, top - ft, sz1, a); box(B, gx1, z + 0.12 + ft, sz0, x1, top - ft, sz1, a); } else { box(B, sx0, z + 0.12 + ft, z0, sx1, top - ft, gz0, a); box(B, sx0, z + 0.12 + ft, gz1, sx1, top - ft, z1, a); }
+      box(BT, gx0, z + 0.12 + ft, gz0, gx1, top - ft, gz1, GLASS); return;
     }
     if (fenceLike(it)) {
       const nb = structAround([ob.x, ob.y, ob.w, ob.h, z]), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = 0.05, y0 = z + 0.3, y1 = z + 0.72;
