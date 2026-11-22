@@ -627,7 +627,6 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
       <div class="zoomctl">
         <button class="iconbtn" id="zlayers" aria-label="Layers (L)" data-tip="Layers (L)"><svg><use href="#i-layers"/></svg></button>
         <button class="iconbtn" id="zarea"aria-pressed="false" aria-label="Show every home's active area" data-tip="Active areas (A)"><svg><use href="#i-area"/></svg></button>
-        <button class="iconbtn" id="z3d" aria-pressed="false" aria-label="3D view (3)" data-tip="3D view (3)"><svg><use href="#i-cube"/></svg></button>
         <button class="iconbtn" id="zturn" hidden aria-label="Turn the view (. or ,)" data-tip="Turn the view (. or ,)"><svg><use href="#i-rotate"/></svg></button>
         <button class="iconbtn" id="ztilt" hidden aria-pressed="false" aria-label="Tilt (T)" data-tip="Tilt (T)"><svg><use href="#i-tilt"/></svg></button>
         <button class="iconbtn" id="zin" aria-label="Zoom in" data-tip="Zoom in"><svg><use href="#i-plus"/></svg></button>
@@ -772,7 +771,7 @@ const LS = {
   del(k) { try { localStorage.removeItem(k); } catch (e) { } },
 };
 const SET_KEY = 'pokopia-planner:settings';
-const SET_DEF = { theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
+const SET_DEF = { map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
 const SET_OPTS = { theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
 let S = Object.assign({}, SET_DEF);
 try { const v = JSON.parse(LS.get(SET_KEY) || 'null'); if (v && typeof v === 'object') for (const k in SET_DEF) if (k in v && (SET_OPTS[k] ? SET_OPTS[k].includes(v[k]) : typeof v[k] === 'boolean')) S[k] = v[k]; } catch (e) { }
@@ -2171,26 +2170,31 @@ const map2d = {
 };
 let mapView = map2d, view3d = null, load3d = null;
 const in3d = () => mapView !== map2d;
-function get3d() {
+function load3dScript() {
   if (!load3d) load3d = new Promise((ok, no) => { if (typeof make3d === 'function') { ok(); return; } const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = () => ok(); s.onerror = () => { load3d = null; s.remove(); no(new Error('load')); }; document.head.append(s); });
-  return load3d.then(() => { if (!view3d) { try { view3d = make3d($('#map3d'), lost3d); } catch (e) { view3d = null; } } return view3d; });
+  return load3d;
+}
+function get3d() {
+  return load3dScript().then(() => { if (!view3d) { try { view3d = make3d($('#map3d'), lost3d); } catch (e) { view3d = null; } } return view3d; });
 }
 async function enter3d(quiet) {
   if (in3d() || !plan) return; let v = null;
   try { v = await get3d(); } catch (e) { if (!quiet) toast('The 3D view couldn\'t load. Check the connection and try again.', 3200); return; }
-  if (!v) { LS.set(LSK + '3d', '0'); if (!quiet) toast('The 3D view needs WebGL 2, which this browser doesn\'t have', 3200); return; }
+  if (!v) { if (!quiet) toast('The 3D view needs WebGL 2, which this browser doesn\'t have', 3200); return; }
   if (in3d() || !plan) return;
-  map2d.stop(); const s = cellSize(); v.enter((W / 2 - view.px) / s, (H / 2 - view.py) / s, view.zoom, LS.get(LSK + '3dtilt') !== '0');
-  mapView = v; LS.set(LSK + '3d', '1'); ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
+  map2d.stop(); const s = cellSize(); v.enter((W / 2 - view.px) / s, (H / 2 - view.py) / s, view.zoom, LS.get(LSK + '3dtilt') === '1');
+  mapView = v; ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
 }
 function leave3d() {
   if (!in3d()) return; const c = view3d.leave(), s = view.cs * c.zoom; view.zoom = c.zoom; view.px = W / 2 - c.cx * s; view.py = H / 2 - c.cy * s;
-  mapView = map2d; LS.set(LSK + '3d', '0'); ui3d(); requestDraw(); updateStatus();
+  mapView = map2d; ui3d(); requestDraw(); updateStatus();
 }
-function lost3d() { const was = in3d(); if (was) leave3d(); view3d = null; const c = $('#map3d'); c.replaceWith(c.cloneNode(false)); if (was) toast('The 3D view stopped. Tap the cube to open it again.', 3200); }
+let gl2 = null;
+const gl2ok = () => gl2 != null ? gl2 : (gl2 = (() => { try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); if (!g) return false; const x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return true; } catch (e) { return false; } })());
+function lost3d() { const was = in3d(); if (was) leave3d(); view3d = null; const c = $('#map3d'); c.replaceWith(c.cloneNode(false)); if (was) toast('The 3D view stopped, so this is the flat map for now', 6000, { label: 'Try 3D again', fn: () => enter3d() }); }
 function tiltUi() { if (!view3d) return; const t = view3d.tilted(), b = $('#ztilt'), tip = t ? 'Look straight down (T)' : 'Tilt (T)'; b.setAttribute('aria-pressed', t ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip); }
 function ui3d() {
-  const on = in3d(), b = $('#z3d'), tip = on ? 'Flat map (3)' : '3D view (3)'; b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip);
+  const on = in3d();
   $('#map3d').hidden = !on; $('#zturn').hidden = !on; $('#ztilt').hidden = !on; if (on) tiltUi();
 }
 function mapOverlay3d(o) {
@@ -3237,7 +3241,6 @@ cv.addEventListener('wheel', e => {
 $('#zin').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() * 1.3, 0.15, 5), W / 2, H / 2, true);
 $('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, 0.15, 5), W / 2, H / 2, true);
 $('#zfit').onclick = () => mapView.fit(true);
-$('#z3d').onclick = () => in3d() ? leave3d() : enter3d();
 $('#zturn').onclick = (e) => turn3d(e.shiftKey ? -1 : 1);
 $('#ztilt').onclick = tilt3d;
 function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); $('#zarea').setAttribute('aria-pressed', v ? 'true' : 'false'); requestDraw(); }
@@ -3253,7 +3256,6 @@ addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (e.key === ' ') { spaceDown = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
   const G0 = plan ? grpOf() : null, ctl = e.ctrlKey || e.metaKey, kl = e.key.toLowerCase(), noText = !String(getSelection ? getSelection() : '');
-  if (!ctl && !e.altKey && e.key === '3') { if (in3d()) leave3d(); else enter3d(); return; }
   if (in3d() && !ctl && !e.altKey) { if (e.key === ',' || e.key === '<') { turn3d(-1); return; } if (e.key === '.' || e.key === '>') { turn3d(1); return; } if (kl === 't') { tilt3d(); return; } }
   if (ctl && kl === 'a' && plan) { e.preventDefault(); grpSelect(boxGroup({ x: 0, y: 0, w: plan.w, h: plan.h })); return; }
   if (ctl && kl === 'c' && G0 && noText) { e.preventDefault(); grpCopy(G0); return; }
@@ -5035,7 +5037,7 @@ function deletePlanDialog(id) {
 
 const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['data', 'Data', 'list']];
 const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
-const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['L', 'Layers'], ['3', 'Flat map or 3D view'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
 let setsBack = null, setsAfter = null, setsWant = null;
 const setsOpen = () => !$('#sets').hidden;
 function applyLook() { pokopiaLook(S); readTheme(); }
@@ -5046,6 +5048,7 @@ function setPref(k, v) {
   if (['theme', 'accent', 'motion', 'side', 'width'].includes(k)) applyLook();
   if (k === 'tool' && ['pan', 'select'].includes(tool)) setTool(v);
   if (k === 'status') $('#status').hidden = !v;
+  if (k === 'map3d') { if (v) enter3d(); else leave3d(); }
   if (k === 'tips' && !v) tipHide();
   if (k === 'offline') { if (v) fillPictures(); else picFill.force = false; picUI(); setsPics(); }
   requestDraw();
@@ -5095,8 +5098,9 @@ function renderSettings() {
     row('Accent colour', 'Buttons, the chosen tool and highlights on the map.', sws),
     row('Animations', 'System follows your device\'s reduce-motion setting. Off also skips the zoom glide, sliding panels and sparkles.', seg('motion', [['system', 'System'], ['on', 'On'], ['off', 'Off']], 'Animations')));
   sec('map',
+    row('3D view', gl2ok() ? 'The map in 3D: turn it, tilt it and see inside houses. It opens looking straight down. Off shows the flat map.' : 'This browser doesn\'t have WebGL 2, so the planner uses the flat map.', gl2ok() ? sw('map3d', '3D view') : ''),
     row('Grid lines', 'Thin lines between tiles, and stronger ones every 8 tiles.', seg('grid', [['all', 'All'], ['blocks', 'Every 8 tiles'], ['off', 'None']], 'Grid lines')),
-    row('Height shading', 'Lighter high ground, darker low ground, shadows below cliffs and level numbers when zoomed in.', sw('shade', 'Height shading')),
+    row('Height shading', 'On the flat map: lighter high ground, darker low ground, shadows below cliffs and level numbers when zoomed in.', sw('shade', 'Height shading')),
     row('Pictures on the map', 'Item and terrain pictures from the game. Off draws simple shapes and colours, which is quicker on older phones.', sw('pics', 'Pictures on the map')),
     row('Portraits on homes', 'Faces of the Pokémon living in each house and kit home.', sw('faces', 'Portraits on homes')),
     row('Labels on zones and houses', 'The name and status above each zone and each house you built.', sw('labels', 'Labels on zones and houses')),
@@ -5147,7 +5151,7 @@ async function setsStore() {
 }
 function resetSettingsDialog() {
   modal('Reset settings?', (box) => box.append(h('p', { class: 'sub' }, 'Every setting goes back as it was at the start. Your plans stay as they are.')), 'Reset', () => {
-    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); setShowAreas(false); $('#status').hidden = !S.status; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast('Settings reset');
+    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); enter3d(); setShowAreas(false); $('#status').hidden = !S.status; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast('Settings reset');
   }, true);
 }
 $('#setBtn').onclick = () => openSettings();
@@ -5231,6 +5235,13 @@ async function exportPNG() {
   const S = clamp(Math.floor(2400 / Math.max(plan.w, plan.h)), 8, 32);
   const urls = [], grounds = new Set(); for (const T of plan.tt) for (const v of T) grounds.add(v); for (const ob of plan.objs.values()) urls.push(picsFor(ITEMS[ob.i])[0]); for (const g of grounds) if (g) urls.push(picsFor(ITEMS[g - 1])[1]);
   await picsReady(urls, 6000);
+  if (in3d()) {
+    const keep = { hover, selection, drag, sp: sparkles.splice(0) }; hover = null; selection = null; drag = null;
+    const c = view3d.snapshot(S, plan.name + ' · ' + plan.area + ' · ' + plan.w + '×' + plan.h); hover = keep.hover; selection = keep.selection; drag = keep.drag; sparkles.push(...keep.sp); requestDraw();
+    if (!c) { toast('Could not make the image'); return; }
+    c.toBlob(async (blob) => { try { await downloads.save({ filename: (plan.name.replace(/[^\w\- ]+/g, '').trim() || 'pokopia-plan') + '.png', data: blob }); toast('Image saved'); } catch (e) { if (e && e.code !== 'declined') toast('Could not save the image (' + (e.code || 'error') + ')'); } }, 'image/png');
+    return;
+  }
   const c = document.createElement('canvas'); c.width = plan.w * S; c.height = plan.h * S + 40; const x = c.getContext('2d');
   const saved = { ...view }; view.px = 0; view.py = 40; view.zoom = S / view.cs;
   const keep = { hover, selection, drag, sp: sparkles.splice(0) }; hover = null; selection = null; drag = null;
@@ -5479,7 +5490,8 @@ function makeExample() {
 }
 function addObjRaw(p, name, x, y) { const it = BY_NAME.get(name); if (!it) return; let w = it.w || 1, hh = it.h || 1; const zAt = (w, hh) => { let m = -Infinity; for (let yy = y; yy < Math.min(p.h, y + hh); yy++) for (let xx = x; xx < Math.min(p.w, x + w); xx++) m = Math.max(m, standZ(yy * p.w + xx, p)); return m === -Infinity ? 1 : m; }; const ok = (w, hh) => fits(p, x, y, w, hh, 0, zAt(w, hh)); if (!ok(w, hh)) { if (it.sg && ok(hh, w)) [w, hh] = [hh, w]; else if (it.sg && ok(1, 1)) w = hh = 1; else return; } const ob = { id: p.nextId++, i: it.i, x, y, w, h: hh }, z = zAt(w, hh), t = heightOf(it, p); if (z) ob.z = z; if (t > 1 && fits(p, x, y, w, hh, 0, z, t)) ob.t = t; p.objs.set(ob.id, ob); stampOcc(p, ob, ob.id); }
 
-const APP_BUILD = '2026-11-22T07:29';
+const APP_BUILD = '2026-11-22T07:41';
+if (S.map3d) load3dScript().catch(() => { });
 let updateWanted = false;
 const swReg = () => 'serviceWorker' in navigator ? navigator.serviceWorker.getRegistration().catch(() => null) : Promise.resolve(null);
 function checkForUpdate() { if (navigator.onLine) swReg().then(r => r && r.update()).catch(() => { }); }
@@ -5520,7 +5532,8 @@ async function boot() {
   if (!p) { p = makeExample(); exampleUntouched = true; LS.set(LSK + 'example', p.id + ':' + p.updated); }
   installPlan(p); if (!LS.get(LSK + 'plan:' + p.id)) persistNow(); else setSave('local');
   selectItem('Field grass', false); setTool(S.tool); setShowAreas(showAreas); $('#status').hidden = !S.status;
-  if (LS.get(LSK + '3d') === '1') enter3d(true);
+  { const was = LS.get(LSK + '3d'); if (was != null) { if (was === '0' && S.map3d) { S.map3d = false; savePrefs(); } LS.del(LSK + '3d'); } }
+  if (S.map3d) enter3d(true);
   { const want = location.hash.slice(1), last = LS.get(LSK + 'tab'); showTab(VALID_TABS.includes(want) ? want : S.start === 'last' && VALID_TABS.includes(last) ? last : 'build', true); }
   if (innerWidth < 900) setSheet('peek');
   initCapabilities();
