@@ -87,7 +87,7 @@ The map is 3D. It opens looking straight down, so it reads like a floor plan, an
 
 Moving around:
 
-- **Tilt** with the tilt button or T, to switch between looking straight down and looking from an angle. With a mouse, drag up and down with the right button to tilt anywhere in between.
+- **Change the view** with the view button or T: from the top, at an angle, or from the side, then back to the top (Shift+T goes the other way). The button shows the view you're in. The side view looks almost level, so you see heights, stacked levels, waterfalls and tall items edge on; taps still work in it. With a mouse, drag up and down with the right button to tilt anywhere in between.
 - **Turn** 45° at a time with the turn button (Shift turns it the other way), or with , and . on a keyboard. On a phone or tablet, twist two fingers; with a mouse, drag sideways with the right button. When you let go, the view settles on the nearest 45°, so it's always square on to the grid or looking along a diagonal.
 - Drag to pan, and pinch or use the wheel to zoom, as on the flat map. Fit, Zoom in and Zoom out work the same way.
 
@@ -103,7 +103,7 @@ While you pan, zoom or turn, the 3D view draws at a lower resolution to stay smo
 
 **Save picture** (the Image button in Plans) saves the plan as you see it in 3D, turned and tilted the same way, with zones, labels and portraits. Selections and previews are left out.
 
-**The flat map.** Turn off **3D view** in Settings → Map to use the flat map instead, with height shading and level numbers. Its Save picture is the flat plan. The planner also uses the flat map on its own when the browser doesn't have WebGL 2 (Chrome and Edge do), or when the browser stops the 3D view. A notice then offers **Try 3D again**. Each device remembers how the 3D view was tilted.
+**The flat map.** Turn off **3D view** in Settings → Map to use the flat map instead, with height shading and level numbers. Its Save picture is the flat plan. The planner also uses the flat map on its own when the browser doesn't have WebGL 2 (Chrome and Edge do), or when the browser stops the 3D view. A notice then offers **Try 3D again**. Each device remembers which view the 3D map was in.
 
 ## Reviewing items
 

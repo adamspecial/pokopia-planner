@@ -1,7 +1,7 @@
 function make3d(canvas, onLost) {
   const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false });
   if (!gl) return null;
-  const CS = 32, PA = 52, TS = 32, NL = 160, ST = 44, DEPTH = 1000, TY = 1, ZMN = 0.15, ZMX = 5;
+  const CS = 32, PA = 52, PS = 10, TS = 32, NL = 160, ST = 44, DEPTH = 1000, TY = 1, ZMN = 0.15, ZMX = 5;
   const VS = `#version 300 es
 layout(location=0) in vec3 p;
 layout(location=1) in vec2 uv;
@@ -1076,6 +1076,7 @@ void main() {
   }
   function rotAbout(c, yaw, gx, gz) { const d = (yaw - c.yaw) * Math.PI / 180, cs = Math.cos(d), sn = Math.sin(d), dx = c.tx - gx, dz = c.tz - gz; c.tx = gx + dx * cs - dz * sn; c.tz = gz + dx * sn + dz * cs; c.yaw = yaw; }
   const snapYaw = (y) => Math.round(y / 45) * 45;
+  const pitchOf = (m) => m === 2 ? PS : m === 1 ? PA : 90, modeOf = (p) => p > 84 ? 0 : p < (PA + PS) / 2 ? 2 : 1, goalPitch = () => A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch;
   function settle() { const y = snapYaw(cam.yaw), p = cam.pitch > 84 ? 90 : cam.pitch; if (y === cam.yaw && p === cam.pitch) return; glideTo({ ...copy(cam), yaw: y, pitch: p }, 220); }
   function bounds(c) {
     const B = basis(c); let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
@@ -1274,13 +1275,14 @@ void main() {
     fit(smooth) { if (!plan) return; const c = fitCam(); if (smooth) glideTo(c); else { stop(true); Object.assign(cam, c); requestDraw(); updateStatus(); } },
     touched,
     loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
-    enter(cx, cy, zoom, tilted) { Object.assign(cam, { tx: cx, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: tilted ? PA : 90 }); markAll(); requestDraw(); },
+    enter(cx, cy, zoom, mode) { Object.assign(cam, { tx: cx, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: pitchOf(mode) }); markAll(); requestDraw(); },
     leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
     turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 45 * dir }, 260); },
-    tilt() { stop(true); const fr = copy(cam), p = fr.pitch > 84 ? PA : 90; glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: p }, 300); return p < 90; },
-    tilted: () => (A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch) < 89,
+    tilt(dir = 1) { const m = (modeOf(goalPitch()) + 3 + dir) % 3; stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: pitchOf(m) }, 300); return m; },
+    tilted: () => goalPitch() < 89,
+    mode: () => modeOf(goalPitch()),
     twist(deg, sx, sy) { const d = Math.abs(deg) < 12 ? 0 : deg - Math.sign(deg) * 12; if (!d) return; const g = ground(cam, sx, sy); rotAbout(cam, cam.yaw - d, g[0], g[1]); moved(); requestDraw(); },
-    orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, 35, 90); moved(); requestDraw(); },
+    orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, PS, 90); moved(); requestDraw(); },
     settle,
   };
 }
