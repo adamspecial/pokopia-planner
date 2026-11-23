@@ -173,7 +173,7 @@ void main() {
     if (left) requestAnimationFrame(requestDraw);
   }
   const TRUNK = rgba('#7a5434'), GLASS = rgba('#bfe6f5', 0.5);
-  const PAL = { w: rgba('#b8895a'), t: TRUNK, m: rgba('#9aa2a8'), k: rgba('#3d4146'), s: rgba('#f3f1ec'), g: GLASS, y: rgba('#ffe48a'), n: rgba('#5ba84a'), r: rgba('#d8504a'), o: rgba('#f09a3c'), u: rgba('#4f8fd8'), c: rgba('#a6a59d'), p: rgba('#f4efe1'), h: rgba('#26282c'), i: rgba('#7b5a3c'), v: rgba('#9fd6ec'), q: rgba('#7cc4e4', 0.62) };
+  const PAL = { w: rgba('#b8895a'), t: TRUNK, m: rgba('#9aa2a8'), k: rgba('#3d4146'), s: rgba('#f3f1ec'), g: GLASS, y: rgba('#ffe48a'), n: rgba('#5ba84a'), r: rgba('#d8504a'), o: rgba('#f09a3c'), u: rgba('#4f8fd8'), c: rgba('#a6a59d'), p: rgba('#f4efe1'), h: rgba('#26282c'), i: rgba('#7b5a3c'), v: rgba('#9fd6ec'), q: rgba('#7cc4e4', 0.62), j: rgba('#f27fb2'), z: rgba('#a77be0') };
   const TONES = [];
   const mkTones = (A, Bc, a, b) => ({ a: A, b: Bc, d: rgba(shade(a, -0.3)), l: rgba(shade(a, 0.3)), e: rgba(shade(b, -0.3)), f: rgba(shade(b, 0.3)) });
   function tones(i) {
@@ -736,7 +736,6 @@ void main() {
     'Metallic smelting furnace': 'ca,50,50,42,0,60 sd,50,50,40,40,100 bk,36,86,64,92,10,40 bb,40,88,60,93,12,34',
     'Smelting furnace': 'ca,50,50,42,0,60 sd,50,50,40,40,100 bk,36,86,64,92,10,40 bb,40,88,60,93,12,34',
     'Fluorescent light': 'bs,4,40,96,60,86,96 bb,4,38,96,62,96,100',
-    'Gaming light': 'Ba,4,30,96,70,0,6',
     'Mushroom lamp': 'ca,50,50,10,0,50 cb,50,50,36,44,76,10',
     'Poké Ball lamp': 'sa,50,50,34,0,70,1 ck,50,50,35,33,37',
     'Pathway light (line)': 'ba,0,30,100,70,0,14 bb,6,36,94,64,14,16',
@@ -807,6 +806,32 @@ void main() {
     'Plain chest': 'ba,8,10,92,92,0,76 bd,6,8,94,94,76,84 bb,14,92,86,93,42,70 bb,14,92,86,93,8,36 bk,44,93,56,96,52,58 bk,44,93,56,96,18,24',
     'Pop art table': 'cb,50,50,12,0,50 cb,50,50,46,50,58 ca,50,50,36,58,60',
     'Sticky Barb': 'sa,50,50,24,8,56,1 ta,50,50,9,40,78,0,0 ta,50,50,9,30,34,40,0 ta,50,50,9,30,34,-40,0 ta,50,50,9,30,34,0,40 ta,50,50,9,30,34,0,-40',
+    'Ornate table': 'bb,2,2,98,98,30,38 ba,8,8,92,92,38,39 bb,6,6,94,94,22,30 bn,30,93,70,95,23,29 Lb,8,8,92,92,12,0,22',
+    'Study desk': '!w ba,2,10,98,90,62,70 ba,70,14,96,86,0,62 bb,72,86,94,87,34,58 bb,72,86,94,87,6,30 bk,80,87,86,89,44,48 bk,80,87,86,89,16,20 Lb,4,14,30,86,6,0,62',
+    'Corkboard': 'bb,4,0,96,5,18,90 Pa,9,4,91,7,23,85',
+    'Party bunting': 'bk,0,2,100,4,88,92 ta,12,10,8,90,58,0,0 tb,37,10,8,90,58,0,0 ta,62,10,8,90,58,0,0 tb,87,10,8,90,58,0,0',
+    'Antique clock': 'ba,28,0,72,16,10,90 bb,24,0,76,19,84,94 bb,24,0,76,19,6,12 zs,16,19,50,16,68 bk,49,19,51,20,62,76 by,48,16,52,17,24,44 sy,50,17,7,16,30',
+    'Berry wall decoration': 'bi,6,2,94,8,88,94 ck,18,7,1,54,88 sb,18,8,9,38,58 ck,40,7,1,62,88 sy,40,8,9,46,66 ck,62,7,1,50,88 su,62,8,9,34,54 ck,82,7,1,58,88 sr,82,8,9,42,62 sa,30,6,8,82,96 sa,72,6,8,82,96',
+    'Vine wall decoration': 'bd,47,0,53,4,6,94 sa,30,4,13,62,86 sa,66,4,13,50,74 sb,40,4,12,24,46 sb,72,4,11,76,96 sa,24,4,11,14,34 sb,58,4,12,6,26 sa,50,4,12,80,100',
+    'Wall-mounted flowers': 'bi,8,0,92,22,24,42 sa,28,12,14,36,62 sa,50,12,14,38,64 sa,72,12,14,36,62 sb,26,18,10,54,70 sy,48,20,9,56,72 sb,66,18,10,54,70 su,82,16,8,50,66',
+    'Town map': 'ba,4,0,96,5,16,88 Pb,9,4,91,7,21,83',
+    'Gaming light': 'bk,2,0,98,3,30,70 zj,2,6,10,16,58 zk,2,7,10,8,58 zy,2,6,30,16,42 zk,2,7,30,8,42 zz,2,6,50,16,58 zk,2,7,50,8,58 zn,2,6,70,16,42 zk,2,7,70,8,42 zu,2,6,90,16,58 zk,2,7,90,8,58',
+    'Corrugated metal': 'bd,0,0,100,100,0,4 za,0,100,10,10,6 za,0,100,30,10,6 za,0,100,50,10,6 za,0,100,70,10,6 za,0,100,90,10,6',
+    'Large ventilation fan': 'ba,4,4,96,96,0,62 bb,2,2,98,98,62,70 cd,50,50,38,70,74 ck,50,50,33,74,75 bm,18,48,82,52,75,77 bm,48,18,52,82,75,77 cb,50,50,9,74,80 bd,10,96,90,97,10,52',
+    'Science experiment': 'bh,4,22,96,82,0,3 ba,6,32,30,60,3,24 cr,12,46,4,3,42 cu,18,46,4,3,46 cn,24,46,4,3,40 bu,36,32,58,62,3,28 bs,40,36,54,58,28,34 bu,45,42,50,50,34,60 bu,40,40,52,46,56,62 bs,58,58,72,78,3,6 cg,76,46,10,3,30,4 cg,76,46,4,30,46 cb,76,46,8,3,18,5 cg,90,62,6,3,40 cy,90,62,4,3,24',
+    'Computer': 'ba,16,46,40,60,0,4 ba,25,48,31,54,4,24 ba,4,42,52,52,22,82 bb,7,52,49,53,26,78 bs,8,62,48,82,0,4 ba,64,22,94,80,0,78 bk,67,80,91,81,56,72 bb,74,80,84,81,20,24',
+    'Gaming PC': 'ba,14,46,44,60,0,4 ba,26,48,32,54,4,22 ba,2,40,60,50,22,74 bb,4,50,58,51,25,71 bj,8,62,52,80,0,4 ba,66,18,96,82,0,84 bz,69,82,93,83,8,78 bh,71,82,91,84,12,74 zj,83,86,81,7,56 zj,83,86,81,7,30',
+    'Television': 'bb,36,38,64,62,0,4 bb,46,44,54,52,4,16 bb,2,42,98,52,14,92 ba,5,52,95,53,18,88',
+    'Shower': 'bm,46,0,54,6,20,86 bm,47,4,53,24,82,86 cm,50,26,12,74,80,6 bk,44,26,56,27,73,74 ba,40,0,60,8,30,38 bb,44,8,56,12,32,36',
+    'Iron rack': 'ba,2,4,98,96,60,68 La,4,6,96,94,6,0,60',
+    'Luxury lamp': 'cb,50,50,18,0,4 cb,50,50,4,4,74 sy,50,50,9,70,82 ca,50,50,30,68,92,14 cb,50,50,4,92,100',
+    'Laser sensor': 'ba,22,24,78,80,0,70 bk,20,22,80,82,64,70 zk,80,84,50,15,34 zr,83,88,50,11,34',
+    'Elevator platform': 'bb,0,0,100,100,0,4 ba,4,4,96,96,4,5 ba,2,2,12,98,5,94 ba,88,2,98,98,5,94 ba,12,2,88,12,5,94 bb,0,0,100,100,94,100 bg,12,95,50,97,5,90 bg,50,95,88,97,5,90 bb,12,93,88,98,90,94 bk,49,94,51,98,5,90 bk,90,98,96,100,40,52',
+    'Lift platform': 'bb,2,2,98,98,0,4 ba,6,6,94,94,4,5 by,2,94,98,98,4,5 ba,40,2,60,16,4,90 ba,36,0,64,18,0,8 ba,30,2,70,20,86,96 sr,50,14,8,90,98',
+    'Construction supplies': 'ca,50,50,36,0,78 cd,50,50,38,8,12 cd,50,50,38,64,68 ck,50,50,32,78,79 bm,36,38,42,44,60,100 bb,56,54,64,62,60,94 sy,64,38,10,72,86 sy,32,62,8,74,84',
+    'Tire toy': 'za,30,70,86,12,0 za,30,70,83,12,14 za,30,70,75,12,25 za,30,70,64,12,33 za,30,70,50,12,36 za,30,70,36,12,33 za,30,70,25,12,25 za,30,70,17,12,14 za,30,70,14,12,0',
+    'Arcanine doll': '!w so,62,50,42,0,58 so,42,50,42,0,60 sa,24,50,36,4,80 so,11,50,24,44,98 ta,7,36,8,86,112,-3,-6 ta,17,36,8,86,112,3,-6 sk,1,50,5,64,74 sa,88,50,24,8,62 so,24,86,12,0,16 so,46,88,12,0,16',
+    'Funky diffuser': 'cb,50,50,32,0,10 cb,50,50,22,10,14 sa,50,50,34,12,84 bs,42,82,58,86,38,56 bk,45,85,49,87,48,52 bk,51,85,55,87,48,52',
   };
   const KITS = {
     tent: 'sa,50,50,47,-50,74 bb,42,90,58,97,0,34',
@@ -888,21 +913,47 @@ void main() {
     if (isDoor(it) || isWindow(it)) {
       const nb = TH ? NB0 : structAround([ob.x, ob.y, ob.w, ob.h, z]), hz = ob.w !== ob.h ? ob.w > ob.h : !!(nb.w || nb.e) || !(nb.n || nb.s), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, th = isDoor(it) ? 0.1 : 0.06;
       const sx0 = hz ? x0 : cx - th, sx1 = hz ? x1 : cx + th, sz0 = hz ? cz - th : z0, sz1 = hz ? cz + th : z1, top = z + t;
-      if (isDoor(it)) { box(B, sx0, z, sz0, sx1, top - 0.04, sz1, a); const kx = hz ? x0 + (x1 - x0) * 0.78 : cx, kz = hz ? cz : z0 + (z1 - z0) * 0.78, ky = z + Math.min(0.5, t * 0.45); box(B, hz ? kx - 0.04 : sx0 - 0.03, ky, hz ? sz0 - 0.03 : kz - 0.04, hz ? kx + 0.04 : sx1 + 0.03, ky + 0.08, hz ? sz1 + 0.03 : kz + 0.04, PAL.k); return; }
+      if (isDoor(it)) {
+        const A0 = hz ? x0 : z0, A1 = hz ? x1 : z1, mid = (A0 + A1) / 2, ky = z + Math.min(0.5, t * 0.45), b = COLB[ob.i], y1 = top - 0.04;
+        const seg = (u0, u1, ya, yb, col, d = th, D = B) => hz ? box(D, u0, ya, cz - d, u1, yb, cz + d, col) : box(D, cx - d, ya, u0, cx + d, yb, u1, col);
+        const knob = (u) => seg(u - 0.04, u + 0.04, ky, ky + 0.08, PAL.k, th + 0.03);
+        if (/gate/i.test(it.n)) {
+          const pw = 0.12, ra = z + (y1 - z) * 0.16, rb = z + (y1 - z) * 0.66; seg(A0, A0 + pw, z, y1, a, 0.08); seg(A1 - pw, A1, z, y1, a, 0.08);
+          for (const yy of [ra, rb]) seg(A0 + pw, A1 - pw, yy, yy + 0.07, a, 0.04);
+          const n = Math.max(2, Math.round((A1 - A0 - 2 * pw) / 0.2)), st = (A1 - A0 - 2 * pw) / n; for (let k = 1; k < n; k++) { const u = A0 + pw + k * st; seg(u - 0.02, u + 0.02, ra, rb + 0.07, a, 0.03); }
+          return;
+        }
+        if (/automatic/i.test(it.n)) {
+          const fw = 0.08, ft = top - 0.14; seg(A0, A0 + fw, z, top, b, th + 0.02); seg(A1 - fw, A1, z, top, b, th + 0.02); seg(A0, A1, ft, top, b, th + 0.02);
+          for (const [u0, u1] of [[A0 + fw, mid - 0.015], [mid + 0.015, A1 - fw]]) { const sw = 0.06; seg(u0, u0 + sw, z, ft, a); seg(u1 - sw, u1, z, ft, a); seg(u0, u1, z, z + 0.12, a); seg(u0, u1, ft - 0.08, ft, a); seg(u0 + sw, u1 - sw, z + 0.12, ft - 0.08, GLASS, th * 0.6, BT); }
+          seg(mid - 0.015, mid + 0.015, z, ft, PAL.k, th * 0.5); return;
+        }
+        seg(A0, A1, z, y1, a);
+        if (/doors\b/i.test(it.n) && A1 - A0 > 1.5) { seg(mid - 0.015, mid + 0.015, z, y1, PAL.k, th + 0.01); knob(mid - 0.12); knob(mid + 0.12); } else knob(A0 + (A1 - A0) * 0.78);
+        return;
+      }
       const fw = 0.12, ft = 0.1, gx0 = hz ? x0 + fw : sx0, gx1 = hz ? x1 - fw : sx1, gz0 = hz ? sz0 : z0 + fw, gz1 = hz ? sz1 : z1 - fw;
       box(B, sx0, z + 0.12, sz0, sx1, z + 0.12 + ft, sz1, a); box(B, sx0, top - ft, sz0, sx1, top, sz1, a);
       if (hz) { box(B, x0, z + 0.12 + ft, sz0, gx0, top - ft, sz1, a); box(B, gx1, z + 0.12 + ft, sz0, x1, top - ft, sz1, a); } else { box(B, sx0, z + 0.12 + ft, z0, sx1, top - ft, gz0, a); box(B, sx0, z + 0.12 + ft, gz1, sx1, top - ft, z1, a); }
       box(BT, gx0, z + 0.12 + ft, gz0, gx1, top - ft, gz1, GLASS); return;
     }
     if (fenceLike(it)) {
-      const nb = TH ? NB0 : structAround([ob.x, ob.y, ob.w, ob.h, z]), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = 0.05, y0 = z + 0.3, y1 = z + 0.72;
-      if (ob.w > 1 || ob.h > 1) { if (ob.w >= ob.h) box(B, x0, y0, cz - r, x1, y1, cz + r, a); else box(B, cx - r, y0, z0, cx + r, y1, z1, a); return; }
-      box(B, cx - 0.11, z, cz - 0.11, cx + 0.11, z + 0.85, cz + 0.11, a);
+      const nb = TH ? NB0 : structAround([ob.x, ob.y, ob.w, ob.h, z]), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = 0.05, pt = z + t - 0.15, grate = /grate/i.test(it.n);
+      const rails = (fn) => { if (grate) { fn(z + 0.08, z + 0.16); fn(pt - 0.1, pt - 0.02); } else for (let l = 0; l < t; l++) fn(z + l + 0.3, z + l + 0.72); };
+      if (ob.w > 1 || ob.h > 1) {
+        const hz = ob.w >= ob.h, A0 = hz ? x0 : z0, A1 = hz ? x1 : z1, seg = (u0, u1, ya, yb, d) => hz ? box(B, u0, ya, cz - d, u1, yb, cz + d, a) : box(B, cx - d, ya, u0, cx + d, yb, u1, a);
+        seg(A0, A0 + 0.16, z, pt, 0.09); seg(A1 - 0.16, A1, z, pt, 0.09); rails((ya, yb) => seg(A0 + 0.16, A1 - 0.16, ya, yb, r));
+        if (grate) { const n = Math.round((A1 - A0 - 0.32) / 0.12); for (let k = 1; k < n; k++) { const u = A0 + 0.16 + k * (A1 - A0 - 0.32) / n; seg(u - 0.018, u + 0.018, z + 0.16, pt - 0.1, 0.03); } }
+        return;
+      }
+      box(B, cx - 0.11, z, cz - 0.11, cx + 0.11, pt, cz + 0.11, a);
       const any = nb.n || nb.s || nb.w || nb.e;
-      if (nb.w || !any) box(B, x0, y0, cz - r, cx - 0.11, y1, cz + r, a);
-      if (nb.e || !any) box(B, cx + 0.11, y0, cz - r, x1, y1, cz + r, a);
-      if (nb.n) box(B, cx - r, y0, z0, cx + r, y1, cz - 0.11, a);
-      if (nb.s) box(B, cx - r, y0, cz + 0.11, cx + r, y1, z1, a);
+      rails((y0, y1) => {
+        if (nb.w || !any) box(B, x0, y0, cz - r, cx - 0.11, y1, cz + r, a);
+        if (nb.e || !any) box(B, cx + 0.11, y0, cz - r, x1, y1, cz + r, a);
+        if (nb.n) box(B, cx - r, y0, z0, cx + r, y1, cz - 0.11, a);
+        if (nb.s) box(B, cx - r, y0, cz + 0.11, cx + r, y1, z1, a);
+      });
       return;
     }
     const r = faceOf(ob), m = it.c === 'Kits' && HOUSE.has(k) && !ITEMM[it.n] && !NAMEM[it.n] ? null : modelOf(it);
@@ -1161,7 +1212,7 @@ void main() {
     return ok ? o : null;
   }
   const srcOf = (it) => { const k = lookK(it); if (it.c === 'Kits' && HOUSE.has(k) && !ITEMM[it.n] && !NAMEM[it.n]) return 'house:' + k; const m = modelOf(it); return m ? (ITEMM[it.n] || (it.c === 'Kits' ? KITS[NAMEM[it.n] || k] : MODELS[NAMEM[it.n] || (it.c === 'Wallpaper' ? 'wpaper' : it.c === 'Poster' ? 'wposter' : hangs(it) && WALLM[k] ? WALLM[k] : ALIAS[k] || k)])) : SOLID[it.i] ? 'solid' : FLOOR[it.i] ? 'floor' : isRug(it) ? 'rug' : 'box'; };
-  const usesB = (it) => { if (isDoor(it) || isWindow(it) || fenceLike(it) || SOLID[it.i] || FLOOR[it.i] || isRug(it)) return false; const k = lookK(it); if (it.c === 'Kits' && HOUSE.has(k) && !ITEMM[it.n] && !NAMEM[it.n]) return true; const m = modelOf(it); return !!m && m.ops.some(q => 'bef'.includes(q.c) || (q.o === 's' && q.n[5])); };
+  const usesB = (it) => { if (isDoor(it)) return /automatic/i.test(it.n); if (isWindow(it) || fenceLike(it) || SOLID[it.i] || FLOOR[it.i] || isRug(it)) return false; const k = lookK(it); if (it.c === 'Kits' && HOUSE.has(k) && !ITEMM[it.n] && !NAMEM[it.n]) return true; const m = modelOf(it); return !!m && m.ops.some(q => 'bef'.includes(q.c) || (q.o === 's' && q.n[5])); };
   const TB = builder(), TT = builder(), WALLC = rgba('#d9d4c9'); let thM = null, thT = null;
   const tsz = (o, dw, dh) => { const sc = o.dpr || 1; return [Math.max(1, Math.round(dw * sc)), Math.max(1, Math.round(dh * sc))]; };
   function thumb(it, o, out, dx, dy, dw, dh) {
