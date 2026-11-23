@@ -88,7 +88,7 @@ The map is 3D. It opens looking straight down, so it reads like a floor plan, an
 Moving around:
 
 - **Tilt** with the tilt button or T, to switch between looking straight down and looking from an angle. With a mouse, drag up and down with the right button to tilt anywhere in between.
-- **Turn** a quarter turn at a time with the turn button (Shift turns it the other way), or with , and . on a keyboard. On a phone or tablet, twist two fingers; with a mouse, drag sideways with the right button. When you let go, the view settles on the nearest quarter turn.
+- **Turn** 45° at a time with the turn button (Shift turns it the other way), or with , and . on a keyboard. On a phone or tablet, twist two fingers; with a mouse, drag sideways with the right button. When you let go, the view settles on the nearest 45°, so it's always square on to the grid or looking along a diagonal.
 - Drag to pan, and pinch or use the wheel to zoom, as on the flat map. Fit, Zoom in and Zoom out work the same way.
 
 Every tool works in 3D, the same way as on the flat map:

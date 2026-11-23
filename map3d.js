@@ -1075,7 +1075,7 @@ void main() {
     if (smooth) { animate(at, 200, false, { zoom: z }); return; } stop(true); at(1); requestDraw(); updateStatus();
   }
   function rotAbout(c, yaw, gx, gz) { const d = (yaw - c.yaw) * Math.PI / 180, cs = Math.cos(d), sn = Math.sin(d), dx = c.tx - gx, dz = c.tz - gz; c.tx = gx + dx * cs - dz * sn; c.tz = gz + dx * sn + dz * cs; c.yaw = yaw; }
-  const snapYaw = (y) => Math.round(y / 90) * 90;
+  const snapYaw = (y) => Math.round(y / 45) * 45;
   function settle() { const y = snapYaw(cam.yaw), p = cam.pitch > 84 ? 90 : cam.pitch; if (y === cam.yaw && p === cam.pitch) return; glideTo({ ...copy(cam), yaw: y, pitch: p }, 220); }
   function bounds(c) {
     const B = basis(c); let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
@@ -1276,7 +1276,7 @@ void main() {
     loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
     enter(cx, cy, zoom, tilted) { Object.assign(cam, { tx: cx, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: tilted ? PA : 90 }); markAll(); requestDraw(); },
     leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
-    turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 90 * dir }, 300); },
+    turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 45 * dir }, 260); },
     tilt() { stop(true); const fr = copy(cam), p = fr.pitch > 84 ? PA : 90; glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: p }, 300); return p < 90; },
     tilted: () => (A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch) < 89,
     twist(deg, sx, sy) { const d = Math.abs(deg) < 12 ? 0 : deg - Math.sign(deg) * 12; if (!d) return; const g = ground(cam, sx, sy); rotAbout(cam, cam.yaw - d, g[0], g[1]); moved(); requestDraw(); },
