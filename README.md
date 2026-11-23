@@ -186,6 +186,32 @@ The game decides some things by the order you build them, such as which transmit
 
 The rules behind all this, with their sources, are in [the research report](reports/Pokopia%20liquids%20sensors%20and%20crops.md), and [plans/World mechanics.md](plans/World%20mechanics.md) is the plan for the checks still to come.
 
+## Pouring liquids
+
+Pick a liquid in Build, then choose **Paint** or **Pour** above the map:
+
+- **Paint** puts the liquid exactly where you tap, to copy what's already in your game.
+- **Pour** drops a source on the tile you tap, normal or low level, and lets it flow. Tap a tile to see where it would go, then tap the same tile again or press **Pour** (Enter). Cancel or Esc drops the preview.
+
+It flows the way players have measured:
+
+| Shape | Water, ocean, mud, hot spring | Lava |
+|---|---|---|
+| 1-wide channel | 25 tiles (12 at low level) | 12 (6 at low level) |
+| 2-wide channel | 10 tiles | — |
+| Open ground | a circle about 6 tiles out (3 at low level) | about 3 out |
+
+- **Reach:** the more open sides a tile has, the faster the flow runs out. Liquid slips diagonally between blocks that touch only at a corner, and closed doors stop it.
+- **Falls:** over an edge, liquid falls straight down and starts again with its full reach where it lands. Falling water is saved as Waterfall, so habitats that need a waterfall see it, and every falling tile adds 20 humidity.
+- **Running to an edge:** a normal-level water source within 4 tiles of an edge runs straight to it instead of spreading. That stretch counts as flowing water, which doesn't water fields.
+- **Where flows meet:** a later pour covers an earlier one's flow, never its source. Liquid you painted stays as it is.
+- **Lava and water:** where lava touches water, the preview notes that Water Gun turns lava into black rock.
+- **Removing a flow:** erasing a source tile, or putting something on it, removes the whole flow, as in the game.
+
+Tap poured liquid to see its source, how many tiles it covers and how many fall. **Pour again** recomputes it after you change the ground around it, and **Remove it** takes it all away. In the game the shape also depends on the order you dug and filled things, so the edge can be a tile off.
+
+The research mentions water turning muddy when it flows over mud-covered blocks, but those blocks aren't in the planner's item list, so that isn't modelled.
+
 ## Fields and crops
 
 A crop grows one stage at 5:00 each day it's wet. It takes 3 stages to ripen, so it's ripe in 3 days. A Grow Pokémon living nearby adds a stage a day, which makes it 1 day; more than one adds nothing. After harvest, beans, tomatoes and potatoes fruit again a day later, while wheat starts again from seed. A crop's panel says whether it's wet and why, and how many days it has left.
