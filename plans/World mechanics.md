@@ -290,4 +290,28 @@ Mud-covered blocks aren't in the item list, so muddy water downstream isn't mode
 - who runs furnaces and mixers
 - the crowding warning
 
-Phase 7 (Finish) is next.
+Phase 7 is done, so the plan is complete. It added:
+
+- help topics for every new system
+- the new shortcuts (S, Enter)
+- the mechanics sources
+
+**Device pass.** Checked in Chromium on:
+
+- Pixel 7 and Galaxy S9+
+- Galaxy Tab S4, both ways round
+- Windows windows of 1366×768 and 1920×1080
+
+No page scrolls sideways and nothing ends up off screen. **Show on the map** now leaves out its descriptions when the screen is short, instead of scrolling: a scrolling menu over the 3D view drew a black patch.
+
+**Speed check.** On a 256×256 plan with 2,352 items (144 small power networks, crop rows, sprinklers, switches, Smooth Rocks and kit houses), with every overlay on:
+
+| | Time |
+|---|---|
+| Rechecking everything after an edit | 40–65 ms |
+| One frame, before the fix | about 80 ms |
+| One frame, after the fix | 18–27 ms |
+
+The fix keeps reach shapes until the next edit, draws them as ready-made paths, skips those off screen, and drops their faint fill when zoomed far out.
+
+Still open: the in-game tests listed above. Their results would turn the planner's guesses into rules.

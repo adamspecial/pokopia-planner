@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-23T04:58';
+<script>const APP_BUILD = '2026-11-23T05:33';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -113,6 +113,8 @@ button{cursor:pointer}
 .sysmenu .mi[aria-checked="true"] .ck::after{content:"";width:8px;height:4px;border:2px solid var(--accent-ink);border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
 .sysmenu .mt{display:block;font-weight:700;font-size:14px}
 .sysmenu .md{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+@media (max-width:600px),(max-height:600px){.sysmenu .mi{padding:6px}.sysmenu .md{font-size:11.5px;line-height:1.3}}
+.sysmenu.compact .md{display:none}.sysmenu.compact .mi{padding:7px 8px}
 .sysmenu kbd{font:inherit;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;color:var(--muted)}
 .status .chip.act{pointer-events:auto;cursor:pointer;font:inherit;font-size:12px}
 .iconbtn.dot::after{content:"";position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--panel)}
