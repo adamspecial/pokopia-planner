@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-23T11:40';
+<script>const APP_BUILD = '2026-11-23T12:30';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -115,6 +115,7 @@ button{cursor:pointer}
 .sysmenu .md{display:block;font-size:12px;color:var(--muted);margin-top:1px}
 @media (max-width:600px),(max-height:600px){.sysmenu .mi{padding:6px}.sysmenu .md{font-size:11.5px;line-height:1.3}}
 .sysmenu.compact .md{display:none}.sysmenu.compact .mi{padding:7px 8px}
+.viewmenu{width:min(250px,calc(100vw - 70px))}.viewmenu .mi{align-items:center}.viewmenu .vi{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:7px;color:var(--muted)}.viewmenu .vi svg{width:24px;height:24px}.viewmenu .mi[aria-checked="true"]{background:color-mix(in srgb,var(--accent) 14%,transparent)}.viewmenu .mi[aria-checked="true"] .vi{color:var(--accent)}
 .sysmenu kbd{font:inherit;font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;color:var(--muted)}
 .status .chip.act{pointer-events:auto;cursor:pointer;font:inherit;font-size:12px}
 .iconbtn.dot::after{content:"";position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--panel)}
@@ -646,10 +647,10 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
     <symbol id="i-redo" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-minus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 12h14"/></symbol>
-    <symbol id="i-top" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M9.5 12h5M12 9.5v5"/></symbol>
-    <symbol id="i-low" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 19.5h18M6 19.5V12h5v7.5M13.5 19.5V8h4.5v11.5"/></symbol>
-    <symbol id="i-side" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 20h18M6 20v-8.5L12 6l6 5.5V20M10 20v-4.5h4V20"/></symbol>
-    <symbol id="i-tilt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M3.5 18 8 8h12.5L16 18z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 3v3"/></symbol>
+    <symbol id="i-top" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2.5 20.5h19"/><rect x="13" y="13.2" width="7" height="7.3" rx="1" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M16.5 2.8L16.5 10.6M14.2 8.1L16.5 10.6L18.8 8.1"/></symbol>
+    <symbol id="i-tilt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2.5 20.5h19"/><rect x="13" y="13.2" width="7" height="7.3" rx="1" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M5.5 3.8L11.4 11.4M8.1 10.8L11.4 11.4L11.6 8"/></symbol>
+    <symbol id="i-low" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2.5 20.5h19"/><rect x="13" y="13.2" width="7" height="7.3" rx="1" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.7L11 14.2M8.1 16L11 14.2L8.9 11.5"/></symbol>
+    <symbol id="i-side" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2.5 20.5h19"/><rect x="13" y="13.2" width="7" height="7.3" rx="1" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M2.6 16.9L11 16.9M8.5 19.2L11 16.9L8.5 14.6"/></symbol>
     <symbol id="i-fit" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m16 16 4.5 4.5"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 11v6M12 7.5v.5"/></symbol>
@@ -727,7 +728,7 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
         <button class="iconbtn" id="zlayers" aria-label="Layers (L)" data-tip="Layers (L)"><svg><use href="#i-layers"/></svg></button>
         <span class="sysw"><button class="iconbtn" id="zsys" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="sysmenu" aria-label="Show on the map (S)" data-tip="Show on the map (S)"><svg><use href="#i-sys"/></svg></button><div class="sysmenu" id="sysmenu" role="menu" aria-label="Show on the map" hidden></div></span>
         <button class="iconbtn" id="zturn" hidden aria-label="Turn the view (. or ,)" data-tip="Turn the view (. or ,)"><svg><use href="#i-rotate"/></svg></button>
-        <button class="iconbtn" id="ztilt" hidden aria-pressed="false" aria-label="Change the view (T)" data-tip="Change the view (T)"><svg><use href="#i-top"/></svg></button>
+        <span class="sysw" id="tiltw" hidden><button class="iconbtn" id="ztilt" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="viewmenu" aria-label="View (T)" data-tip="View (T)"><svg><use href="#i-top"/></svg></button><div class="sysmenu viewmenu" id="viewmenu" role="menu" aria-label="View" hidden></div></span>
         <button class="iconbtn" id="zin" aria-label="Zoom in" data-tip="Zoom in"><svg><use href="#i-plus"/></svg></button>
         <button class="iconbtn" id="zout" aria-label="Zoom out" data-tip="Zoom out"><svg><use href="#i-minus"/></svg></button>
         <button class="iconbtn" id="zfit" aria-label="Fit plan on screen" data-tip="Fit on screen"><svg><use href="#i-fit"/></svg></button>
