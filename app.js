@@ -2168,10 +2168,18 @@ function leave3d() {
 let gl2 = null;
 const gl2ok = () => gl2 != null ? gl2 : (gl2 = (() => { try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); if (!g) return false; const x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return true; } catch (e) { return false; } })());
 function lost3d() { const was = in3d(); if (was) leave3d(); view3d = null; const c = $('#map3d'); c.replaceWith(c.cloneNode(false)); if (was) toast('The 3D view stopped, so this is the flat map for now', 6000, { label: 'Try 3D again', fn: () => enter3d() }); }
-function tiltUi() { if (!view3d) return; const m = view3d.mode(), b = $('#ztilt'), tip = ['From the top · tap for angled (T)', 'Angled · tap for a low angle (T)', 'Low angle · tap for side on (T)', 'Side on · tap to look straight down (T)'][m]; b.setAttribute('aria-pressed', m ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip); b.querySelector('use').setAttribute('href', '#i-' + ['top', 'tilt', 'low', 'side'][m]); if (TIP.at === b) tipShow(b); }
+const VIEWS = [['From the top', '90°, straight down, like a floor plan', 'top'], ['Angled', '52°, to see heights, walls and what\'s inside', 'tilt'], ['Low angle', '10°, almost level, with a sliver of ground', 'low'], ['Side on', '0°, level with the ground, like an elevation', 'side']];
+function tiltUi() { if (!view3d) return; const m = view3d.mode(), b = $('#ztilt'), tip = 'View: ' + VIEWS[m][0].toLowerCase() + ' (T)'; b.setAttribute('aria-pressed', m ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip); b.querySelector('use').setAttribute('href', '#i-' + VIEWS[m][2]); for (const e of $('#viewmenu').querySelectorAll('.mi')) e.setAttribute('aria-checked', +e.dataset.m === m ? 'true' : 'false'); if (TIP.at === b) tipShow(b); }
+function viewRender() {
+  const m = $('#viewmenu'), cur = view3d ? view3d.mode() : 0; m.textContent = '';
+  m.append(h('div', { class: 'shd' }, 'View', h('kbd', null, 'T')));
+  VIEWS.forEach(([name, ds, ic], k) => m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemradio', 'aria-checked': k === cur ? 'true' : 'false', 'data-m': k, onclick: () => setView3d(k) }, h('span', { class: 'vi' }, icon(ic)), h('span', null, h('span', { class: 'mt' }, name), h('span', { class: 'md' }, ds)))));
+}
+function viewOpen(open) { const m = $('#viewmenu'), b = $('#ztilt'); if (open == null) open = m.hidden; if (open === !m.hidden) return; if (open) sysOpen(false); m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { tipHide(); viewRender(); m.classList.remove('compact'); const room = b.getBoundingClientRect().bottom - $('#mapwrap').getBoundingClientRect().top - 12; if (m.offsetHeight > room) m.classList.add('compact'); const f = m.querySelector('.mi[aria-checked="true"]') || m.querySelector('.mi'); if (f) f.focus({ preventScroll: true }); } }
+function setView3d(k) { viewOpen(false); if (!in3d()) return; LS.set(LSK + '3dtilt', String(view3d.view(k))); tiltUi(); }
 function ui3d() {
   const on = in3d();
-  $('#map3d').hidden = !on; $('#zturn').hidden = !on; $('#ztilt').hidden = !on; if (on) tiltUi();
+  $('#map3d').hidden = !on; $('#zturn').hidden = !on; $('#tiltw').hidden = !on; if (on) tiltUi(); else viewOpen(false);
 }
 function mapOverlay3d(o) {
   if (!plan) return;
@@ -3239,7 +3247,7 @@ $('#zin').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() * 1.3, 0.15, 5
 $('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, 0.15, 5), W / 2, H / 2, true);
 $('#zfit').onclick = () => mapView.fit(true);
 $('#zturn').onclick = (e) => turn3d(e.shiftKey ? -1 : 1);
-$('#ztilt').onclick = (e) => tilt3d(e.shiftKey ? -1 : 1);
+$('#ztilt').onclick = () => viewOpen();
 function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); sysSync(); requestDraw(); }
 const SYS = [
   ['areas', 'Active areas', 'The dotted line around each home: everything inside it counts for that home.', 'A', () => showAreas, v => setShowAreas(v)],
@@ -3255,11 +3263,11 @@ function sysRender() {
   m.append(h('div', { class: 'shd' }, 'Show on the map'));
   for (const [k, name, ds, key, get, set] of SYS) m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemcheckbox', 'aria-checked': get() ? 'true' : 'false', 'data-k': k, 'data-tip': ds, onclick: () => set(!get()) }, h('span', { class: 'ck' }), h('span', null, h('span', { class: 'mt' }, name, key ? h('kbd', null, key) : ''), h('span', { class: 'md' }, ds))));
 }
-function sysOpen(open) { const m = $('#sysmenu'), b = $('#zsys'); if (open == null) open = m.hidden; if (open === !m.hidden) return; m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { sysRender(); m.classList.remove('compact'); const room = b.getBoundingClientRect().bottom - $('#mapwrap').getBoundingClientRect().top - 12; if (m.offsetHeight > room) m.classList.add('compact'); const f = m.querySelector('.mi'); if (f) f.focus({ preventScroll: true }); } }
+function sysOpen(open) { const m = $('#sysmenu'), b = $('#zsys'); if (open == null) open = m.hidden; if (open === !m.hidden) return; if (open) viewOpen(false); m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { sysRender(); m.classList.remove('compact'); const room = b.getBoundingClientRect().bottom - $('#mapwrap').getBoundingClientRect().top - 12; if (m.offsetHeight > room) m.classList.add('compact'); const f = m.querySelector('.mi'); if (f) f.focus({ preventScroll: true }); } }
 function toggleAreas() { setShowAreas(!showAreas); toast(showAreas ? 'Active areas shown' : 'Active areas hidden'); }
 $('#zlayers').onclick = () => openLayers();
 $('#zsys').onclick = () => sysOpen();
-addEventListener('pointerdown', e => { const m = $('#sysmenu'); if (m && !m.hidden && !e.target.closest('.sysw')) sysOpen(false); }, true);
+addEventListener('pointerdown', e => { const m = $('#sysmenu'), v = $('#viewmenu'); if (m && !m.hidden && !m.parentNode.contains(e.target)) sysOpen(false); if (v && !v.hidden && !v.parentNode.contains(e.target)) viewOpen(false); }, true);
 $$('.tbtn[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 $('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
 addEventListener('keydown', e => {
@@ -3268,6 +3276,7 @@ addEventListener('keydown', e => {
   if (IED.ob) { iedKey(e); return; }
   if (e.target.matches('input, textarea, select')) return;
   if (e.key === 'Escape' && !$('#sysmenu').hidden) { sysOpen(false); $('#zsys').focus(); return; }
+  if (e.key === 'Escape' && !$('#viewmenu').hidden) { viewOpen(false); $('#ztilt').focus(); return; }
   if (e.key === 'Escape' && pourPrev) { pourCancel(); return; }
   if (e.key === 'Enter' && pourPrev && tool === 'place') { pourCommit(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
