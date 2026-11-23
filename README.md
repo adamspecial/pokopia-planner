@@ -140,7 +140,12 @@ The **Pokémon** tab lists every Pokémon in the game. Search it by name, type, 
 
 Each choice shows how many Pokémon it would leave. You can sort by number, name, size, height, weight, number of habitats or number of specialties, and switch between full cards and a compact list. The planner remembers your filters, sort and view on that device.
 
-To move a Pokémon into a home, drag it onto the home. Drag by the dots beside its name, or drag the whole card with a mouse. On a phone you can also long-press a card. Drop it on a kit house or a house you built on the map, or on a home in the tray that opens at the bottom of the map. On a phone the panel slides down while you drag and comes back afterwards. A green outline means it fits; red means the home is full, it lives there already, or it's too big for a den. Tap the dots instead to pick a home from a list, with the best housemates first. Undo puts it back.
+To move a Pokémon into a home, drag it onto the home. Drag by the dots beside its name, or drag the whole card with a mouse. On a phone you can also long-press a card. Drop it on a kit house or a house you built on the map, or on a home in the tray that opens at the bottom of the map. On a phone the panel slides down while you drag and comes back afterwards. A green outline means it fits; red means the home is full, it lives there already, or it's too big for a den. Tap the dots instead to pick a home from a list, with the best housemates first. A full home in that list shows who lives there: tap **Swap with** one of them and they trade homes (or, for a Pokémon with no home yet, it takes that one's place). Undo puts it back.
+
+In a home's panel, and in Decorate inside, each resident has two buttons:
+
+- **1F / 2F** in a two-floor kit moves them to the other floor. When that floor is full, it asks who to swap with, and the two trade floors.
+- **Move** opens the same list of homes, so you can move them to another home, or swap them with someone in a full one, without going to the Pokémon tab.
 
 Large Pokémon take up 2×2 tiles, so a house you built needs a door 2 wide for them and paths 2 tiles wide inside. Steps and rugs count as path. When a large one lives there, the house's Residents section warns if the door is too narrow, or if it can't reach a large rest item. It also warns if a large Gather Pokémon can't reach a Community box, or a large Burn Pokémon can't reach a smelting furnace.
 
