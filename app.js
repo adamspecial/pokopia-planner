@@ -2158,7 +2158,7 @@ async function enter3d(quiet) {
   try { v = await get3d(); } catch (e) { hold2d = false; requestDraw(); if (!quiet) toast('The 3D view couldn\'t load. Check the connection and try again.', 3200); return; }
   if (!v) { hold2d = false; requestDraw(); if (!quiet) toast('The 3D view needs WebGL 2, which this browser doesn\'t have', 3200); return; }
   hold2d = false; if (in3d() || !plan) { requestDraw(); return; }
-  map2d.stop(); const s = cellSize(); v.enter((W / 2 - view.px) / s, (H / 2 - view.py) / s, view.zoom, LS.get(LSK + '3dtilt') === '1');
+  map2d.stop(); const s = cellSize(); v.enter((W / 2 - view.px) / s, (H / 2 - view.py) / s, view.zoom, clamp(+LS.get(LSK + '3dtilt') | 0, 0, 2));
   mapView = v; ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
 }
 function leave3d() {
@@ -2168,7 +2168,7 @@ function leave3d() {
 let gl2 = null;
 const gl2ok = () => gl2 != null ? gl2 : (gl2 = (() => { try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); if (!g) return false; const x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return true; } catch (e) { return false; } })());
 function lost3d() { const was = in3d(); if (was) leave3d(); view3d = null; const c = $('#map3d'); c.replaceWith(c.cloneNode(false)); if (was) toast('The 3D view stopped, so this is the flat map for now', 6000, { label: 'Try 3D again', fn: () => enter3d() }); }
-function tiltUi() { if (!view3d) return; const t = view3d.tilted(), b = $('#ztilt'), tip = t ? 'Look straight down (T)' : 'Tilt (T)'; b.setAttribute('aria-pressed', t ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip); }
+function tiltUi() { if (!view3d) return; const m = view3d.mode(), b = $('#ztilt'), tip = ['From the top · tap for an angled view (T)', 'Angled · tap for a side view (T)', 'From the side · tap to look straight down (T)'][m]; b.setAttribute('aria-pressed', m ? 'true' : 'false'); b.dataset.tip = tip; b.setAttribute('aria-label', tip); b.querySelector('use').setAttribute('href', '#i-' + ['top', 'tilt', 'side'][m]); if (TIP.at === b) tipShow(b); }
 function ui3d() {
   const on = in3d();
   $('#map3d').hidden = !on; $('#zturn').hidden = !on; $('#ztilt').hidden = !on; if (on) tiltUi();
@@ -2281,7 +2281,7 @@ function mapLabels3d(o) {
     }
   }
 }
-function tilt3d() { if (!in3d()) return; LS.set(LSK + '3dtilt', view3d.tilt() ? '1' : '0'); tiltUi(); }
+function tilt3d(dir = 1) { if (!in3d()) return; LS.set(LSK + '3dtilt', String(view3d.tilt(dir))); tiltUi(); }
 function turn3d(dir) { if (in3d()) view3d.turn(dir); }
 
 function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
@@ -3193,7 +3193,7 @@ function onUp(e) {
   if (!drag) return;
   if (drag.kind === 'pending') { const p = drag; drag = null; startAction(p.cx, p.cy, p.sx, p.sy); if (!drag) return; }
   const d = drag; drag = null; cv.style.cursor = '';
-  if (d.kind === 'orbit') { if (mapView.settle) { mapView.settle(); LS.set(LSK + '3dtilt', view3d.tilted() ? '1' : '0'); tiltUi(); } return; }
+  if (d.kind === 'orbit') { if (mapView.settle) { mapView.settle(); LS.set(LSK + '3dtilt', String(view3d.mode())); tiltUi(); } return; }
   if (d.kind === 'pan') { if (d.tap && !d.moved && e.type !== 'pointercancel') { mapView.setCam(d.cam); pickTap(d.cx, d.cy); requestDraw(); } return; }
   if (d.kind === 'grpmove') {
     if (e.type === 'pointercancel') { requestDraw(); return; }
@@ -3239,7 +3239,7 @@ $('#zin').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() * 1.3, 0.15, 5
 $('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, 0.15, 5), W / 2, H / 2, true);
 $('#zfit').onclick = () => mapView.fit(true);
 $('#zturn').onclick = (e) => turn3d(e.shiftKey ? -1 : 1);
-$('#ztilt').onclick = tilt3d;
+$('#ztilt').onclick = (e) => tilt3d(e.shiftKey ? -1 : 1);
 function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); sysSync(); requestDraw(); }
 const SYS = [
   ['areas', 'Active areas', 'The dotted line around each home: everything inside it counts for that home.', 'A', () => showAreas, v => setShowAreas(v)],
@@ -3274,7 +3274,7 @@ addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (e.key === ' ') { spaceDown = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
   const G0 = plan ? grpOf() : null, ctl = e.ctrlKey || e.metaKey, kl = e.key.toLowerCase(), noText = !String(getSelection ? getSelection() : '');
-  if (in3d() && !ctl && !e.altKey) { if (e.key === ',' || e.key === '<') { turn3d(-1); return; } if (e.key === '.' || e.key === '>') { turn3d(1); return; } if (kl === 't') { tilt3d(); return; } }
+  if (in3d() && !ctl && !e.altKey) { if (e.key === ',' || e.key === '<') { turn3d(-1); return; } if (e.key === '.' || e.key === '>') { turn3d(1); return; } if (kl === 't') { tilt3d(e.shiftKey ? -1 : 1); return; } }
   if (ctl && kl === 'a' && plan) { e.preventDefault(); grpSelect(boxGroup({ x: 0, y: 0, w: plan.w, h: plan.h })); return; }
   if (ctl && kl === 'c' && G0 && noText) { e.preventDefault(); grpCopy(G0); return; }
   if (ctl && kl === 'v' && clip) { e.preventDefault(); selection = null; closeInspector(); setTool('paste'); return; }
@@ -5110,7 +5110,7 @@ function deletePlanDialog(id) {
 
 const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['rules', 'Game rules', 'filter'], ['data', 'Data', 'list']];
 const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
-const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map'], ['Enter', 'Pour the liquid you previewed'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map'], ['Enter', 'Pour the liquid you previewed'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Look from the top, at an angle or from the side (Shift: the other way)'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
 let setsBack = null, setsAfter = null, setsWant = null;
 const setsOpen = () => !$('#sets').hidden;
 function applyLook() { pokopiaLook(S); readTheme(); }
