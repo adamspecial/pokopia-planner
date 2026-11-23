@@ -254,4 +254,15 @@ Phase 2 is done too. It added:
 - blocked pole wires
 - unpowered items no longer counting toward the environment
 
-Phase 3 (Water and crops) is next.
+Phase 3 is done too. It added:
+
+- the Fields overlay
+- the watering rules
+- running and dry sprinklers
+- Smooth Rock drying fields
+- days to ripe, with Grow Pokémon
+- bubbles under water
+- berry trees' drop tiles
+- field problems
+
+The exact six berry tiles weren't published, so the planner shows all eight. Phase 4 (Switches and sensors) is next.
