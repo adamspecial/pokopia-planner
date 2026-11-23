@@ -189,7 +189,7 @@ let plansIndex = [];
 const LSK = 'pokopia-planner:';
 
 function newPlan({ name, area, w, h, fill }) {
-  const p = { id: uid(), name: name || 'New area', area: area || 'Withered Wasteland', w, h,
+  const p = { id: uid(), name: name || 'New area', area: area || 'Withered Wasteland', w, h, wx: null,
     ground: new Uint16Array(w * h), tl: new Map(), tz: [0], tt: [], objs: new Map(), occ: new Int32Array(w * h), up: new Map(), zs: [0], ls: [], rugs: new Map(),
     zones: [], inv: {}, res: [], roofs: [], pool: [], nextId: 1, updated: Date.now() };
   p.ls = [p.occ]; p.tl.set(0, p.ground); p.tt = [p.ground]; if (fill) { const it = BY_NAME.get(fill); if (it) p.ground.fill(it.i + 1); }
@@ -205,11 +205,11 @@ function serialize(p) {
   const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h, zOf(r)].map(v => v.toString(36)).join('.'));
   return { v: 3, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: tg, o: o.join(';'), u: u.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
-    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), updated: p.updated || Date.now() };
+    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), wx: p.wx || null, updated: p.updated || Date.now() };
 }
 function deserialize(s) {
   const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= 256 && h <= 256)) throw new Error('Bad plan size');
-  const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.roofs = s.rf ? JSON.parse(s.rf) : []; } catch (e) { p.roofs = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; } try { p.isz = s.isz ? JSON.parse(s.isz) : {}; } catch (e) { p.isz = {}; }
+  const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); p.wx = s.wx === 'rain' || s.wx === 'sun' ? s.wx : null; try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.roofs = s.rf ? JSON.parse(s.rf) : []; } catch (e) { p.roofs = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; } try { p.isz = s.isz ? JSON.parse(s.isz) : {}; } catch (e) { p.isz = {}; }
   const map = (s.dict || []).map(n => BY_NAME.get(n)), v2 = Array.isArray(s.g);
   const unpack = (str, T) => { const g = unrle(str, w * h, Uint16Array); for (let k = 0; k < g.length; k++) { const it = g[k] ? map[g[k] - 1] : null; T[k] = it ? it.i + 1 : 0; } };
   let elev = null;
@@ -788,24 +788,71 @@ function houseDaylight(hs) {
   const q = roofOf(hs), floor = hs.cells.size, roofed = Math.round(floor * (q || 0) / 4), open = floor - roofed;
   return { q, floor, total: all.size, roofed, open, v: 90 * Math.fround(open / all.size) };
 }
+function roofedCell(k) {
+  const zs = plan.tz, tt = plan.tt; let top = -1;
+  for (let j = zs.length - 1; j >= 0; j--) if (tt[j][k]) { top = j; break; }
+  if (top >= 0) { const T = zs[top]; if (!terrAt(plan, k, T - 1) && !occAt(plan, k, T - 1)) for (let j = top - 1; j >= 0; j--) if (zs[j] < T - 1 && tt[j][k]) return true; }
+  for (const ob of stackAt(k)) if (lookK(ITEMS[ob.i]).startsWith('roof')) { const z = zOf(ob); if (!occAt(plan, k, z - 1) && !terrAt(plan, k, z - 1)) return true; }
+  return false;
+}
+function habitatDaylight(a) {
+  const R = a.rect; let open = 0, total = 0;
+  for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inB(plan, x, y)) continue; total++; if (!roofedCell(y * plan.w + x)) open++; }
+  return { open, total, v: total ? 90 * open / total : 0 };
+}
+const burnsIt = (p) => !!p && (p.s || []).includes('Burn');
+function burnersAt(x, y, z, ranges) {
+  const out = new Set();
+  for (const hm of ranges) { const R = hm.rect; if (x < R.x || y < R.y || x >= R.x + R.w || y >= R.y + R.h || (z != null && Math.abs(z - hm.base) > AREA_R)) continue; for (const p of hm.pks) if (burnsIt(p)) out.add(p.n); }
+  return [...out];
+}
+function fireLitBy(ob) { return burnersAt(ob.x, ob.y, zOf(ob), homeRanges()); }
+const envPks = (home) => home.kind === 'habitat' ? home.pks : residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
+function habitatHome(z) {
+  const r = zoneStatus.get(z.id); if (!r || r.kind !== 'habitat' || !r.area) return null;
+  const hb = r.best ? r.best.hb : r.target || (r.near && r.near.hb); if (!hb) return null;
+  return { kind: 'habitat', key: 'zone:' + z.id, zone: z, area: r.area, hb, ok: !!r.ok, pks: hb.p.map(n => PK_BY_NAME.get(n)).filter(Boolean) };
+}
 function envOf(home) {
-  const pks = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
+  const pks = envPks(home), hab = home.kind === 'habitat';
   let warm = 0, cool = 0; for (const p of pks) { if (p.ideal === 'Warm') warm++; else if (p.ideal === 'Cool') cool++; }
-  const ac = warm > cool ? 1 : cool ? -1 : 0, kind = envKind(home);
-  const E = { kind, built: home.kind === 'house', roof: null, day: null, ac, pks, ax: { b: { v: 0, parts: new Map() }, t: { v: 0, parts: new Map() }, u: { v: 0, parts: new Map() } } };
-  const add = (k, label, v, fx, n) => { if (!v) return; const A = E.ax[k]; A.v += v; const e = A.parts.get(label); if (e) { e.v += v; e.n += n || 1; } else A.parts.set(label, { v, n: n || 1, need: fx ? fx.need : '', guess: fx ? fx.guess : false }); };
-  const addIt = (it) => { const fx = envFx(it); if (!fx) return; const nm = fx.ac ? it.n + (ac > 0 ? ' (on hot)' : ac < 0 ? ' (on cold)' : ' (off)') : it.n; add('b', nm, fx.b, fx); add('t', nm, envT(fx, ac), fx); add('u', nm, fx.u, fx); };
-  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : null)) addIt(pc.it); }
-  else {
+  const ac = warm > cool ? 1 : cool ? -1 : 0, kind = envKind(home), interior = home.kind === 'kit' && kind === 'kit';
+  const E = { kind, built: home.kind === 'house', hab, roof: null, day: null, ac, pks, off: new Map(), burn: [], ax: { b: { v: 0, parts: new Map() }, t: { v: 0, parts: new Map() }, u: { v: 0, parts: new Map() } } };
+  let ranges = null; const rng = () => ranges || (ranges = homeRanges());
+  const add = (k, label, v, fx, n, by) => { if (!v) return; const A = E.ax[k]; A.v += v; const e = A.parts.get(label); if (e) { e.v += v; e.n += n || 1; } else A.parts.set(label, { v, n: n || 1, need: fx ? fx.need : '', guess: fx ? fx.guess : false, by: by || '' }); };
+  const off = (it, why) => { const e = E.off.get(it.n); if (e) e.n++; else E.off.set(it.n, { why, n: 1 }); };
+  const addIt = (it, ob, warmOk = true) => {
+    const fx = envFx(it); if (!fx) return; let by = '';
+    if (fx.need === 'f') { const who = ob ? burnersAt(ob.x, ob.y, zOf(ob), rng()) : pks.filter(burnsIt).map(p => p.n); if (!who.length) { off(it, 'not lit: no Burn Pokémon lives nearby'); return; } by = listNames(who.slice(0, 2)) + (who.length > 2 ? ' +' + (who.length - 2) : ''); }
+    if (fx.need === 'd' && plan.wx === 'rain' && !interior) { off(it, 'it\'s raining'); return; }
+    const nm = fx.ac ? it.n + (ac > 0 ? ' (on hot)' : ac < 0 ? ' (on cold)' : ' (off)') : it.n;
+    add('b', nm, fx.b, fx, 1, by); if (warmOk) add('t', nm, envT(fx, ac), fx, 1, by); add('u', nm, fx.u, fx, 1, by);
+  };
+  const tiles = new Map(), terr = (k, base, lo, hi, tlo, thi) => {
+    const zs = plan.tz, tt = plan.tt;
+    for (let j = zs.length - 1; j >= 0; j--) { const v = tt[j][k]; if (!v) continue; const z = zs[j], d = z - base; if (d < lo || d > hi) continue; const it = ITEMS[v - 1]; if (!envFx(it) || (terrAt(plan, k, z + 1) && !(it.lq && it.lq[2]))) continue; const e = tiles.get(v - 1) || [0, 0]; e[0]++; if (d >= tlo && d <= thi) e[1]++; tiles.set(v - 1, e); }
+  };
+  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : null)) addIt(pc.it, null); }
+  else if (hab) {
+    const a = home.area, R = a.rect, base = a.base, D = habitatDaylight(a); E.day = D;
+    add('b', 'Daylight (' + D.open + ' of ' + D.total + ' tiles open to the sky)', D.v);
+    const seen = new Set();
+    for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) {
+      if (!inB(plan, x, y)) continue; const k = y * plan.w + x;
+      for (const ob of stackAt(k)) { const lv = zOf(ob) - base; if (lv < -AREA_R || lv > AREA_R || seen.has(ob.id)) continue; seen.add(ob.id); addIt(ITEMS[ob.i], ob, lv >= -1 && lv <= 3); }
+      terr(k, base, -AREA_R, AREA_R, -1, 3);
+    }
+  } else {
     const hs = home.hs, base = hs.area.base, D = houseDaylight(hs); E.roof = D.q; E.day = D;
     add('b', 'Daylight (' + D.open + ' of ' + D.total + ' tiles open to the sky' + (D.q == null ? ', roof not set' : '') + ')', D.v);
-    const seen = new Set(), tiles = new Map();
+    const seen = new Set();
     for (const k of hs.cells) {
-      for (const ob of stackAt(k)) { const lv = zOf(ob) - base; if (lv < -1 || lv > 3 || seen.has(ob.id)) continue; seen.add(ob.id); addIt(ITEMS[ob.i]); }
-      const t = topTerr(k), g = t == null ? 0 : terrAt(plan, k, t), d = t == null ? -9 : t + 1 - base; if (d >= 0 && d <= 4 && g && envFx(ITEMS[g - 1])) tiles.set(g - 1, (tiles.get(g - 1) || 0) + 1);
+      for (const ob of stackAt(k)) { const lv = zOf(ob) - base; if (lv < -1 || lv > 3 || seen.has(ob.id)) continue; seen.add(ob.id); addIt(ITEMS[ob.i], ob); }
+      terr(k, base, -1, 3, -1, 3);
     }
-    for (const [i, n] of tiles) { const it = ITEMS[i], fx = envFx(it), lb = it.n + ' (' + n + ' tile' + (n > 1 ? 's' : '') + ')'; for (const k of ['b', 't', 'u']) add(k, lb, fx[k] * n, fx, n); }
   }
+  for (const [i, [n, nt]] of tiles) { const it = ITEMS[i], fx = envFx(it), lb = it.n + ' (' + n + ' tile' + (n > 1 ? 's' : '') + ')'; add('b', lb, fx.b * n, fx, n); if (nt) add('t', nt === n ? lb : it.n + ' (' + nt + ' tile' + (nt > 1 ? 's' : '') + ' low enough to warm)', envT(fx, ac) * nt, fx, nt); add('u', lb, fx.u * n, fx, n); }
+  E.burn = home.kind === 'kit' ? pks.filter(burnsIt).map(p => p.n) : (() => { const R = hab ? home.area.rect : home.hs.area.rect, b = hab ? home.area.base : home.hs.area.base, out = new Set(); for (const hm of rng()) { const Q = hm.rect; if (Q.x + Q.w <= R.x || R.x + R.w <= Q.x || Q.y + Q.h <= R.y || R.y + R.h <= Q.y || Math.abs(hm.base - b) > AREA_R) continue; for (const p of hm.pks) if (burnsIt(p)) out.add(p.n); } for (const p of pks) if (burnsIt(p)) out.add(p.n); return [...out]; })();
   for (const k in E.ax) E.ax[k].state = envState(k, E.ax[k].v, kind);
   return E;
 }
@@ -815,7 +862,7 @@ function envNeeds(E) {
   return [...m].map(([ideal, who]) => ({ ideal, who, gap: envGap(ideal, E.ax[envAxisOf(ideal)].v, E.kind) })).sort((a, b) => b.who.length - a.who.length);
 }
 function envGain(it, E) {
-  const fx = envFx(it); if (!fx || !E.pks.length) return { g: 0, good: [], bad: [] };
+  const fx = envFx(it); if (!fx || !E.pks.length || (fx.need === 'f' && !E.burn.length) || (fx.need === 'd' && plan.wx === 'rain' && E.kind !== 'kit')) return { g: 0, good: [], bad: [] };
   let g = 0; const good = [], bad = [];
   for (const p of E.pks) {
     const k = envAxisOf(p.ideal); if (!k) continue; const d = k === 't' ? envT(fx, E.ac) : fx[k]; if (!d) continue;
@@ -831,15 +878,16 @@ function envFxText(it, E) { const fx = envFx(it); if (!fx) return ''; const b = 
 function envAdvice(ideal, E) {
   const k = envAxisOf(ideal), A = E.ax[k], g = envGap(ideal, A.v, E.kind), lim = ENV_LIM[E.kind][ideal]; if (!g) return '';
   const top = (sign) => [...A.parts].filter(([lb, e]) => e.v * sign > 0 && !lb.startsWith('Daylight')).sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)).slice(0, 3).map(([lb, e]) => lb + (e.n > 1 && !/tile/.test(lb) ? ' ×' + e.n : '') + ' (' + envPts(e.v) + ')').join(', ');
-  const where = E.kind === 'block' ? ' Only the floor inside the walls counts.' : '';
+  const where = E.hab ? ' Anything in the dotted area counts, from 4 levels down to 4 up' + (k === 't' ? ', but warmth only from 1 down to 3 up' : '') + '.' : E.kind === 'block' ? ' Only the floor inside the walls counts.' : '';
+  const unlit = [...E.off].filter(([, e]) => /not lit/.test(e.why)).map(([n]) => n), fire = E.burn.length ? 'lit by ' + E.burn[0] : 'once a Burn Pokémon lives nearby to light it', unlitTxt = unlit.length ? ' ' + listNames(unlit) + (unlit.length > 1 ? ' aren\'t' : ' isn\'t') + ' lit: a Burn Pokémon has to live nearby.' : '';
   const now = (sign, word) => top(sign) ? ' ' + word + ' it now: ' + top(sign) + '.' : '';
   switch (ideal) {
-    case 'Bright': return 'Needs ' + envNum(g) + ' more light: a lamp or streetlight (80), a campfire or fireplace (40), a candle (20)' + (E.built && E.roof ? ', or less roof' : '') + '.' + where;
-    case 'Dark': { const lit = top(1), day = E.built && E.day ? E.day.v : 0; return 'Too bright (' + envNum(A.v) + ', dark is ' + lim + ' or less): ' + [day > 0 ? 'more roof (daylight ' + envNum(day) + ')' : '', lit ? 'take out ' + lit : '', 'or a Beach parasol (−40)'].filter(Boolean).join(', ') + '.'; }
-    case 'Warm': return 'Needs ' + envNum(g) + ' more warmth: a lit fire, a cooking stove, a Heat Rock or the air conditioner on hot (+60 each). Lamps don\'t warm.' + now(-1, 'Cooling') + where;
+    case 'Bright': return 'Needs ' + envNum(g) + ' more light: a lamp or streetlight (80), a campfire or fireplace (40, ' + fire + '), a candle (20)' + (E.built && E.roof ? ', or less roof' : '') + '.' + unlitTxt + where;
+    case 'Dark': { const lit = top(1), day = (E.built || E.hab) && E.day ? E.day.v : 0; return 'Too bright (' + envNum(A.v) + ', dark is ' + lim + ' or less): ' + [day > 0 ? 'more roof (daylight ' + envNum(day) + ')' : '', lit ? 'take out ' + lit : '', 'or a Beach parasol (−40)'].filter(Boolean).join(', ') + '.'; }
+    case 'Warm': return 'Needs ' + envNum(g) + ' more warmth: a fire (' + fire + '), a cooking stove, a Heat Rock or the air conditioner on hot (+60 each). Lamps don\'t warm.' + unlitTxt + now(-1, 'Cooling') + where;
     case 'Cool': return 'Needs ' + envNum(g) + ' less warmth: an Icy Rock, a fridge, cooler or fan, or the air conditioner on cold (−60 each).' + now(1, 'Warming') + where;
     case 'Humid': return 'Needs ' + envNum(g) + ' more humidity: a filled basin or bathtub, a humidifier or a Damp Rock (+100 each); a sink, shower' + (E.kind === 'block' ? ', toilet or water tile' : ' or toilet') + ' (+20).' + now(-1, 'Drying') + where;
-    case 'Dry': return 'Too humid (' + envNum(A.v) + ', dry is ' + lim + ' or less): take out ' + (top(1) || 'what\'s wet') + ', or add a Smooth Rock (−100, not in rain).';
+    case 'Dry': return 'Too humid (' + envNum(A.v) + ', dry is ' + lim + ' or less): take out ' + (top(1) || 'what\'s wet') + ', or add a Smooth Rock (−100, ' + (plan.wx === 'rain' && E.kind !== 'kit' ? 'but it\'s off while it rains' : 'not in rain') + ').';
   }
   return '';
 }
@@ -849,28 +897,33 @@ function envBar(k, v, kind) {
   const a = pc(Math.min(loLim, hiLim)), b = pc(Math.max(loLim, hiLim)), mid = loLim >= hiLim ? 'color-mix(in srgb,var(--lo),var(--hi))' : 'var(--mid)';
   return h('span', { class: 'envbar ' + k, 'aria-hidden': 'true', style: 'background:linear-gradient(90deg,var(--lo) 0 ' + a + '%,' + mid + ' ' + a + '% ' + b + '%,var(--hi) ' + b + '% 100%)' }, h('i', { style: 'left:' + pc(v) + '%' }));
 }
-function envBlock(home) {
-  const E = envOf(home), L = ENV_LIM[E.kind], box = h('div', { class: 'envbox' });
+function envBlock(home, E = envOf(home)) {
+  const L = ENV_LIM[E.kind], box = h('div', { class: 'envbox' });
   for (const [k, lb, lo, hi, mid] of ENV_ROWS) { const A = E.ax[k]; box.append(h('div', { class: 'envrow', 'data-tip': lo + ' at ' + L[lo] + ' or ' + (L[lo] < 0 ? 'lower' : 'less') + ' · ' + hi + ' at ' + (L[hi] > 0 ? '+' : '') + L[hi] + ' or more' }, h('span', { class: 'envlb' }, lb), envBar(k, A.v, E.kind), h('b', { class: 'envst' + (A.state ? '' : ' mid') }, A.state || mid), h('span', { class: 'envv' }, envPts(A.v)))); }
   const chips = h('div', { class: 'reqs' });
   for (const p of E.pks) if (p.ideal) { const ok = envMet(p, E); chips.append(h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': ok ? p.n + ' likes it ' + p.ideal.toLowerCase() + ': it is.' : envAdvice(p.ideal, E) }, (ok ? '✓' : '✗') + p.n + ' · ' + p.ideal)); }
   if (chips.childNodes.length) box.append(chips);
+  const wheat = E.ax.u.parts.get('Wheat field'), U = E.ax.u;
+  if (wheat && !envGap('Humid', U.v, E.kind) && envGap('Humid', U.v - wheat.v, E.kind)) box.append(h('div', { class: 'note', 'data-tip': 'Harvested wheat goes back to seed and adds no humidity until it sprouts again, a day later if it\'s watered.' }, '⚠ Humidity drops to ' + envNum(U.v - wheat.v) + ' after the wheat is harvested, so it isn\'t humid until it sprouts again.'));
+  if (plan.wx === 'rain' && home.kind !== 'kit') { const fires = E.ax.t.parts.size && [...E.ax.t.parts].filter(([, e]) => e.need === 'f').map(([n]) => n); if (fires && fires.length && !(E.built && E.roof === 4)) box.append(h('div', { class: 'note', 'data-tip': 'Rain puts out fires with no roof over them. A Burn Pokémon living nearby lights them again.' }, 'Raining: ' + listNames(fires) + ' can go out where there\'s no roof, and ' + (E.burn.length ? E.burn[0] : 'a Burn Pokémon') + ' lights ' + (fires.length > 1 ? 'them' : 'it') + ' again.')); }
   const det = h('details', { class: 'envwhat' }, h('summary', null, 'What counts'));
-  for (const [k, lb] of ENV_ROWS) { const A = E.ax[k]; const parts = [...A.parts].sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)); det.append(h('div', { class: 'note' }, h('b', null, lb + ': '), parts.length ? parts.map(([l, e]) => l + (e.n > 1 && !/tile/.test(l) ? ' ×' + e.n : '') + ' ' + envPts(e.v) + (e.need ? ' (' + ENV_NEED[e.need] + ')' : '') + (e.guess ? ' (untested)' : '')).join(' · ') : 'nothing')); }
+  for (const [k, lb] of ENV_ROWS) { const A = E.ax[k]; const parts = [...A.parts].sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)); det.append(h('div', { class: 'note' }, h('b', null, lb + ': '), parts.length ? parts.map(([l, e]) => l + (e.n > 1 && !/tile/.test(l) ? ' ×' + e.n : '') + ' ' + envPts(e.v) + (e.by ? ' (lit by ' + e.by + ')' : e.need ? ' (' + ENV_NEED[e.need] + ')' : '') + (e.guess ? ' (untested)' : '')).join(' · ') : 'nothing')); }
+  if (E.off.size) det.append(h('div', { class: 'note' }, h('b', null, 'Not counted: '), [...E.off].map(([n, e]) => n + (e.n > 1 ? ' ×' + e.n : '') + ' (' + e.why + ')').join(' · ')));
   box.append(det);
   return box;
 }
 function envHelp(home) {
+  if (home.kind === 'habitat') return 'Light and humidity count everything in the dotted area, from 4 levels down to 4 up; warmth only from 1 down to 3 up. Walls don\'t block a lamp. Daylight = 90 × tiles open to the sky ÷ all tiles in the area. Bright at 100+, dark at 60 or less; humid at 100+, dry at 30 or less; warm at +60, cool at −60. These are the Pokémon this habitat attracts; once one moves into a house, the house\'s environment counts for it instead. Fires count when a Burn Pokémon lives nearby to light them. Points are from a player\'s in-game tests.';
   const E = { kind: envKind(home), built: home.kind === 'house' };
   return (E.kind === 'kit' ? 'Everything inside counts, both floors, any height. No daylight; windows, wallpaper and floors don\'t count. Bright at 40+, dark at 40 or less; humid at 40+, dry at 60 or less (exactly 40 light, or 40–60 humidity, suits both).'
     : (E.built ? 'Only what\'s on the floor inside the walls or on a door tile counts, from 1 below to 3 above the floor; never walls or outside. Daylight = 90 × floor tiles open to the sky ÷ all tiles, walls included.' : 'Built from blocks, so it works like a house you built: only the ground floor counts, and it\'s roofed (no daylight).') + ' Bright at 100+, dark at 60 or less; humid at 100+, dry at 30 or less.')
-    + ' Warm at +60, cool at −60. Tap a ✗ to see what to change. Points are from a player\'s in-game tests; "untested" values are the planner\'s guess. Fires count when lit, appliances when on, tubs and fountains when filled.';
+    + ' Warm at +60, cool at −60. Tap a ✗ to see what to change. Points are from a player\'s in-game tests; "untested" values are the planner\'s guess. Fires count when a Burn Pokémon lives nearby to light them, appliances when on, tubs and fountains when filled.';
 }
 function envSection(home, noHead) {
-  const wrap = h('div', { class: 'envsec' }), kit = envKind(home) === 'kit';
+  const wrap = h('div', { class: 'envsec' }), kit = envKind(home) === 'kit', E = envOf(home);
   if (!noHead) wrap.append(h('div', { class: 'hrow', style: 'margin-top:8px' }, h('b', null, 'Environment'), home.floors > 1 ? h('span', { class: 'note' }, kit ? 'both floors' : 'ground floor') : '', tipBtn(envHelp(home))));
-  wrap.append(envBlock(home));
-  const pks = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean), clash = [], share = [];
+  wrap.append(envBlock(home, E));
+  const pks = home.kind === 'habitat' ? [] : E.pks, clash = [], share = [];
   for (let i = 0; i < pks.length; i++) for (let j = i + 1; j < pks.length; j++) if (envClash(pks[i].ideal, pks[j].ideal)) (kit && envAxisOf(pks[i].ideal) !== 't' ? share : clash).push(pks[i].n + ' (' + pks[i].ideal + ') vs ' + pks[j].n + ' (' + pks[j].ideal + ')');
   if (clash.length) wrap.append(h('div', { class: 'note', style: 'color:var(--warn)', 'data-tip': 'They want opposites, so one of them can\'t be comfortable here. Different scales (say Warm and Humid) are fine together.' }, '⚠ ' + clash.join('; ')));
   if (share.length) wrap.append(h('div', { class: 'note', 'data-tip': 'A kit house can suit both: light at exactly 40, or humidity from 40 to 60.' }, '✓ ' + share.join('; ') + ': can share'));
@@ -3233,6 +3286,7 @@ function showObjInspector(ob) {
     box.append(facts);
   }
   const how = howItWorks(it); if (how.length) box.append(h('div', { class: 'note', style: 'margin-top:6px' }, how.join(' ')));
+  { const fx = envFx(it); if (fx && fx.need === 'f') { const who = fireLitBy(ob); box.append(h('div', { class: 'note', style: 'margin-top:6px' + (who.length ? '' : ';color:var(--warn)'), 'data-tip': 'A Burn Pokémon whose home is within 4 tiles lights it, and lights it again if rain puts it out.' }, who.length ? 'Lit by ' + listNames(who.slice(0, 3)) + (who.length > 3 ? ' and others' : '') + (plan.wx === 'rain' ? ' (rain can put it out where there\'s no roof, and they light it again)' : '') : '⚠ Not lit: no Burn Pokémon lives nearby, so its light and warmth don\'t count.')); } if (fx && fx.need === 'd' && plan.wx === 'rain') box.append(h('div', { class: 'note', style: 'margin-top:6px;color:var(--warn)' }, '⚠ Off while it rains, except inside a kit house.')); }
   if (it.cap) { box.append(residentsSection(kitHome(ob))); box.append(boxLine('kit:' + ob.id)); }
   if (isBox(it)) boxInspector(ob, box);
   const groups = GROUP_OF.get(it.i) || [];
@@ -3746,6 +3800,7 @@ function selectZone(z) {
     if (r.ok) box.append(h('div', null, h('span', { class: 'chip good' }, h('span', { class: 'dot' }), r.best.hb.n), ' ', h('div', { class: 'note', style: 'margin-top:6px' }, 'Attracts'), pkChips(r.best.hb.p, 22, openPokemon)), boxLine('zone:' + z.id));
     else if (!r.target && r.near) { box.append(h('div', { class: 'note' }, 'Closest: ' + r.near.hb.n)); box.append(rows(r.near.r)); }
     if (r.matches.length > 1) box.append(h('div', { class: 'note hrow' }, 'Also fits: ' + r.matches.slice(1, 5).map(m => m.hb.n).join(', '), tipBtn('The game forms one habitat per cluster.')));
+    const hh = habitatHome(z); if (hh && hh.pks.some(p => p.ideal)) box.append(envSection(hh));
   } else if (z.kind === 'house') {
     const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓' : '✗') + t);
     box.append(h('div', { class: 'reqs' }, ck(r.sizeOk, 'Size', 'Inside 2×2 to 9×10'), ck(r.walls > 0, 'Walls', 'Walls or fences'), ck(r.door, 'Door', 'A door or gate'), ck(r.furn >= 3, 'required (' + r.furn + '/3)', 'Furniture pieces: a house needs 3')));
@@ -4467,13 +4522,18 @@ document.addEventListener('click', e => { if (performance.now() < pkQuiet) { e.p
 document.addEventListener('contextmenu', e => { if (pkDrag || pkPend) e.preventDefault(); }, true);
 addEventListener('keydown', e => { if (e.key === 'Escape' && pkDrag) { e.stopPropagation(); e.preventDefault(); pkEnd(false); } }, true);
 
+const WX_TIP = 'The weather in this town. In the game it only changes when a Pokémon uses a Rain Dance or Sunny Day spot, and then it stays. Rain puts out fires with no roof over them (a Burn Pokémon living nearby lights them again), and turns Smooth Rock off except inside kit houses. Sun changes nothing in the planner yet.';
+function setWeather(v) { if ((plan.wx || null) === v) return; plan.wx = v; markDirty(); evaluateAll(); requestDraw(); renderPanel(); refreshInspector(); toast(v === 'rain' ? 'Raining in this town' : v === 'sun' ? 'Sunny in this town' : 'Weather not set'); }
+function refreshInspector() { if (!$('#inspector').classList.contains('open') || !selection) return; if (selection.obj && plan.objs.has(selection.obj.id)) showObjInspector(selection.obj); else if (selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selectZone(z); } else if (selection.house) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
 function renderPlans() {
   const root = $('#tab-plans'); root.textContent = '';
   root.append(h('h2', { class: 'hrow' }, 'Plans', tipBtn('Keep a plan per town or project. Changes save automatically.')));
   const nameIn = h('input', { id: 'pName', value: plan.name }); nameIn.onchange = () => { plan.name = nameIn.value.trim() || 'Untitled area'; markDirty(); updateHeader(); };
   const areaSel = h('select', { id: 'pArea' }, DATA.areas.map(a => h('option', { value: a.n, selected: plan.area === a.n }, a.n))); areaSel.onchange = () => { plan.area = areaSel.value; markDirty(); updateHeader(); evaluateAll(); requestDraw(); renderPlans(); };
   const area = DATA.areas.find(a => a.n === plan.area);
+  const wxSeg = segmented([[null, 'Not set'], ['rain', 'Rain'], ['sun', 'Sun']], plan.wx || null, v => setWeather(v), 'Weather');
   root.append(h('div', { class: 'card' }, h('div', { class: 'field' }, h('label', { for: 'pName' }, 'Plan name'), nameIn), h('div', { class: 'field' }, h('label', { for: 'pArea', class: 'hrow' }, 'Area', area ? tipBtn(area.d) : ''), areaSel),
+    h('div', { class: 'field' }, h('label', { class: 'hrow' }, 'Weather', tipBtn(WX_TIP)), wxSeg),
     h('p', { class: 'note' }, plan.w + '×' + plan.h + ' tiles · ' + plan.objs.size + ' items · ' + plan.zones.length + ' zones'),
     h('div', { class: 'acts' }, ibtn('resize', 'Resize plan', resizePlanDialog, 'sm'), ibtn('copy', 'Duplicate', duplicatePlan, 'sm'), ibtn('trash', 'Delete plan', () => deletePlanDialog(plan.id), 'sm danger'))));
   root.append(h('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 8px' }, h('button', { class: 'btn sm primary', onclick: newPlanDialog }, icon('plus'), 'New plan'),

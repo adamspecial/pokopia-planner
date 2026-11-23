@@ -234,4 +234,13 @@ Phase 0 is done. Phase 0 added:
 - placement order
 - the data fixes
 
-Phase 1 (Environment) is next.
+Phase 1 is done too. It added:
+
+- light, warmth and humidity for habitats
+- falling waterfall tiles counting
+- the wheat-harvest warning
+- the weather setting
+- fires that count only when a Burn Pokémon lives within 4 tiles
+- Smooth Rock turning off in rain
+
+Phase 2 (Power) is next.
