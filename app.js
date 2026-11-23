@@ -3691,8 +3691,8 @@ function renderOptbar() {
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item'));
     if (recent.length > 1) { const r = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Recent')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
   } else if (tool === 'erase') {
-    ob.append(h('span', { class: 'pill' }, segmented([['both', 'Both'], ['objects', 'Items'], ['ground', 'Terrain']], eraseMode, v => { eraseMode = v; renderOptbar(); }, 'Erase mode'), tipBtn(layerZ != null ? 'Only what\'s on level ' + lvNum(layerZ) + ' is erased. Hidden layers are never erased.' : 'Both: whatever is on top first, item, rug or terrain block. Terrain takes the top terrain block. Hidden layers are never erased.')));
-    ob.append(layerChip());
+    ob.append(h('span', { class: 'pill' }, segmented([['both', 'Both'], ['objects', 'Items'], ['ground', 'Terrain']], eraseMode, v => { eraseMode = v; renderOptbar(); }, 'Erase mode'), tipBtn('Both: whatever is on top first, item, rug or terrain block. Items leaves the terrain. Terrain takes the top terrain block. Hidden layers are never erased.')));
+    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), levelSelect('Level to erase from'), tipBtn(layerZ != null ? 'Only what\'s on level ' + lvNum(layerZ) + ' is erased, and everything above it fades out so you can reach it. Choose On top to go back.' : 'On top: erase takes whatever is on top first. Choose a level to erase only from it, even under the ground.')));
     ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
   } else if (tool === 'zone') {
     ob.append(h('span', { class: 'pill' }, segmented([['habitat', 'Habitat'], ['label', 'Label']], zoneKind, v => { zoneKind = v; renderOptbar(); }, 'Zone type'), tipBtn('Drag to draw a zone. Houses you build from walls are found automatically: no zone needed.')));
@@ -3707,10 +3707,13 @@ function renderOptbar() {
 }
 
 function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Working on'), h('b', null, 'Level ' + lvNum(layerZ)), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
-function levelPill(it) {
-  const sel = h('select', { class: 'lvsel', 'aria-label': 'Level to place on' }, h('option', { value: '' }, 'On top'), levelList(levelStats()).map(z => h('option', { value: String(z) }, 'Level ' + lvNum(z) + (hidden.has(z) ? ' (hidden)' : ''))), h('option', { value: '*' }, 'Other level…'));
+function levelSelect(label) {
+  const sel = h('select', { class: 'lvsel', 'aria-label': label }, h('option', { value: '' }, 'On top'), levelList(levelStats()).map(z => h('option', { value: String(z) }, 'Level ' + lvNum(z) + (hidden.has(z) ? ' (hidden)' : ''))), h('option', { value: '*' }, 'Other level…'));
   sel.value = layerZ == null ? '' : String(layerZ); sel.onchange = () => { if (sel.value === '*') { sel.value = layerZ == null ? '' : String(layerZ); levelDialog(); return; } setLayerZ(sel.value === '' ? null : +sel.value); };
-  const p = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), sel);
+  return sel;
+}
+function levelPill(it) {
+  const p = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), levelSelect('Level to place on'));
   const pouring = pourMode === 'pour' && canPour(it) && tool === 'place';
   if (layerZ == null && isTerr(it) && !pouring) p.append(segmented([['stack', 'Stack'], ['paint', 'Paint']], terrMode, v => { terrMode = v; renderOptbar(); requestDraw(); }, 'Stack a new block on top, or paint over the top block'));
   if (layerZ != null && !pouring) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + lvNum(layerZ)));
@@ -5058,7 +5061,7 @@ function renderPlans() {
     ['Zones', 'Draw a Zone around a cluster. It checks the cluster against all ' + HAB.length + ' habitats and turns green when one forms.'],
     ['Terrain levels', 'Every block has a level, terrain too. Terrain starts at level 0, so things on the ground are on level 1. Place terrain to stack a block on top and build hills; Paint swaps the top block instead. Erase takes the top block off, so you can dig down. A 2-level rise inside a zone counts as a "High-up location".'],
     ['Stacking', 'Everything you place goes on top of the highest block at that spot, kit houses too. Blocks, walls and terrain can go on top of items; items never go on top of other items, only on terrain or a block. Items have a height: most take 1 level, tall ones such as a refrigerator take 2, and rugs take none, so furniture stands on them. Heights are guesses until you set them with Resize.'],
-    ['Layers', 'Every level is a layer, from −99 to 99, with its own terrain and items. In Layers (or L), tap an eye to hide or show a level, the rugs or all terrain, and tap a level to work on it (Go to level, or Page Up and Page Down, reach any other): Place and Fill put things there, Erase only takes from there, and everything above fades out so you can see into a basement. With On top, blocks and terrain stack on what\'s there; on a chosen level, Keep or Replace decides what happens to what\'s already there.'],
+    ['Layers', 'Every level is a layer, from −99 to 99, with its own terrain and items. In Layers (or L), tap an eye to hide or show a level, the rugs or all terrain, and tap a level to work on it (Go to level, or Page Up and Page Down, reach any other; the Level menu in the Place, Fill and Erase bars does the same): Place and Fill put things there, Erase only takes from there, and everything above fades out so you can see into a basement. With On top, blocks and terrain stack on what\'s there; on a chosen level, Keep or Replace decides what happens to what\'s already there.'],
     ['Active areas', 'Show on the map, by the zoom controls (or S), then Active areas (or A), shows the white dotted line the game shows with the right stick: 4 tiles past a home on every side, 4 levels up or down. Light, warmth and humidity in a house you built only count the floor inside the walls.'],
     ['Houses you build', 'Found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Fill → Outline lays walls fast.'],
     ['Moving Pokémon in', 'In the Pokémon tab, drag a Pokémon by its dots onto a home: a kit house or a house you built on the map, or one in the tray that opens. On a phone the panel slides down while you drag; long-press a card to drag it too, and with a mouse drag the whole card. Tap the dots instead to choose a home from a list. Undo puts it back.'],
