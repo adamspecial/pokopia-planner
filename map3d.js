@@ -1053,31 +1053,33 @@ void main() {
     if (!hidden.has('r')) for (const r of plan.rugs.values()) if (!hidden.has(zOf(r))) add(rg, r.x, r.y, r);
     for (const [k, c] of CH) if (c.dirty) build(c, lv, ob.get(k) || [], rg.get(k) || []);
   }
-  const cam = { tx: 0, tz: 0, zoom: 1, yaw: 0, pitch: PA };
+  const cam = { tx: 0, ty: TY, tz: 0, zoom: 1, yaw: 0, pitch: PA };
   let A = null;
   function basis(c = cam) {
     const a = c.yaw * Math.PI / 180, p = c.pitch * Math.PI / 180, sa = Math.sin(a), ca = Math.cos(a), sp = Math.sin(p), cp = Math.cos(p);
     return { sa, ca, sp, cp, R: [ca, 0, sa], H: [sa, 0, -ca], F: [sa * cp, -sp, -ca * cp], U: [sa * sp, cp, -ca * sp], s: view.cs * c.zoom };
   }
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-  function ground(c, sx, sy) { const B = basis(c), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / (B.s * B.sp); return [c.tx + al * B.R[0] + be * B.H[0], c.tz + al * B.R[2] + be * B.H[2]]; }
-  function place(c, px, py, pz, sx, sy) { const B = basis(c), lam = (-(sy - H / 2) / B.s - (py - TY) * B.cp) / B.sp, ofs = (sx - W / 2) / B.s; c.tx = px - lam * B.H[0] - ofs * B.R[0]; c.tz = pz - lam * B.H[2] - ofs * B.R[2]; }
-  const copy = (c) => ({ tx: c.tx, tz: c.tz, zoom: c.zoom, yaw: c.yaw, pitch: c.pitch });
+  const level = (c) => c.pitch < 0.5;
+  function ground(c, sx, sy) { const B = basis(c), al = (sx - W / 2) / B.s; if (level(c)) return [c.tx + al * B.R[0], c.tz + al * B.R[2]]; const be = -(sy - H / 2) / (B.s * B.sp); return [c.tx + al * B.R[0] + be * B.H[0], c.tz + al * B.R[2] + be * B.H[2]]; }
+  function place(c, px, py, pz, sx, sy) { const B = basis(c), ofs = (sx - W / 2) / B.s; if (level(c)) { c.ty = py + (sy - H / 2) / B.s; c.tx = px - ofs * B.R[0]; c.tz = pz - ofs * B.R[2]; return; } const lam = (-(sy - H / 2) / B.s - (py - c.ty) * B.cp) / B.sp; c.tx = px - lam * B.H[0] - ofs * B.R[0]; c.tz = pz - lam * B.H[2] - ofs * B.R[2]; }
+  function aim(c, B, Au, Bv) { if (level(c)) { const Fc = plan ? (plan.w / 2) * B.F[0] + (plan.h / 2) * B.F[2] : 0; c.ty = Bv; c.tx = Au * B.R[0] + Fc * B.F[0]; c.tz = Au * B.R[2] + Fc * B.F[2]; return; } c.ty = TY; const mu = (Bv - TY * B.cp) / B.sp; c.tx = Au * B.R[0] + mu * B.H[0]; c.tz = Au * B.R[2] + mu * B.H[2]; }
+  const copy = (c) => ({ tx: c.tx, ty: c.ty, tz: c.tz, zoom: c.zoom, yaw: c.yaw, pitch: c.pitch });
   function stop(fin) { if (!A) return; cancelAnimationFrame(A.raf); const a = A; A = null; if (fin || a.snap) { a.step(1); requestDraw(); updateStatus(); } }
   function animate(step, ms, snap, to) {
     stop(true); if (calm() || !plan) { step(1); requestDraw(); updateStatus(); return; }
     const t0 = performance.now(), run = (t) => { const k = Math.min(1, (t - t0) / ms); step(1 - Math.pow(1 - k, 3)); requestDraw(); if (k < 1) A.raf = requestAnimationFrame(run); else { A = null; updateStatus(); } };
     A = { step, snap, to, raf: requestAnimationFrame(run) };
   }
-  function glideTo(to, ms = 260) { stop(true); const fr = copy(cam); animate((e) => { moved(); cam.tx = fr.tx + (to.tx - fr.tx) * e; cam.tz = fr.tz + (to.tz - fr.tz) * e; cam.zoom = fr.zoom * Math.pow(to.zoom / fr.zoom, e); cam.yaw = fr.yaw + (to.yaw - fr.yaw) * e; cam.pitch = fr.pitch + (to.pitch - fr.pitch) * e; }, ms, to.yaw !== fr.yaw || to.pitch !== fr.pitch, to); }
+  function glideTo(to, ms = 260) { stop(true); const fr = copy(cam); animate((e) => { moved(); cam.tx = fr.tx + (to.tx - fr.tx) * e; cam.ty = fr.ty + ((to.ty == null ? fr.ty : to.ty) - fr.ty) * e; cam.tz = fr.tz + (to.tz - fr.tz) * e; cam.zoom = fr.zoom * Math.pow(to.zoom / fr.zoom, e); cam.yaw = fr.yaw + (to.yaw - fr.yaw) * e; cam.pitch = fr.pitch + (to.pitch - fr.pitch) * e; }, ms, to.yaw !== fr.yaw || to.pitch !== fr.pitch, to); }
   function zoomAt(z, sx, sy, smooth) {
-    const fr = copy(cam), g = ground(fr, sx, sy), at = (e) => { moved(); const zz = fr.zoom * Math.pow(z / fr.zoom, e), k = fr.zoom / zz; cam.zoom = zz; cam.tx = g[0] + (fr.tx - g[0]) * k; cam.tz = g[1] + (fr.tz - g[1]) * k; };
+    const fr = copy(cam), g = ground(fr, sx, sy), gy = level(fr) ? fr.ty - (sy - H / 2) / basis(fr).s : fr.ty, at = (e) => { moved(); const zz = fr.zoom * Math.pow(z / fr.zoom, e), k = fr.zoom / zz; cam.zoom = zz; cam.tx = g[0] + (fr.tx - g[0]) * k; cam.tz = g[1] + (fr.tz - g[1]) * k; cam.ty = gy + (fr.ty - gy) * k; };
     if (smooth) { animate(at, 200, false, { zoom: z }); return; } stop(true); at(1); requestDraw(); updateStatus();
   }
   function rotAbout(c, yaw, gx, gz) { const d = (yaw - c.yaw) * Math.PI / 180, cs = Math.cos(d), sn = Math.sin(d), dx = c.tx - gx, dz = c.tz - gz; c.tx = gx + dx * cs - dz * sn; c.tz = gz + dx * sn + dz * cs; c.yaw = yaw; }
   const snapYaw = (y) => Math.round(y / 45) * 45;
-  const pitchOf = (m) => m === 2 ? PS : m === 1 ? PA : 90, modeOf = (p) => p > 84 ? 0 : p < (PA + PS) / 2 ? 2 : 1, goalPitch = () => A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch;
-  function settle() { const y = snapYaw(cam.yaw), p = cam.pitch > 84 ? 90 : cam.pitch; if (y === cam.yaw && p === cam.pitch) return; glideTo({ ...copy(cam), yaw: y, pitch: p }, 220); }
+  const pitchOf = (m) => m === 3 ? 0 : m === 2 ? PS : m === 1 ? PA : 90, modeOf = (p) => p > 84 ? 0 : p < 0.5 ? 3 : p < (PA + PS) / 2 ? 2 : 1, goalPitch = () => A && A.to && A.to.pitch != null ? A.to.pitch : cam.pitch;
+  function settle() { const y = snapYaw(cam.yaw), p = cam.pitch > 84 ? 90 : cam.pitch < 4 ? 0 : cam.pitch; if (y === cam.yaw && p === cam.pitch) return; glideTo({ ...copy(cam), yaw: y, pitch: p }, 220); }
   function bounds(c) {
     const B = basis(c); let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (const x of [0, plan.w]) for (const y of [yLo, yHi]) for (const z of [0, plan.h]) { const P = [x, y, z], u = dot(P, B.R), v = dot(P, B.U); u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
@@ -1087,18 +1089,17 @@ void main() {
     sync(); const c = copy(cam); c.yaw = snapYaw(c.yaw); const { B, u0, u1, v0, v1 } = bounds(c), pad = 24, sheet = innerWidth < 900 ? sheetStops().peek : 0, avH = H - sheet - 24;
     c.zoom = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / ((u1 - u0) * view.cs), (avH - 56) / ((v1 - v0) * view.cs)), ZMN, 3);
     const s = view.cs * c.zoom, ob = ($('#optbar').getBoundingClientRect().height || 36) + 18, topY = ob + Math.max(0, (avH - ob - (v1 - v0) * s) / 3);
-    const Au = (u0 + u1) / 2, Bv = v1 - (H / 2 - topY) / s, mu = (Bv - TY * B.cp) / B.sp;
-    c.tx = Au * B.R[0] + mu * B.H[0]; c.tz = Au * B.R[2] + mu * B.H[2]; return c;
+    aim(c, B, (u0 + u1) / 2, v1 - (H / 2 - topY) / s); return c;
   }
   let CUT = null, lowUntil = 0, sharpT = 0;
   const moved = () => { lowUntil = performance.now() + 160; };
   function cutState() {
-    if (!CUT || !hover || cam.pitch > 85 || drag && (drag.kind === 'pan' || drag.kind === 'orbit') || pinch) return null;
-    const B = basis(), dx = CUT.px - cam.tx, dy = CUT.py - TY, dz = CUT.pz - cam.tz; return { sx: W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s, sy: H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s, Y: CUT.Y, r: Math.max(48, 2.6 * B.s), d: (dx * B.F[0] + dy * B.F[1] + dz * B.F[2] - 0.6) / DEPTH };
+    if (!CUT || !hover || cam.pitch > 85 || level(cam) || drag && (drag.kind === 'pan' || drag.kind === 'orbit') || pinch) return null;
+    const B = basis(), dx = CUT.px - cam.tx, dy = CUT.py - cam.ty, dz = CUT.pz - cam.tz; return { sx: W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s, sy: H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s, Y: CUT.Y, r: Math.max(48, 2.6 * B.s), d: (dx * B.F[0] + dy * B.F[1] + dz * B.F[2] - 0.6) / DEPTH };
   }
   let PC = null;
   function seeThrough(x, y, z) {
-    if (!PC || z + 1 <= PC.Y + 0.05) return false; const B = PC.B, dx = x + 0.5 - cam.tx, dy = z + 0.5 - TY, dz = y + 0.5 - cam.tz;
+    if (!PC || z + 1 <= PC.Y + 0.05) return false; const B = PC.B, dx = x + 0.5 - cam.tx, dy = z + 0.5 - cam.ty, dz = y + 0.5 - cam.tz;
     if ((dx * B.F[0] + dy * B.F[1] + dz * B.F[2]) / DEPTH >= PC.d) return false; const sx = W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s - PC.sx, sy = H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s - PC.sy;
     return sx * sx + sy * sy < (PC.r * 0.55) * (PC.r * 0.55);
   }
@@ -1112,20 +1113,20 @@ void main() {
   }
   function pick(sx, sy) {
     if (!plan) return [-1, -1];
-    const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, O = [cam.tx + B.R[0] * al + B.U[0] * be - B.F[0] * 900, TY + B.U[1] * be - B.F[1] * 900, cam.tz + B.R[2] * al + B.U[2] * be - B.F[2] * 900], D = B.F;
+    const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, O = [cam.tx + B.R[0] * al + B.U[0] * be - B.F[0] * 900, cam.ty + B.U[1] * be - B.F[1] * 900, cam.tz + B.R[2] * al + B.U[2] * be - B.F[2] * 900], D = B.F;
     const lo = [0, yLo, 0], hi = [plan.w, yHi, plan.h]; let t0 = -Infinity, t1 = Infinity;
     for (let i = 0; i < 3; i++) { if (Math.abs(D[i]) < 1e-9) { if (O[i] < lo[i] || O[i] > hi[i]) { t1 = -1; break; } continue; } let a = (lo[i] - O[i]) / D[i], b = (hi[i] - O[i]) / D[i]; if (a > b) [a, b] = [b, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, b); }
-    const flat = (Y) => { const t = (Y - O[1]) / D[1]; return [Math.floor(O[0] + D[0] * t), Math.floor(O[2] + D[2] * t)]; };
+    const lv = Math.abs(D[1]) < 1e-6, flat = (Y) => { if (lv) return [-1, -1]; const t = (Y - O[1]) / D[1]; return [Math.floor(O[0] + D[0] * t), Math.floor(O[2] + D[2] * t)]; };
     const cs = cutState(); PC = cs ? { ...cs, B } : null;
     if (!(t1 > t0)) { PC = null; return flat(TY); }
     const t = t0 + 1e-6, P = [O[0] + D[0] * t, O[1] + D[1] * t, O[2] + D[2] * t], cell = P.map((v, i) => clamp(Math.floor(v), lo[i], hi[i] - 1)), st = D.map(d => d > 0 ? 1 : d < 0 ? -1 : 0);
     const tM = [0, 1, 2].map(i => st[i] ? ((st[i] > 0 ? cell[i] + 1 : cell[i]) - P[i]) / D[i] : Infinity), tD = [0, 1, 2].map(i => st[i] ? Math.abs(1 / D[i]) : Infinity);
     for (let n = 0; n < 2000; n++) {
       if (cell[0] < 0 || cell[0] >= plan.w || cell[2] < 0 || cell[2] >= plan.h || cell[1] < yLo || cell[1] >= yHi) break;
-      if (solidAt(cell[0], cell[2], cell[1])) { PC = null; const Y = cell[1] + 1, tt = (Y - O[1]) / D[1]; CUT = { px: O[0] + D[0] * tt, py: Y, pz: O[2] + D[2] * tt, Y }; return [cell[0], cell[2], cell[1]]; }
+      if (solidAt(cell[0], cell[2], cell[1])) { PC = null; const Y = cell[1] + 1, tt = (Y - O[1]) / D[1]; CUT = lv ? null : { px: O[0] + D[0] * tt, py: Y, pz: O[2] + D[2] * tt, Y }; return [cell[0], cell[2], cell[1]]; }
       const i = tM[0] < tM[1] ? (tM[0] < tM[2] ? 0 : 2) : (tM[1] < tM[2] ? 1 : 2); cell[i] += st[i]; tM[i] += tD[i];
     }
-    PC = null; const f = flat(yLo), tt = (yLo - O[1]) / D[1]; CUT = { px: O[0] + D[0] * tt, py: yLo, pz: O[2] + D[2] * tt, Y: yLo }; return f;
+    PC = null; if (lv) { CUT = null; return [-1, -1]; } const f = flat(yLo), tt = (yLo - O[1]) / D[1]; CUT = { px: O[0] + D[0] * tt, py: yLo, pz: O[2] + D[2] * tt, Y: yLo }; return f;
   }
   const BX = builder(), ov = mesh(), base = mesh(), RC = new Map(), OV = 0.015, I3 = pack(0, 0, 255, 3);
   let curB = basis(), plY = TY;
@@ -1133,7 +1134,7 @@ void main() {
   const gtop = (x, y) => { x = clamp(x, 0, plan.w - 1); y = clamp(y, 0, plan.h - 1); const t = topTerrShown(y * plan.w + x, layerZ != null ? layerZ : Infinity); return t == null ? yLo : t + 1; };
   const ctop = (x, y) => { if (!inB(plan, x, y)) return TY; let z = gtop(x, y); const q = topShown(y * plan.w + x); if (q && (layerZ == null || zOf(q) <= layerZ) && topOf(q) + 1 > z) z = topOf(q) + 1; return z; };
   const flat = (x0, z0, x1, z1, Y, c) => q4(BX, x0, Y, z0, x0, Y, z1, x1, Y, z1, x1, Y, z0, 0, x0, z0, x1, z1, c, I3);
-  const proj = (X, Y, Z) => { const B = curB, dx = X - cam.tx, dy = Y - TY, dz = Z - cam.tz; return [W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s, H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s]; };
+  const proj = (X, Y, Z) => { const B = curB, dx = X - cam.tx, dy = Y - cam.ty, dz = Z - cam.tz; return [W / 2 + (dx * B.R[0] + dy * B.R[1] + dz * B.R[2]) * B.s, H / 2 - (dx * B.U[0] + dy * B.U[1] + dz * B.U[2]) * B.s]; };
   const bbox = (pts) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } return { x0, y0, x1, y1 }; };
   const O = {
     s: 1, c: ctx, col: pc, gy: gtop, cy: ctop, at: proj,
@@ -1157,7 +1158,7 @@ void main() {
   };
   const MAT = new Float32Array(16);
   function matrix(B, D) {
-    const kx = 2 * B.s / W, ky = 2 * B.s / H, T = [cam.tx, TY, cam.tz];
+    const kx = 2 * B.s / W, ky = 2 * B.s / H, T = [cam.tx, cam.ty, cam.tz];
     MAT[0] = B.R[0] * kx; MAT[4] = B.R[1] * kx; MAT[8] = B.R[2] * kx; MAT[12] = -dot(T, B.R) * kx;
     MAT[1] = B.U[0] * ky; MAT[5] = B.U[1] * ky; MAT[9] = B.U[2] * ky; MAT[13] = -dot(T, B.U) * ky;
     MAT[2] = B.F[0] / D; MAT[6] = B.F[1] / D; MAT[10] = B.F[2] / D; MAT[14] = -dot(T, B.F) / D;
@@ -1202,11 +1203,11 @@ void main() {
   }
   function snapshot(px, title) {
     if (lost || !plan) return null; sync();
-    const c = copy(A && A.to ? { ...cam, ...A.to } : cam); c.yaw = snapYaw(c.yaw); c.pitch = c.pitch > 84 ? 90 : c.pitch;
+    const c = copy(A && A.to ? { ...cam, ...A.to } : cam); c.yaw = snapYaw(c.yaw); c.pitch = c.pitch > 84 ? 90 : c.pitch < 0.5 ? 0 : c.pitch;
     const { B, u0, u1, v0, v1 } = bounds(c), pad = 16, top = 40, lim = Math.min(2600, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]);
     const s = Math.max(2, Math.min(px, (lim - 2 * pad) / (u1 - u0), (lim - top - 2 * pad) / (v1 - v0))), w = Math.ceil((u1 - u0) * s + 2 * pad), h = Math.ceil((v1 - v0) * s + top + 2 * pad);
     const sv = { W, H, dpr, cam: copy(cam), low: lowUntil }; stop(true); W = w; H = h; dpr = 1; lowUntil = 0;
-    c.zoom = s / view.cs; const Au = (u0 + u1) / 2, Bv = v1 - (H / 2 - top - pad) / s, mu = (Bv - TY * B.cp) / B.sp; c.tx = Au * B.R[0] + mu * B.H[0]; c.tz = Au * B.R[2] + mu * B.H[2]; Object.assign(cam, c);
+    c.zoom = s / view.cs; aim(c, B, (u0 + u1) / 2, v1 - (H / 2 - top - pad) / s); Object.assign(cam, c);
     const o = document.createElement('canvas'); o.width = w; o.height = h; const x = o.getContext('2d'); let ok = true;
     try { draw(0, x); x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = '#eef1ec'; x.fillRect(0, 0, w, 38); x.fillStyle = '#1c2a23'; x.font = '700 20px sans-serif'; x.textBaseline = 'middle'; x.textAlign = 'left'; x.fillText(title || '', 12, 20); } catch (e) { ok = false; }
     W = sv.W; H = sv.H; dpr = sv.dpr; Object.assign(cam, sv.cam); lowUntil = sv.low; requestDraw();
@@ -1264,10 +1265,10 @@ void main() {
   return {
     draw, pick, snapshot, thumb, thumbs, srcOf, usesB, stop: () => stop(false), stats, project: (X, Y, Z) => proj(X, Y, Z),
     anchor(x, y) { if (plan) plY = layerZ != null ? layerZ : ctop(x, y); },
-    dragPick(sx, sy) { const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = TY + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
+    dragPick(sx, sy) { if (level(cam)) { const q = pick(sx, sy); return [q[0], q[1]]; } const B = basis(), al = (sx - W / 2) / B.s, be = -(sy - H / 2) / B.s, ox = cam.tx + B.R[0] * al + B.U[0] * be, oy = cam.ty + B.U[1] * be, oz = cam.tz + B.R[2] * al + B.U[2] * be, t = (plY - oy) / B.F[1], X = ox + B.F[0] * t, Z = oz + B.F[2] * t; CUT = { px: X, py: plY, pz: Z, Y: plY }; return [Math.floor(X), Math.floor(Z)]; },
     cam: () => copy(cam),
     setCam: (c) => { stop(true); Object.assign(cam, c); moved(); requestDraw(); },
-    panBy(dx, dy) { moved(); const B = basis(), al = -dx / B.s, be = dy / (B.s * B.sp); cam.tx += al * B.R[0] + be * B.H[0]; cam.tz += al * B.R[2] + be * B.H[2]; requestDraw(); },
+    panBy(dx, dy) { moved(); const B = basis(), al = -dx / B.s; if (level(cam)) { cam.tx += al * B.R[0]; cam.tz += al * B.R[2]; cam.ty += dy / B.s; requestDraw(); return; } const be = dy / (B.s * B.sp); cam.tx += al * B.R[0] + be * B.H[0]; cam.tz += al * B.R[2] + be * B.H[2]; requestDraw(); },
     zoom: () => cam.zoom,
     zoomGoal: () => A && A.to && A.to.zoom ? A.to.zoom : cam.zoom,
     zoomAt,
@@ -1275,14 +1276,14 @@ void main() {
     fit(smooth) { if (!plan) return; const c = fitCam(); if (smooth) glideTo(c); else { stop(true); Object.assign(cam, c); requestDraw(); updateStatus(); } },
     touched,
     loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
-    enter(cx, cy, zoom, mode) { Object.assign(cam, { tx: cx, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: pitchOf(mode) }); markAll(); requestDraw(); },
+    enter(cx, cy, zoom, mode) { Object.assign(cam, { tx: cx, ty: TY, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: pitchOf(mode) }); markAll(); requestDraw(); },
     leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
     turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 45 * dir }, 260); },
-    tilt(dir = 1) { const m = (modeOf(goalPitch()) + 3 + dir) % 3; stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw), pitch: pitchOf(m) }, 300); return m; },
+    tilt(dir = 1) { const m = (modeOf(goalPitch()) + 4 + dir) % 4; stop(true); const fr = copy(cam); glideTo({ ...fr, ty: TY, yaw: snapYaw(fr.yaw), pitch: pitchOf(m) }, 300); return m; },
     tilted: () => goalPitch() < 89,
     mode: () => modeOf(goalPitch()),
     twist(deg, sx, sy) { const d = Math.abs(deg) < 12 ? 0 : deg - Math.sign(deg) * 12; if (!d) return; const g = ground(cam, sx, sy); rotAbout(cam, cam.yaw - d, g[0], g[1]); moved(); requestDraw(); },
-    orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, PS, 90); moved(); requestDraw(); },
+    orbit(c0, dx, dy) { stop(false); Object.assign(cam, c0); const g = ground(cam, W / 2, H / 2); rotAbout(cam, c0.yaw - dx * 0.35, g[0], g[1]); cam.pitch = clamp(c0.pitch + dy * 0.3, 0, 90); moved(); requestDraw(); },
     settle,
   };
 }

@@ -87,7 +87,7 @@ The map is 3D. It opens looking straight down, so it reads like a floor plan, an
 
 Moving around:
 
-- **Change the view** with the view button or T: from the top, at an angle, or from the side, then back to the top (Shift+T goes the other way). The button shows the view you're in. The side view looks almost level, so you see heights, stacked levels, waterfalls and tall items edge on; taps still work in it. With a mouse, drag up and down with the right button to tilt anywhere in between.
+- **Change the view** with the view button or T: from the top, angled, low angle, and side on, then back to the top (Shift+T goes the other way). The button shows the view you're in. The low angle looks almost level, at 10°, so you still see a sliver of the ground. Side on looks straight across, level with the ground, like an elevation drawing: you see heights, stacked levels, waterfalls and tall items exactly edge on. Dragging moves the view across and up or down, and tapping picks what you point at. With a mouse, drag up and down with the right button to tilt anywhere in between; a view within a few degrees of level settles side on.
 - **Turn** 45° at a time with the turn button (Shift turns it the other way), or with , and . on a keyboard. On a phone or tablet, twist two fingers; with a mouse, drag sideways with the right button. When you let go, the view settles on the nearest 45°, so it's always square on to the grid or looking along a diagonal.
 - Drag to pan, and pinch or use the wheel to zoom, as on the flat map. Fit, Zoom in and Zoom out work the same way.
 
