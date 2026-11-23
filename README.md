@@ -168,10 +168,12 @@ The **Show on the map** button by the zoom controls (S) turns on what's drawn ov
   | Floor switch | A 5×5×5 cube |
   | Wall switch, Card reader | A 7×7×7 cube |
   | Laser sensor | The 2 tiles in front of it, shaded darker, and the cells it switches beside, behind and above and below it |
+  | Berry trees | The 8 tiles around it, 6 of which catch its berries |
   | Transmitters | 10 tiles to items and generators, 15 to other transmitters, up to 5 levels up or down |
   | Generators | A transmitter within 10 tiles, counted from the kit's front-left tile |
 
   The selected item always shows its reach, with a label, and so does an item while you place it.
+- **Fields**: each crop and farm-soil tile turns blue when it's watered, orange when it's dry, brown when a Smooth Rock dries it, and red when it can't be watered (lava beside it, or under water with no bubbles). Each sprinkler gets a green dot when it runs and a red one when it has no water.
 - **Power**: how transmitters link to their generator (solid line), to each other (dashed) and to their items (dotted). Each item that needs power gets a green or red dot, and each network a label such as "12 of 25 power". Selecting a generator, transmitter or powered item always shows its network.
 
 An item's info and its panel say what it does in the game: how much power it makes or uses, what a switch or sensor works, how far a liquid flows and whether it waters fields, and how many days a crop or plant takes to grow.
@@ -182,7 +184,23 @@ The game decides some things by the order you build them, such as which transmit
 
 The rules behind all this, with their sources, are in [the research report](reports/Pokopia%20liquids%20sensors%20and%20crops.md), and [plans/World mechanics.md](plans/World%20mechanics.md) is the plan for the checks still to come.
 
-## Power
+## Fields and crops
+
+A crop grows one stage at 5:00 each day it's wet. It takes 3 stages to ripen, so it's ripe in 3 days. A Grow Pokémon living nearby adds a stage a day, which makes it 1 day; more than one adds nothing. After harvest, beans, tomatoes and potatoes fruit again a day later, while wheat starts again from seed. A crop's panel says whether it's wet and why, and how many days it has left.
+
+A field is wet when any of these waters it:
+
+- **Still water beside it:** water, ocean water or hot-spring water on a tile right next to it (not diagonal), level with the crop or with the soil under it. Muddy water and lava never water anything. Lava next to a field stops it being watered at all.
+- **A running sprinkler** within 5 tiles, counted along each axis and added up. A sprinkler runs only with water within that reach at its own level or one below. It still works buried up to 2 levels under the field, and it only adds its 100 humidity while it runs.
+- **Rain**, when the weather is set to rain and nothing roofs the field.
+- **A Water Pokémon with a water basin:** one living nearby, with a water basin in its home's area. The game's reach isn't known, so the planner uses its home's area.
+
+Under water, a crop needs bubbles instead: a powered Bubble machine within 1 tile, or a Water Pokémon living nearby.
+
+A **Smooth Rock** dries the top block within 4 tiles, from 1 level above it to 2 below. A block in between shields what's under it, and crops in planters are left alone. The rock stops in rain, or when a running sprinkler reaches it. Its panel says how many field tiles it dries.
+
+Dry crops, crops a Smooth Rock dries, crops that can't be watered and sprinklers with no water all show in the **⚠ problem** list.
+
 
 The planner works out power the way the game does:
 
