@@ -970,9 +970,25 @@ function decorPlan(home, floor) {
 }
 function resChip(home, r, onChange) {
   const p = PK_BY_NAME.get(r.p); const f = r.f || 0, to = floorName(1 - f).toLowerCase();
-  const flBtn = home.floors > 1 ? h('button', { class: 'flr', 'data-tip': 'Sleeps on the ' + floorName(f).toLowerCase() + ': tap to move to the ' + to, 'aria-label': 'Move ' + r.p + ' to the ' + to, onclick: () => { if (!floorHasRoomFor(home, 1 - f, r.p)) { toast(floorName(1 - f) + ' is full (' + home.pf + ' per floor)'); return; } setResidentFloor(r.p, 1 - f); onChange(); } }, f ? '2F' : '1F') : '';
+  const flBtn = home.floors > 1 ? h('button', { class: 'flr', 'data-tip': 'Sleeps on the ' + floorName(f).toLowerCase() + ': tap to move to the ' + to + (home.pf ? ', or to swap with someone there when it\'s full' : ''), 'aria-label': 'Move ' + r.p + ' to the ' + to, onclick: () => floorMove(home, r, onChange) }, f ? '2F' : '1F') : '';
   const big = smallOnly(home) && tooBig(p);
-  return h('span', { class: 'res' + (big ? ' bad' : ''), 'data-tip': big ? 'Too big to live in a den' : null }, pkFace(p || r.p, 24), flBtn, r.p, p && p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p ? sizeBadge(p, onChange) : '', big ? h('span', { class: 'szb big' }, 'Too big') : '', h('button', { 'aria-label': 'Move ' + r.p + ' out', 'data-tip': 'Move out', onclick: () => { removeResident(r.p); onChange(); } }, icon('close')));
+  return h('span', { class: 'res' + (big ? ' bad' : ''), 'data-tip': big ? 'Too big to live in a den' : null }, pkFace(p || r.p, 24), flBtn, r.p, p && p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p ? sizeBadge(p, onChange) : '', big ? h('span', { class: 'szb big' }, 'Too big') : '', p ? h('button', { 'aria-label': 'Move ' + r.p + ' to another home', 'data-tip': 'Move to another home, or swap with someone in a full one', onclick: () => pkHomeChooser(p, onChange) }, icon('move')) : '', h('button', { 'aria-label': 'Move ' + r.p + ' out', 'data-tip': 'Move out', onclick: () => { removeResident(r.p); onChange(); } }, icon('close')));
+}
+function resRec(r, s) { const o = { p: r.p, x: s.x, y: s.y, k: s.k }; if (s.f) o.f = 1; return o; }
+function resSwap(a, b, label) {
+  const L = plan.res || [], ra = L.find(r => r.p === a), rb = L.find(r => r.p === b); if (!rb) return false;
+  setRes(ra ? L.map(r => r === ra ? resRec(ra, rb) : r === rb ? resRec(rb, ra) : r) : L.filter(r => r !== rb).concat([resRec({ p: a }, rb)])); commitTx(label); return true;
+}
+function floorMove(home, r, onChange) {
+  const f = r.f || 0, to = 1 - f, where = (z) => z ? 'upstairs' : 'downstairs';
+  if (floorHasRoomFor(home, to, r.p)) { setRes((plan.res || []).map(q => q.p === r.p ? resRec(q, { x: q.x, y: q.y, k: q.k, f: to }) : q)); commitTx(r.p + ' moved ' + where(to)); onChange(); return; }
+  const others = residentsOf(home, to);
+  modal('Swap ' + r.p + ' with someone ' + where(to), (box) => {
+    box.append(h('p', { class: 'sub' }, floorName(to) + ' is full (' + home.pf + ' per floor). Pick who moves ' + where(f) + ' instead.'));
+    const l = h('div', { class: 'list' });
+    for (const o of others) { const q = PK_BY_NAME.get(o.p); l.append(h('button', { class: 'row', type: 'button', onclick: () => { closeModal(); const lb = r.p + ' and ' + o.p + ' swapped floors'; resSwap(r.p, o.p, lb); onChange(); undoToast(lb, 4200); } }, pkFace(q || o.p, 32), h('span', { class: 'meta' }, h('div', { class: 'nm' }, o.p), q && q.ideal ? h('div', { class: 'ds' }, q.ideal) : ''))); }
+    box.append(l);
+  });
 }
 function floorHasRoomFor(home, f, name) { if (!home.pf) return true; return residentsOf(home, f).filter(r => r.p !== name).length < home.pf; }
 function bigWay(hs) {
@@ -4923,13 +4939,14 @@ function pkMoveIn(p, hm) {
   if (!c.ok) { toast(c.code === 'full' ? hm.label + ' is full' : c.code === 'big' ? p.n + ' is too big for a den' : p.n + ' lives there already'); return false; }
   const from = homeOfPokemon(p.n), r = { p: p.n, x: hm.ax, y: hm.ay, k: hm.kind === 'kit' ? 'k' : 'h' }; if (hm.floors > 1 && !floorHasRoom(hm, 0)) r.f = 1;
   setRes((plan.res || []).filter(q => q.p !== p.n).concat([r])); commitTx(p.n + ' moved in');
-  if ($('#inspector').classList.contains('open') && selection && selection.obj && plan.objs.has(selection.obj.id) && ITEMS[selection.obj.i].cap) showObjInspector(selection.obj);
+  pkAfterMove();
   undoToast(p.n + (from ? ' moved to ' : ' moved into ') + hm.label, 4200);
   return true;
 }
-function pkHomeChooser(p) {
+function pkAfterMove() { if ($('#inspector').classList.contains('open') && selection && selection.obj && plan.objs.has(selection.obj.id) && ITEMS[selection.obj.i].cap) showObjInspector(selection.obj); }
+function pkHomeChooser(p, done) {
   const homes = allHomes(), cur = homeOfPokemon(p.n);
-  modal('Move ' + p.n + ' in', (box) => {
+  modal('Move ' + p.n + (cur ? '' : ' in'), (box) => {
     box.classList.add('wide');
     box.append(h('div', { class: 'pkhead' }, pkPic(p, 64), h('div', null, h('b', null, p.n), h('div', { class: 'note' }, cur ? 'Lives in ' + cur.label : 'No home yet'))));
     if (!homes.length) { box.append(h('p', { class: 'empty' }, 'No homes yet. Place a kit house from Build, or build a house: walls all round, a door and 3 kinds of furniture inside.')); return; }
@@ -4940,11 +4957,16 @@ function pkHomeChooser(p) {
       const bits = [x.used + '/' + x.hm.cap + (x.names.length ? '' : ', empty')];
       if (x.others.length) bits.push(x.cp.shared + ' shared like' + (x.cp.shared === 1 ? '' : 's') + (!x.cp.sameEnv ? ' · ⚠ opposite of ' + listNames(x.cp.clash) : x.cp.same ? ' · same ideal' : ''));
       if (!x.c.ok) bits.push(x.c.code === 'same' ? 'lives here now' : x.c.why);
-      l.append(h('button', { class: 'row', type: 'button', disabled: !x.c.ok, style: 'align-items:flex-start', onclick: () => { closeModal(); pkMoveIn(p, x.hm); } }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, x.hm.label), h('div', { class: 'ds', style: 'white-space:normal' }, bits.join(' · ')), x.names.length ? pkChips(x.names, 20) : '')));
+      if (x.c.code === 'full' && fitsHome(p, x.hm)) {
+        const sw = h('div', { class: 'reqs', style: 'margin-top:4px' }, x.names.map(n => { const q = PK_BY_NAME.get(n), fits = !cur || !q || fitsHome(q, cur); return h('button', { class: 'btn sm', type: 'button', disabled: !fits, 'data-tip': fits ? (cur ? n + ' moves to ' + cur.label : n + ' moves out to make room') : n + ' is too big for ' + cur.label, onclick: () => { closeModal(); const lb = cur ? p.n + ' and ' + n + ' swapped homes' : p.n + ' moved into ' + x.hm.label + ' instead of ' + n; resSwap(p.n, n, lb); pkAfterMove(); undoToast(lb, 4200); if (done) done(); } }, pkFace(q || n, 20), (cur ? 'Swap with ' : 'Instead of ') + n); }));
+        l.append(h('div', { class: 'row', style: 'align-items:flex-start;cursor:default;flex-direction:column' }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, x.hm.label), h('div', { class: 'ds', style: 'white-space:normal' }, bits.join(' · ') + ': pick who ' + (cur ? 'swaps with ' + p.n : 'makes room'))), sw));
+        continue;
+      }
+      l.append(h('button', { class: 'row', type: 'button', disabled: !x.c.ok, style: 'align-items:flex-start', onclick: () => { closeModal(); if (pkMoveIn(p, x.hm) && done) done(); } }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, x.hm.label), h('div', { class: 'ds', style: 'white-space:normal' }, bits.join(' · ')), x.names.length ? pkChips(x.names, 20) : '')));
     }
     box.append(l);
     if (cur) box.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { closeModal(); moveOut([p.n]); commitTx(p.n + ' moved out'); undoToast(p.n + ' moved out of ' + cur.label, 4200); } }, 'Move out')));
-  }, null, null, false, 'Homes with room come first, then the best housemates: shared likes and an ideal habitat that doesn\'t clash. You can also drag ' + p.n + ' from the list onto a home on the map.');
+  }, null, null, false, 'Homes with room come first, then the best housemates: shared likes and an ideal habitat that doesn\'t clash. A full home lists who lives there: pick one to swap with. You can also drag ' + p.n + ' from the list onto a home on the map.');
 }
 let pkDrag = null, pkPend = null, pkQuiet = 0;
 function pkUnlisten() { removeEventListener('pointermove', pkMove, true); removeEventListener('pointerup', pkUp, true); removeEventListener('pointercancel', pkUp, true); }
