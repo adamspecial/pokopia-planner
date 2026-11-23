@@ -172,6 +172,7 @@ The **Show on the map** button by the zoom controls (S) turns on what's drawn ov
   | Generators | A transmitter within 10 tiles, counted from the kit's front-left tile |
 
   The selected item always shows its reach, with a label, and so does an item while you place it.
+- **Power**: how transmitters link to their generator (solid line), to each other (dashed) and to their items (dotted). Each item that needs power gets a green or red dot, and each network a label such as "12 of 25 power". Selecting a generator, transmitter or powered item always shows its network.
 
 An item's info and its panel say what it does in the game: how much power it makes or uses, what a switch or sensor works, how far a liquid flows and whether it waters fields, and how many days a crop or plant takes to grow.
 
@@ -180,6 +181,32 @@ The **Materials** tab ends with **Limits**: how many of the things the game caps
 The game decides some things by the order you build them, such as which transmitter an item joins. The planner keeps items in the order you placed them, saved with the plan. Moving an item counts as placing it again.
 
 The rules behind all this, with their sources, are in [the research report](reports/Pokopia%20liquids%20sensors%20and%20crops.md), and [plans/World mechanics.md](plans/World%20mechanics.md) is the plan for the checks still to come.
+
+## Power
+
+The planner works out power the way the game does:
+
+- **Generators:**
+
+  | Generator | Power |
+  |---|---|
+  | Mini generator | 5 |
+  | Windmill | 10, or 20 on high ground |
+  | Waterwheel | 20, while liquid touches it |
+  | Furnace kit | 30, assumed fuelled |
+
+  Tick **High ground** in a windmill's panel when it stands 45 or more tiles above the map's floor (47 in Rocky Ridges).
+- **Using power:** each item that needs power uses 1, except string lights and surface lights, which use none.
+- **Reach:** distances count tiles along each axis and add them up, and nothing links across more than 5 levels.
+  - A generator links to one transmitter within 10 tiles, counted from the kit's front-left tile, and each transmitter takes one generator.
+  - Transmitters within 15 tiles of each other link and share all their generators.
+  - Each transmitter powers up to 20 items within 10 tiles.
+- **Order matters.** As in the game, an item joins a transmitter when it's placed, so the planner goes through things in the order you placed them. An item joins the nearest transmitter in reach that has room. A new transmitter picks up items nobody has yet, nearest first.
+- **Overload:** when a network uses more than its generators make, everything on it goes off.
+- **Wires:** a utility pole's wire to another pole or to its generator is a straight line. A block in the way gets a warning, since the wire only works if it was strung first. Wireless transmitters ignore walls.
+- **Kit houses:** dens, huts and tents only take power from a mini generator inside. Cottages and houses also take it from a transmitter within 10 tiles, and then everything inside is powered.
+
+Each item's panel says whether it has power, from which network, and if not, why: too far from a transmitter, every transmitter in reach full, no generator, or the network overloaded. Lights and appliances without power add no light, warmth or humidity. Overloads, items without power, generators with no transmitter and blocked wires show in the **⚠ problem** list, and **Show** takes you to each one.
 
 ## Light, warmth and humidity
 
@@ -207,7 +234,7 @@ Every item, and every tile of water, lava, ice or grass, carries light, warmth a
 - **Warmth:** a lit fire (campfire, firepit, wall torch, stone fireplace, bonfire), a cooking stove, the Fiery Magby statue, a Heat Rock, the furnace and an air conditioner on hot each add 60. So does each tile of lava. Molten rock and each hot-spring tile add 30; candles and each Lava rock block add 10. An Icy Rock, a refrigerator, a cooler, a fan, a ceiling fan and an air conditioner on cold each take 60 off. Ice, icicles, shaved ice and soda floats take 10 off. Lamps don't warm.
 - **Humidity:** a filled water basin or bathtub, a humidifier, a Damp Rock, the funky diffuser, a working fountain, sprinkler or bubble machine and the hot-spring spout each add 100. Each tile of water, muddy water or hot spring adds 20, and so does a sink, shower or toilet, whether running or not. Every falling tile of a waterfall adds 20 too, so a fall 5 high makes a habitat humid on its own. Trees and the Chansey plant add 5; grass, flowers, hedges, crops and potted plants add 2.5. Each grass ground tile adds 1. The Castform charm adds 50 when turned to rain and takes 50 off when turned to sun. A Smooth Rock takes 100 off, but stops working in rain unless it's in a kit house. Harvested wheat adds nothing until it sprouts again, so a home kept humid by wheat gets a warning. Each dry grass tile takes 0.5 off. Rain itself adds nothing.
 
-Fires count only when lit, and a Burn Pokémon lights them when its home is within 4 tiles: its habitat, its house or its kit. A fire with no Burn Pokémon nearby is listed under **Not counted**, and its panel says it isn't lit. The cooking stove and the Magby statue need no lighting. Appliances count only when powered and switched on, and tubs, basins and fountains only when filled or working; the planner counts those as working.
+Fires count only when lit, and a Burn Pokémon lights them when its home is within 4 tiles: its habitat, its house or its kit. A fire with no Burn Pokémon nearby is listed under **Not counted**, and its panel says it isn't lit. The cooking stove and the Magby statue need no lighting. Lights and appliances that need power count only when they have it (see [Power](#power)); the planner assumes they're switched on. Tubs, basins and fountains count when filled or working, which the planner assumes.
 
 **Weather.** Set the town's weather under **Weather** in the Plans tab: not set, rain or sun. In the game it only changes when a Pokémon uses a Rain Dance or Sunny Day spot, and then it stays. Rain turns Smooth Rocks off except inside kit houses, and can put out fires with no roof over them, though a Burn Pokémon living nearby lights them again. Rain itself adds no humidity. The air conditioner counts as set to hot or cold, whichever the residents want. Slowpoke's Yawn score is something else: it covers the whole town area, not one home.
 

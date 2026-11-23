@@ -201,11 +201,11 @@ function serialize(p) {
   const dict = []; const dmap = new Map();
   const ref = (itemIdx) => { const name = ITEMS[itemIdx].n; if (!dmap.has(name)) { dmap.set(name, dict.length + 1); dict.push(name); } return dmap.get(name); };
   const tg = []; for (let j = 0; j < p.tz.length; j++) { const T = p.tt[j], g = new Uint16Array(T.length); let any = false; for (let k = 0; k < g.length; k++) if (T[k]) { g[k] = ref(T[k] - 1); any = true; } if (any || !p.tz[j]) tg.push([p.tz[j], rle(g)]); }
-  const o = [], ints = {}; for (const ob of [...p.objs.values()].sort((a, b) => a.id - b.id)) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].concat(ob.r != null ? [zOf(ob), htOf(ob), ob.r & 3] : htOf(ob) !== 1 ? [zOf(ob), htOf(ob)] : ob.z ? [ob.z] : []).map(v => v.toString(36)).join('.')); }
+  const o = [], ints = {}, hgs = []; for (const ob of [...p.objs.values()].sort((a, b) => a.id - b.id)) { if (ob.int && intHasData(ob.int)) ints[o.length] = intOut(ob.int); if (ob.hg) hgs.push(o.length); o.push([ref(ob.i), ob.x, ob.y, ob.w, ob.h].concat(ob.r != null ? [zOf(ob), htOf(ob), ob.r & 3] : htOf(ob) !== 1 ? [zOf(ob), htOf(ob)] : ob.z ? [ob.z] : []).map(v => v.toString(36)).join('.')); }
   const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h, zOf(r)].map(v => v.toString(36)).join('.'));
   return { v: 3, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: tg, o: o.join(';'), u: u.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
-    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), wx: p.wx || null, updated: p.updated || Date.now() };
+    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), wx: p.wx || null, hg: hgs.join('.'), updated: p.updated || Date.now() };
 }
 function deserialize(s) {
   const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= 256 && h <= 256)) throw new Error('Bad plan size');
@@ -217,10 +217,10 @@ function deserialize(s) {
   else { unpack(s.g, p.ground); elev = unrle(s.e, w * h, Uint8Array); }
   const lift = (x, y, ow, oh) => { if (!elev) return 0; let e = 0; for (let yy = y; yy < Math.min(h, y + oh); yy++) for (let xx = x; xx < Math.min(w, x + ow); xx++) e = Math.max(e, elev[yy * w + xx]); return e + 1; };
   let ints = {}; try { ints = s.ints ? JSON.parse(s.ints) : {}; } catch (e) { ints = {}; }
-  const v3 = (s.v | 0) >= 3, grow = [], rugObs = [];
+  const v3 = (s.v | 0) >= 3, grow = [], rugObs = [], hgs = new Set(String(s.hg || '').split('.').filter(Boolean).map(Number));
   if (s.o) s.o.split(';').forEach((tok, oi) => {
     const [d, x, y, ow, oh, oz, ot, orr] = tok.split('.').map(v => parseInt(v, 36)); const it = map[d - 1]; if (!it) return;
-    const ob = { id: p.nextId++, i: it.i, x, y, w: ow || it.w, h: oh || it.h }, zz = clamp((oz || 0) + lift(x, y, ob.w, ob.h), ZMIN, ZMAX); if (zz) ob.z = zz; if (ints[oi]) ob.int = intIn(ints[oi]); if (orr >= 0 && orr <= 3) ob.r = orr;
+    const ob = { id: p.nextId++, i: it.i, x, y, w: ow || it.w, h: oh || it.h }, zz = clamp((oz || 0) + lift(x, y, ob.w, ob.h), ZMIN, ZMAX); if (zz) ob.z = zz; if (ints[oi]) ob.int = intIn(ints[oi]); if (orr >= 0 && orr <= 3) ob.r = orr; if (hgs.has(oi)) ob.hg = 1;
     if (isRug(it)) { rugObs.push({ id: ob.id, rug: 1, i: it.i, x, y, w: ob.w, h: ob.h, z: zz }); return; }
     if (elev && zz <= 0) for (let yy = y; yy < Math.min(h, y + ob.h); yy++) for (let xx = x; xx < Math.min(w, x + ob.w); xx++) if (terrAt(p, yy * w + xx, zz)) tLayer(p, zz)[yy * w + xx] = 0;
     const want = v3 ? clamp(ot || 1, 1, HMAX) : 1; if (want > 1 && fits(p, ob.x, ob.y, ob.w, ob.h, 0, zOf(ob), want)) ob.t = want;
@@ -313,7 +313,7 @@ function faceOf(ob, p = plan) {
   for (const r of [0, 3, 1, 2]) if (backSolid(ob, r, p)) return r;
   return 0;
 }
-const keepObj = (n, ob) => { if (!n) return n; if (ob.int) n.int = ob.int; if (ob.r != null) n.r = ob.r; return n; };
+const keepObj = (n, ob) => { if (!n) return n; if (ob.int) n.int = ob.int; if (ob.r != null) n.r = ob.r; if (ob.hg) n.hg = ob.hg; return n; };
 const turnFace = (r, op) => op === 'cw' ? (r + 1) & 3 : op === 'ccw' ? (r + 3) & 3 : op === 'fx' ? (r & 1 ? r ^ 2 : r) : (r & 1 ? r : r ^ 2);
 function turnObj(ob, d = 1) {
   const it = ITEMS[ob.i], r = (faceOf(ob) + d + 4) & 3, swap = ob.w !== ob.h, res = reshapeObj(ob, ob.x, ob.y, swap ? ob.h : ob.w, swap ? ob.w : ob.h);
@@ -825,6 +825,7 @@ function envOf(home) {
     const fx = envFx(it); if (!fx) return; let by = '';
     if (fx.need === 'f') { const who = ob ? burnersAt(ob.x, ob.y, zOf(ob), rng()) : pks.filter(burnsIt).map(p => p.n); if (!who.length) { off(it, 'not lit: no Burn Pokémon lives nearby'); return; } by = listNames(who.slice(0, 2)) + (who.length > 2 ? ' +' + (who.length - 2) : ''); }
     if (fx.need === 'd' && plan.wx === 'rain' && !interior) { off(it, 'it\'s raining'); return; }
+    if (fx.need === 'p' && it.pd != null && (ob ? !powerOn(ob) : !(POWER && POWER.kit.get(home.ob.id) && POWER.kit.get(home.ob.id).on))) { off(it, 'no power'); return; }
     const nm = fx.ac ? it.n + (ac > 0 ? ' (on hot)' : ac < 0 ? ' (on cold)' : ' (off)') : it.n;
     add('b', nm, fx.b, fx, 1, by); if (warmOk) add('t', nm, envT(fx, ac), fx, 1, by); add('u', nm, fx.u, fx, 1, by);
   };
@@ -879,14 +880,15 @@ function envAdvice(ideal, E) {
   const k = envAxisOf(ideal), A = E.ax[k], g = envGap(ideal, A.v, E.kind), lim = ENV_LIM[E.kind][ideal]; if (!g) return '';
   const top = (sign) => [...A.parts].filter(([lb, e]) => e.v * sign > 0 && !lb.startsWith('Daylight')).sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)).slice(0, 3).map(([lb, e]) => lb + (e.n > 1 && !/tile/.test(lb) ? ' ×' + e.n : '') + ' (' + envPts(e.v) + ')').join(', ');
   const where = E.hab ? ' Anything in the dotted area counts, from 4 levels down to 4 up' + (k === 't' ? ', but warmth only from 1 down to 3 up' : '') + '.' : E.kind === 'block' ? ' Only the floor inside the walls counts.' : '';
+  const sign = ENV_AX[ideal][1], unpow = [...E.off].filter(([n, e]) => { if (e.why !== 'no power') return false; const fx = envFx(BY_NAME.get(n)); return !!fx && (k === 't' ? envT(fx, E.ac) : fx[k]) * sign > 0; }).map(([n]) => n), powTxt = unpow.length ? ' ' + listNames(unpow) + (unpow.length > 1 ? ' have' : ' has') + ' no power.' : '';
   const unlit = [...E.off].filter(([, e]) => /not lit/.test(e.why)).map(([n]) => n), fire = E.burn.length ? 'lit by ' + E.burn[0] : 'once a Burn Pokémon lives nearby to light it', unlitTxt = unlit.length ? ' ' + listNames(unlit) + (unlit.length > 1 ? ' aren\'t' : ' isn\'t') + ' lit: a Burn Pokémon has to live nearby.' : '';
   const now = (sign, word) => top(sign) ? ' ' + word + ' it now: ' + top(sign) + '.' : '';
   switch (ideal) {
-    case 'Bright': return 'Needs ' + envNum(g) + ' more light: a lamp or streetlight (80), a campfire or fireplace (40, ' + fire + '), a candle (20)' + (E.built && E.roof ? ', or less roof' : '') + '.' + unlitTxt + where;
+    case 'Bright': return 'Needs ' + envNum(g) + ' more light: a lamp or streetlight (80), a campfire or fireplace (40, ' + fire + '), a candle (20)' + (E.built && E.roof ? ', or less roof' : '') + '.' + unlitTxt + powTxt + where;
     case 'Dark': { const lit = top(1), day = (E.built || E.hab) && E.day ? E.day.v : 0; return 'Too bright (' + envNum(A.v) + ', dark is ' + lim + ' or less): ' + [day > 0 ? 'more roof (daylight ' + envNum(day) + ')' : '', lit ? 'take out ' + lit : '', 'or a Beach parasol (−40)'].filter(Boolean).join(', ') + '.'; }
-    case 'Warm': return 'Needs ' + envNum(g) + ' more warmth: a fire (' + fire + '), a cooking stove, a Heat Rock or the air conditioner on hot (+60 each). Lamps don\'t warm.' + unlitTxt + now(-1, 'Cooling') + where;
-    case 'Cool': return 'Needs ' + envNum(g) + ' less warmth: an Icy Rock, a fridge, cooler or fan, or the air conditioner on cold (−60 each).' + now(1, 'Warming') + where;
-    case 'Humid': return 'Needs ' + envNum(g) + ' more humidity: a filled basin or bathtub, a humidifier or a Damp Rock (+100 each); a sink, shower' + (E.kind === 'block' ? ', toilet or water tile' : ' or toilet') + ' (+20).' + now(-1, 'Drying') + where;
+    case 'Warm': return 'Needs ' + envNum(g) + ' more warmth: a fire (' + fire + '), a cooking stove, a Heat Rock or the air conditioner on hot (+60 each). Lamps don\'t warm.' + unlitTxt + powTxt + now(-1, 'Cooling') + where;
+    case 'Cool': return 'Needs ' + envNum(g) + ' less warmth: an Icy Rock, a fridge, cooler or fan, or the air conditioner on cold (−60 each).' + powTxt + now(1, 'Warming') + where;
+    case 'Humid': return 'Needs ' + envNum(g) + ' more humidity: a filled basin or bathtub, a humidifier or a Damp Rock (+100 each); a sink, shower' + (E.kind === 'block' ? ', toilet or water tile' : ' or toilet') + ' (+20).' + powTxt + now(-1, 'Drying') + where;
     case 'Dry': return 'Too humid (' + envNum(A.v) + ', dry is ' + lim + ' or less): take out ' + (top(1) || 'what\'s wet') + ', or add a Smooth Rock (−100, ' + (plan.wx === 'rain' && E.kind !== 'kit' ? 'but it\'s off while it rains' : 'not in rain') + ').';
   }
   return '';
@@ -1525,6 +1527,114 @@ function drawReach(c, s) {
   if (showReach) for (const ob of reachList()) if (ob !== sel) { const R = reachOf(ob); if (R) drawReachShape(c, s, R, false); }
   if (sel && hasReach(ITEMS[sel.i])) { const R = reachOf(sel); if (R) drawReachShape(c, s, R, true); }
 }
+const PW_R = 10, PW_TT = 15, PW_DZ = 5, PW_CAP = 20;
+let POWER = null, showPower = LS.get(LSK + 'power') === '1';
+const isPowerDev = (it) => it.pd != null && !it.cap;
+const kitOutside = (it) => !!it.cap && it.cap > 1 && !/\b(den|hut|tent)\b/i.test(it.n);
+function powerFoot(ob) { const it = ITEMS[ob.i]; if (it.pg && (ob.w > 1 || ob.h > 1)) return [[ob.x, ob.y + ob.h - 1], [ob.x, ob.y], [ob.x + ob.w - 1, ob.y], [ob.x + ob.w - 1, ob.y + ob.h - 1]][faceOf(ob)]; return [ob.x, ob.y]; }
+function pwDist(t, ob) {
+  const [tx, ty] = t.foot, dz = Math.abs(zOf(ob) - zOf(t.ob)); if (dz > PW_DZ) return Infinity;
+  const [nx, ny] = ITEMS[ob.i].pg ? powerFoot(ob) : [clamp(tx, ob.x, ob.x + ob.w - 1), clamp(ty, ob.y, ob.y + ob.h - 1)];
+  return Math.abs(tx - nx) + Math.abs(ty - ny) + dz;
+}
+function liquidAtWheel(ob) {
+  for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; for (let z = zOf(ob) - 1; z <= topOf(ob); z++) { const v = terrAt(plan, k, z); if (v && ITEMS[v - 1].lq) return true; } }
+  return false;
+}
+function genUnits(ob) { const it = ITEMS[ob.i]; if (it.pgn === 'n' && !liquidAtWheel(ob)) return 0; return it.pgh && ob.hg ? it.pgh : it.pg; }
+function wireBlocked(a, b) {
+  const [ax, ay] = a.foot, [bx, by] = b.foot, az = topOf(a.ob) + 0.5, bz = (ITEMS[b.ob.i].pt === 'p' ? topOf(b.ob) : zOf(b.ob)) + 0.5, own = new Set([a.ob.id, b.ob.id]);
+  const n = Math.max(2, Math.ceil((Math.abs(ax - bx) + Math.abs(ay - by) + Math.abs(az - bz)) * 3));
+  for (let i = 1; i < n; i++) {
+    const f = i / n, x = Math.floor(ax + 0.5 + (bx - ax) * f), y = Math.floor(ay + 0.5 + (by - ay) * f), z = Math.floor(az + (bz - az) * f);
+    if (!inB(plan, x, y)) continue; const k = y * plan.w + x;
+    const tv = terrAt(plan, k, z); if (tv && !ITEMS[tv - 1].lq) return { x, y, z, what: ITEMS[tv - 1].n };
+    const o = occAt(plan, k, z); if (o && !own.has(o)) { const q = plan.objs.get(o); if (q && !isRug(ITEMS[q.i])) return { x, y, z, what: ITEMS[q.i].n }; }
+  }
+  return null;
+}
+function computePower() {
+  const P = { tx: new Map(), gen: new Map(), dev: new Map(), kit: new Map(), nets: [], any: false };
+  const objs = [...plan.objs.values()].sort((a, b) => a.id - b.id), T = [];
+  const near = (ob, list, ok) => { let best = null, bd = Infinity; for (const t of list) { if (ok && !ok(t)) continue; const d = pwDist(t, ob); if (d < bd) { bd = d; best = t; } } return [best, bd]; };
+  for (const ob of objs) {
+    const it = ITEMS[ob.i];
+    if (it.pt) {
+      const t = { ob, foot: powerFoot(ob), gen: null, devs: [], links: [], net: -1, blocked: [] }; P.tx.set(ob.id, t); T.push(t); P.any = true;
+      let bg = null, bd = Infinity; for (const g of P.gen.values()) { if (g.tx) continue; const d = pwDist(t, g.ob); if (d <= PW_R && d < bd) { bd = d; bg = g; } } if (bg) { bg.tx = t; t.gen = bg; }
+      const free = [...P.dev.values()].filter(d => !d.tx).map(d => [d, pwDist(t, d.ob)]).filter(([, d]) => d <= PW_R).sort((a, b) => a[1] - b[1] || a[0].ob.id - b[0].ob.id);
+      for (const [d] of free) { if (t.devs.length >= PW_CAP) break; d.tx = t; t.devs.push(d); }
+    } else if (it.pg) {
+      const g = { ob, units: genUnits(ob), tx: null }; P.gen.set(ob.id, g); P.any = true;
+      const [t, d] = near(ob, T, (q) => !q.gen); if (t && d <= PW_R) { g.tx = t; t.gen = g; }
+    } else if (isPowerDev(it)) {
+      const d = { ob, draw: it.pd, tx: null, inReach: 0 }; P.dev.set(ob.id, d);
+      const [t, dd] = near(ob, T, (q) => q.devs.length < PW_CAP); if (t && dd <= PW_R) { d.tx = t; t.devs.push(d); }
+    }
+  }
+  for (const d of P.dev.values()) { let n = 0, bd = Infinity; for (const t of T) { const x = pwDist(t, d.ob); if (x <= PW_R) n++; bd = Math.min(bd, x); } d.inReach = n; d.nearest = bd; }
+  for (const g of P.gen.values()) { let bd = Infinity; for (const t of T) bd = Math.min(bd, pwDist(t, g.ob)); g.nearest = bd; }
+  const par = T.map((_, i) => i), find = (i) => par[i] === i ? i : (par[i] = find(par[i]));
+  for (let i = 0; i < T.length; i++) for (let j = i + 1; j < T.length; j++) { const a = T[i], b = T[j], dz = Math.abs(zOf(a.ob) - zOf(b.ob)); if (dz > PW_DZ || Math.abs(a.foot[0] - b.foot[0]) + Math.abs(a.foot[1] - b.foot[1]) + dz > PW_TT) continue; a.links.push(b); b.links.push(a); par[find(i)] = find(j); if (ITEMS[a.ob.i].pt === 'p' && ITEMS[b.ob.i].pt === 'p') { const w = wireBlocked(a, b); if (w) a.blocked.push({ to: b, at: w }); } }
+  for (const t of T) if (t.gen && ITEMS[t.ob.i].pt === 'p') { const g = t.gen, w = wireBlocked(t, { ob: g.ob, foot: powerFoot(g.ob) }); if (w) t.blocked.push({ to: g, at: w }); }
+  const nets = new Map(); T.forEach((t, i) => { const r = find(i); if (!nets.has(r)) nets.set(r, { tx: [], supply: 0, draw: 0, gens: 0, devs: 0 }); const N = nets.get(r); t.net = N; N.tx.push(t); if (t.gen) { N.supply += t.gen.units; N.gens++; } for (const d of t.devs) { N.draw += d.draw; N.devs++; } });
+  for (const ob of objs) {
+    const it = ITEMS[ob.i]; if (!it.cap || !ob.int) continue;
+    let sup = 0, draw = 0, n = 0; for (const f of ob.int.f || []) if (f) for (const o of f.o) { const q = ITEMS[o[0]]; if (!q) continue; if (q.pg && !q.pgn) sup += q.pg; else if (q.pd != null) { draw += q.pd; n++; } }
+    if (!n && !sup) continue; P.any = true;
+    const K = { ob, sup, draw, n, net: null, out: kitOutside(it) };
+    if (K.out) { let bt = null, bd = Infinity; for (const t of T) { const d = pwDist(t, ob); if (d <= PW_R && d < bd) { bd = d; bt = t; } } if (bt && !(sup && sup >= draw)) { K.net = bt.net; bt.net.draw += draw; bt.net.devs += n; } }
+    P.kit.set(ob.id, K);
+  }
+  for (const N of nets.values()) { N.over = N.draw > N.supply; N.on = N.supply > 0 && !N.over; P.nets.push(N); }
+  for (const K of P.kit.values()) K.on = K.sup > 0 && K.sup >= K.draw || !!(K.net && K.net.on);
+  for (const d of P.dev.values()) d.on = !!(d.tx && d.tx.net.on);
+  POWER = P;
+}
+function powerWhy(d) {
+  if (d.on) return '';
+  if (!d.tx) return d.nearest === Infinity ? 'no transmitter in reach' + (POWER.tx.size ? ' (more than 5 levels away, or none placed)' : '') : d.nearest <= PW_R ? 'every transmitter in reach already has 20 items' : 'the nearest transmitter is ' + d.nearest + ' tiles away (10 at most)';
+  const N = d.tx.net; if (!N.supply) return N.gens ? 'its generator makes no power' : 'no generator on its network';
+  return 'its network is overloaded: it uses ' + N.draw + ' of ' + N.supply;
+}
+function powerOn(ob) { if (!POWER) return true; const d = POWER.dev.get(ob.id); return !d || d.on; }
+function powerSection(ob, box) {
+  if (!POWER) return;
+  const it = ITEMS[ob.i], d = POWER.dev.get(ob.id), t = POWER.tx.get(ob.id), g = POWER.gen.get(ob.id), K = POWER.kit.get(ob.id), at = (o) => o.x + ', ' + o.y;
+  const net = (N) => N.tx.length + ' transmitter' + (N.tx.length > 1 ? 's' : '') + ' · ' + N.gens + ' generator' + (N.gens === 1 ? '' : 's') + ' · ' + N.draw + ' of ' + N.supply + ' power used';
+  const line = (txt, bad, tip) => box.append(h('div', { class: 'note', style: 'margin-top:6px' + (bad ? ';color:var(--warn)' : ''), 'data-tip': tip || null }, txt));
+  const T_TIP = 'Generators reach a transmitter within 10 tiles, transmitters reach each other within 15 and their items within 10, counted along each axis and added up, and never more than 5 levels up or down. Linked transmitters share their generators. Using more than they make turns the whole network off.';
+  if (d) { if (d.on) line('⚡ Powered · ' + net(d.tx.net), false, T_TIP); else line('⚠ No power: ' + powerWhy(d) + '.', true, T_TIP); if (d.inReach > 1) line('In reach of ' + d.inReach + ' transmitters. The game joins it to one when you place it; the planner picks the nearest with room, in the order you placed things.'); }
+  if (t) {
+    const N = t.net; line((N.over ? '⚠ Overloaded · ' : !N.supply ? '⚠ No power · ' : '⚡ ') + net(N), N.over || !N.supply, T_TIP);
+    line('This one: ' + (t.gen ? ITEMS[t.gen.ob.i].n + ' at ' + at(t.gen.ob) + ' (' + t.gen.units + ')' : 'no generator of its own') + ' · ' + t.devs.length + ' of 20 items');
+    for (const q of t.blocked) line('⚠ ' + q.at.what + ' at ' + q.at.x + ', ' + q.at.y + ' is in the way of the wire to ' + ITEMS[q.to.ob.i].n + ' at ' + at(q.to.ob) + '. It only works if the wire was strung before that was placed.', true);
+  }
+  if (g) {
+    if (g.tx) line('⚡ Feeds ' + ITEMS[g.tx.ob.i].n + ' at ' + at(g.tx.ob) + ' · ' + net(g.tx.net), false, T_TIP); else line('⚠ Not connected: ' + (g.nearest <= PW_R ? 'every transmitter in reach already has a generator' : g.nearest === Infinity ? 'no transmitter in reach' : 'the nearest transmitter is ' + g.nearest + ' tiles away (10 at most)') + '.', true, T_TIP);
+    if (it.pgn === 'n' && !g.units) line('⚠ No liquid at its wheel, so it makes nothing.', true);
+    if (it.pgh) box.append(h('label', { class: 'toggle', style: 'margin-top:6px' }, h('input', { type: 'checkbox', checked: !!ob.hg, onchange: (e) => { if (e.target.checked) ob.hg = 1; else delete ob.hg; markDirty(); evaluateAll(); requestDraw(); showObjInspector(ob); } }), 'High ground (' + it.pgh + ' power)', tipBtn('Tick it if it stands 45 or more tiles above the map\'s floor (47 in Rocky Ridges). There it makes ' + it.pgh + ' instead of ' + it.pg + '.')));
+  }
+  if (K) { const n = K.n + ' item' + (K.n === 1 ? '' : 's') + ' inside'; if (K.on) line('⚡ ' + n + ' powered ' + (K.sup >= K.draw && K.sup ? 'by a mini generator inside' : 'from outside')); else line('⚠ ' + n + ' without power: ' + (!K.out ? (K.sup ? 'the mini generator inside isn\'t enough, and a den or hut can\'t take power from outside' : 'a den or hut only takes power from a mini generator inside') : K.net ? 'the network outside is ' + (K.net.over ? 'overloaded' : 'without power') : (K.sup ? 'the mini generator inside isn\'t enough, and ' : '') + 'no transmitter is within 10 tiles') + '.', true, 'Dens and huts only take power from a mini generator inside them. Cottages and houses take it from a transmitter outside too, and then everything inside is powered.'); }
+}
+function setShowPower(v) { showPower = v; LS.set(LSK + 'power', v ? '1' : '0'); sysSync(); requestDraw(); }
+function powerNetOf(ob) { if (!POWER) return null; const t = POWER.tx.get(ob.id); if (t) return t.net; const d = POWER.dev.get(ob.id); if (d && d.tx) return d.tx.net; const g = POWER.gen.get(ob.id); if (g && g.tx) return g.tx.net; return null; }
+function drawPowerLines(c, P, pt, nets, s, all) {
+  const col = (N) => N.over ? theme.bad : N.on ? REACH_COL.power : theme.muted;
+  c.save(); c.lineCap = 'round';
+  for (const N of nets) for (const t of N.tx) {
+    const a = pt(t.foot[0], t.foot[1], topOf(t.ob));
+    if (t.gen) { const f = powerFoot(t.gen.ob), b = pt(f[0], f[1], zOf(t.gen.ob)); c.strokeStyle = col(N); c.lineWidth = 3; c.globalAlpha = 0.9; c.setLineDash([]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+    for (const o of t.links) if (o.ob.id > t.ob.id) { const b = pt(o.foot[0], o.foot[1], topOf(o.ob)), bad = t.blocked.some(q => q.to === o); c.strokeStyle = bad ? theme.warn : col(N); c.lineWidth = 2.2; c.globalAlpha = 0.85; c.setLineDash([7, 5]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+    for (const d of t.devs) { const b = pt(d.ob.x + (d.ob.w - 1) / 2, d.ob.y + (d.ob.h - 1) / 2, zOf(d.ob)); c.strokeStyle = col(N); c.lineWidth = 1.2; c.globalAlpha = 0.6; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+  }
+  c.setLineDash([]); c.globalAlpha = 1; const r = Math.max(3.5, Math.min(7, s * 0.16));
+  for (const d of P.dev.values()) { if (!all && !(d.tx && nets.includes(d.tx.net))) continue; const b = pt(d.ob.x + d.ob.w - 1, d.ob.y, zOf(d.ob) + htOf(d.ob) - 1); c.fillStyle = d.on ? theme.good : theme.bad; c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.beginPath(); c.arc(b[0] + s * 0.32, b[1] - s * 0.32, r, 0, 7); c.fill(); c.stroke(); }
+  if (s >= 7) for (const N of nets) { const t = N.tx[0], a = pt(t.foot[0], t.foot[1], topOf(t.ob)), txt = N.supply ? N.draw + ' of ' + N.supply + ' power' + (N.over ? ' · overloaded' : '') : 'no generator'; c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top'; const tw = c.measureText(txt).width + 8; c.fillStyle = col(N); roundRect(c, a[0] + 6, a[1] + 6, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, a[0] + 10, a[1] + 8); }
+  c.restore();
+}
+function powerShown() { const sel = selection && selection.obj && plan.objs.has(selection.obj.id) ? selection.obj : null, N = sel ? powerNetOf(sel) : null; if (!POWER || !POWER.any) return null; if (showPower) return POWER.nets; return N ? [N] : null; }
+function drawPower(c, s) { const nets = powerShown(); if (!nets) return; drawPowerLines(c, POWER, (x, y) => [view.px + (x + 0.5) * s, view.py + (y + 0.5) * s], nets, s, showPower); }
 function setShowReach(v) { showReach = v; LS.set(LSK + 'reach', v ? '1' : '0'); sysSync(); requestDraw(); }
 function houseAt(x, y) { if (!cellHouse || !inB(plan, x, y)) return null; const i = cellHouse[y * plan.w + x]; return i >= 0 ? autoHouses[i] : null; }
 function houseIssues(hs) { const out = []; if (!hs.doors.size) out.push('needs a door'); else if (!hs.clearDoors) out.push('door blocked'); if (!hs.sizeOk) out.push(hs.w < 2 || hs.h < 2 ? 'too small' : 'too big'); if (hs.furn < 3) out.push(hs.furn + '/3 furniture kinds'); return out; }
@@ -1577,6 +1687,7 @@ function evaluateAll() {
   const prev = zoneStatus; zoneStatus = new Map();
   for (const z of plan.zones) { const r = evaluateZone(z); r.area = computeArea(z, r); zoneStatus.set(z.id, r); const p = prev.get(z.id); if (!firstEval && r.ok && (!p || !p.ok) && r.kind !== 'label') celebrate(z, r); }
   detectHouses();
+  computePower();
   checkProblems(); updateStatus();
   firstEval = false;
 }
@@ -1634,12 +1745,21 @@ let PROBS = [];
 function checkProblems() {
   const out = [];
   for (const r of limitRows()) if (r.n > r.cap) out.push({ text: r.label + ': ' + fmt(r.n) + ' of ' + fmt(r.cap), tip: 'Over the game\'s cap for one area. ' + r.tip, tab: 'materials' });
+  if (POWER && POWER.any) {
+    const at = (o) => ITEMS[o.i].n + ' at ' + o.x + ', ' + o.y;
+    for (const N of POWER.nets) if (N.over) out.push({ text: 'Power network overloaded: uses ' + N.draw + ' of ' + N.supply, tip: 'Everything on it goes off. Add a generator, or move items onto another network.', ob: N.tx[0].ob });
+    const off = [...POWER.dev.values()].filter(d => !d.on && !(d.tx && d.tx.net.over));
+    if (off.length) out.push({ text: off.length + (off.length > 1 ? ' items have' : ' item has') + ' no power', tip: off.slice(0, 4).map(d => at(d.ob) + ': ' + powerWhy(d)).join('. ') + (off.length > 4 ? '. And ' + (off.length - 4) + ' more.' : '.'), ob: off[0].ob });
+    for (const g of POWER.gen.values()) if (!g.tx) out.push({ text: at(g.ob) + ' isn\'t connected', tip: 'Each generator needs a transmitter of its own within 10 tiles.', ob: g.ob });
+    for (const t of POWER.tx.values()) for (const q of t.blocked) out.push({ text: 'Wire blocked at ' + q.at.x + ', ' + q.at.y, tip: q.at.what + ' is in the way between ' + at(t.ob) + ' and ' + at(q.to.ob) + '. It only works if the wire was strung first.', ob: t.ob });
+  }
   PROBS = out;
 }
+function showProblemAt(ob) { closeModal(); if (!plan.objs.has(ob.id)) return; selection = { obj: ob }; mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); showObjInspector(ob); requestDraw(); }
 function showProblems() {
   modal(PROBS.length === 1 ? '1 problem' : PROBS.length + ' problems', (box) => {
     const l = h('div', { class: 'list' });
-    for (const p of PROBS) l.append(h('div', { class: 'row', style: 'cursor:default;align-items:flex-start' }, h('span', { class: 'req miss', style: 'flex:none' }, '!'), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, p.text), h('div', { class: 'ds', style: 'white-space:normal' }, p.tip))));
+    for (const p of PROBS) l.append(h('div', { class: 'row', style: 'cursor:default;align-items:flex-start' }, h('span', { class: 'req miss', style: 'flex:none' }, '!'), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, p.text), h('div', { class: 'ds', style: 'white-space:normal' }, p.tip)), p.ob ? h('button', { class: 'btn sm', style: 'flex:none', onclick: () => showProblemAt(p.ob) }, 'Show') : ''));
     box.append(l);
   }, 'See limits', () => { showTab('materials'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); });
   const b = $('#modalBox .acts .btn'); if (b) b.textContent = 'Close';
@@ -1785,6 +1905,7 @@ function mapLabels3d(o) {
   const c = o.c, s = o.s, small = s < 14; let ix = null; const rix = () => ix || (ix = residentsIndex());
   const pill = (label, px, py, col, maxW) => { const fh = small ? 14 : 18; c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14), bw = maxW ? Math.min(tw, maxW) : tw; c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore(); };
   const faces = (list, x, y) => { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, list, x, y - d * 0.62, d); };
+  { const nets = powerShown(); if (nets) drawPowerLines(c, POWER, (x, y, z) => { const b = o.flatRect(x + 0.5, y + 0.5, 0, 0, z + 0.8); return [b.x0, b.y0]; }, nets, s, showPower); }
   if (s >= 8) for (const ob of plan.objs.values()) {
     const it = ITEMS[ob.i]; if (!it.cap || !obShown(ob) || (layerZ != null && zOf(ob) > layerZ)) continue; const e = rix().homes.get('kit:' + ob.id); if (!e) continue;
     const b = o.flatRect(ob.x, ob.y, ob.w, ob.h, zOf(ob) + htOf(ob)), t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = b.x1 - tw - 3, by = b.y0 + 3;
@@ -2483,6 +2604,7 @@ function draw(t, c = ctx) {
     }
   }
   drawReach(c, s);
+  drawPower(c, s);
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
   if (pkDrag && c === ctx) drawPkDrop(c, s);
   if (selection && ((selection.obj && plan.objs.has(selection.obj.id)) || (selection.rug && plan.rugs.has(selection.rug.id)))) { const ob = selection.obj || selection.rug; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
@@ -2769,7 +2891,8 @@ $('#ztilt').onclick = tilt3d;
 function setShowAreas(v) { showAreas = v; LS.set('pokopia-planner:areas', v ? '1' : '0'); sysSync(); requestDraw(); }
 const SYS = [
   ['areas', 'Active areas', 'The dotted line around each home: everything inside it counts for that home.', 'A', () => showAreas, v => setShowAreas(v)],
-  ['reach', 'Reach', 'How far sprinklers, Smooth Rocks, switches, sensors and power reach. A selected one always shows it.', '', () => showReach, v => setShowReach(v)]
+  ['reach', 'Reach', 'How far sprinklers, Smooth Rocks, switches, sensors and power reach. A selected one always shows it.', '', () => showReach, v => setShowReach(v)],
+  ['power', 'Power', 'Which items have power, and how transmitters link to generators, to each other and to their items. A selected one always shows its network.', '', () => showPower, v => setShowPower(v)]
 ];
 function sysSync() { const b = $('#zsys'), m = $('#sysmenu'); if (b) b.setAttribute('aria-pressed', SYS.some(x => x[4]()) ? 'true' : 'false'); if (m) for (const e of m.querySelectorAll('.mi')) { const x = SYS.find(q => q[0] === e.dataset.k); if (x) e.setAttribute('aria-checked', x[4]() ? 'true' : 'false'); } }
 function sysRender() {
@@ -3287,6 +3410,7 @@ function showObjInspector(ob) {
   }
   const how = howItWorks(it); if (how.length) box.append(h('div', { class: 'note', style: 'margin-top:6px' }, how.join(' ')));
   { const fx = envFx(it); if (fx && fx.need === 'f') { const who = fireLitBy(ob); box.append(h('div', { class: 'note', style: 'margin-top:6px' + (who.length ? '' : ';color:var(--warn)'), 'data-tip': 'A Burn Pokémon whose home is within 4 tiles lights it, and lights it again if rain puts it out.' }, who.length ? 'Lit by ' + listNames(who.slice(0, 3)) + (who.length > 3 ? ' and others' : '') + (plan.wx === 'rain' ? ' (rain can put it out where there\'s no roof, and they light it again)' : '') : '⚠ Not lit: no Burn Pokémon lives nearby, so its light and warmth don\'t count.')); } if (fx && fx.need === 'd' && plan.wx === 'rain') box.append(h('div', { class: 'note', style: 'margin-top:6px;color:var(--warn)' }, '⚠ Off while it rains, except inside a kit house.')); }
+  powerSection(ob, box);
   if (it.cap) { box.append(residentsSection(kitHome(ob))); box.append(boxLine('kit:' + ob.id)); }
   if (isBox(it)) boxInspector(ob, box);
   const groups = GROUP_OF.get(it.i) || [];

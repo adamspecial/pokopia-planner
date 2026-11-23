@@ -243,4 +243,15 @@ Phase 1 is done too. It added:
 - fires that count only when a Burn Pokémon lives within 4 tiles
 - Smooth Rock turning off in rain
 
-Phase 2 (Power) is next.
+Phase 2 is done too. It added:
+
+- power networks worked out in placement order
+- overloads
+- the Power overlay in 2D and 3D
+- each item's power status and why
+- the windmill's high-ground switch
+- kit-house power
+- blocked pole wires
+- unpowered items no longer counting toward the environment
+
+Phase 3 (Water and crops) is next.
