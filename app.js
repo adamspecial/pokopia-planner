@@ -191,7 +191,7 @@ const LSK = 'pokopia-planner:';
 function newPlan({ name, area, w, h, fill }) {
   const p = { id: uid(), name: name || 'New area', area: area || 'Withered Wasteland', w, h, wx: null,
     ground: new Uint16Array(w * h), tl: new Map(), tz: [0], tt: [], objs: new Map(), occ: new Int32Array(w * h), up: new Map(), zs: [0], ls: [], rugs: new Map(),
-    zones: [], inv: {}, res: [], roofs: [], pool: [], nextId: 1, updated: Date.now() };
+    zones: [], inv: {}, res: [], roofs: [], pool: [], src: [], nextId: 1, updated: Date.now() };
   p.ls = [p.occ]; p.tl.set(0, p.ground); p.tt = [p.ground]; if (fill) { const it = BY_NAME.get(fill); if (it) p.ground.fill(it.i + 1); }
   return p;
 }
@@ -205,7 +205,7 @@ function serialize(p) {
   const u = [...(p.rugs || new Map()).values()].map(r => [ref(r.i), r.x, r.y, r.w, r.h, zOf(r)].map(v => v.toString(36)).join('.'));
   return { v: 3, ints: JSON.stringify(ints), id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, dict, g: tg, o: o.join(';'), u: u.join(';'),
     z: JSON.stringify(p.zones.map(z => ({ id: z.id, kind: z.kind, x: z.x, y: z.y, w: z.w, h: z.h, name: z.name, target: z.target || null }))),
-    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), wx: p.wx || null, hg: hgs.join('.'), updated: p.updated || Date.now() };
+    invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), wx: p.wx || null, hg: hgs.join('.'), src: JSON.stringify((p.src || []).map(q => [q.x, q.y, q.z, ITEMS[q.i].n, q.low ? 1 : 0, q.cells.map(c => c.toString(36)).join('.')])), updated: p.updated || Date.now() };
 }
 function deserialize(s) {
   const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= 256 && h <= 256)) throw new Error('Bad plan size');
@@ -232,6 +232,7 @@ function deserialize(s) {
   rugCellsToRugs(p);
   if (elev) for (let k = 0; k < elev.length; k++) { const v = p.ground[k]; if (v && elev[k]) for (let z = 1; z <= Math.min(elev[k], ZMAX); z++) if (!occAt(p, k, z)) tLayer(p, z)[k] = v; }
   try { p.zones = (typeof s.z === 'string' ? JSON.parse(s.z) : (s.z || [])).map(z => ({ ...z, id: z.id || uid() })); } catch (e) { p.zones = []; }
+  try { p.src = (s.src ? JSON.parse(s.src) : []).map(([x, y, z, n, low, c]) => { const it = BY_NAME.get(n); return it && it.lq ? { id: uid(), x, y, z, i: it.i, low: !!low, cells: String(c || '').split('.').filter(Boolean).map(v => parseInt(v, 36)) } : null; }).filter(Boolean); } catch (e) { p.src = []; }
   return p;
 }
 function intHasData(I) { return !!(I && (I.w || I.h || I.fl || (I.f || []).some(f => f && (f.o.length || f.wp != null || f.fc != null)))); }
@@ -277,7 +278,7 @@ function reveal(key) { if (!hidden.has(key)) return; setHidden(key, false); toas
 function setLayerZ(z) { if (z != null) z = clamp(Math.round(+z) || 0, ZMIN, ZMAX); if (z === layerZ) return; layerZ = z; layersChanged(); }
 
 let tx = null; const undoStack = [], redoStack = [];
-function beginTx() { if (!tx) tx = { g: new Map(), add: [], del: [], z: null, in: null, r: null, f: null }; }
+function beginTx() { if (!tx) tx = { g: new Map(), add: [], del: [], z: null, in: null, r: null, f: null, s: null }; }
 function setRes(next) { beginTx(); if (!tx.r) tx.r = [plan.res || []]; plan.res = next; tx.r[1] = next; }
 function setRoofs(next) { beginTx(); if (!tx.f) tx.f = [plan.roofs || []]; plan.roofs = next; tx.f[1] = next; }
 function setTerr(k, z, v) { if (!v && !terrAt(plan, k, z)) return; const T = tLayer(plan, z); if (T[k] === v) return; beginTx(); const key = (z - ZMIN) * plan.w * plan.h + k; if (!tx.g.has(key)) tx.g.set(key, [T[k], v]); else tx.g.get(key)[1] = v; T[k] = v; mapView.touched(k % plan.w, (k / plan.w) | 0, 1, 1, z, z); }
@@ -416,8 +417,8 @@ function whyNot(b, w, h, it, there) { const where = there ? 'No room there' : 'N
 function delObj(ob) { if (!plan.objs.has(ob.id)) return; beginTx(); plan.objs.delete(ob.id); stampOcc(plan, ob, 0); touchOb(ob); const ai = tx.add.indexOf(ob); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(ob); }
 function setZones(next) { beginTx(); if (!tx.z) tx.z = [plan.zones]; plan.zones = next; tx.z[1] = next; }
 function commitTx(label) {
-  if (!tx) return null; const t = tx; tx = null;
-  if (!t.g.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r && !t.f) return null;
+  if (!tx) return null; flowSourcesCheck(); const t = tx; tx = null;
+  if (!t.g.size && !t.add.length && !t.del.length && !t.z && !t.in && !t.r && !t.f && !t.s) return null;
   t.label = label; undoStack.push(t); if (undoStack.length > 200) undoStack.shift(); redoStack.length = 0; changed(); return t;
 }
 function applyTx(t, dir) {
@@ -430,6 +431,7 @@ function applyTx(t, dir) {
   if (t.in) t.in[0].int = t.in[bi + 1];
   if (t.r) plan.res = t.r[bi];
   if (t.f) plan.roofs = t.f[bi];
+  if (t.s) plan.src = t.s[bi];
 }
 function undo() { if (tx) commitTx(); const t = undoStack.pop(); if (!t) return; applyTx(t, -1); redoStack.push(t); selection = null; closeInspector(); changed(); }
 function redo() { const t = redoStack.pop(); if (!t) return; applyTx(t, 1); undoStack.push(t); changed(); }
@@ -835,7 +837,7 @@ function envOf(home) {
   };
   const tiles = new Map(), terr = (k, base, lo, hi, tlo, thi) => {
     const zs = plan.tz, tt = plan.tt;
-    for (let j = zs.length - 1; j >= 0; j--) { const v = tt[j][k]; if (!v) continue; const z = zs[j], d = z - base; if (d < lo || d > hi) continue; const it = ITEMS[v - 1]; if (!envFx(it) || (terrAt(plan, k, z + 1) && !(it.lq && it.lq[2]))) continue; const e = tiles.get(v - 1) || [0, 0]; e[0]++; if (d >= tlo && d <= thi) e[1]++; tiles.set(v - 1, e); }
+    for (let j = zs.length - 1; j >= 0; j--) { const v = tt[j][k]; if (!v) continue; const z = zs[j], d = z - base; if (d < lo || d > hi) continue; const it = ITEMS[v - 1]; if (!envFx(it) || (terrAt(plan, k, z + 1) && !(it.lq && it.lq[2]) && !((flowAt(k, z) || {}).f === FL_FALL))) continue; const e = tiles.get(v - 1) || [0, 0]; e[0]++; if (d >= tlo && d <= thi) e[1]++; tiles.set(v - 1, e); }
   };
   if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : null)) addIt(pc.it, null); }
   else if (hab) {
@@ -1648,7 +1650,8 @@ function computeFields() {
       const wp = basins.find(B => inR(B.hm, x, y, p)); if (bub) { state = 'wet'; why.push('bubbles from the Bubble machine at ' + bub.x + ', ' + bub.y); } else if (wp) { state = 'wet'; why.push('bubbles from ' + wp.who[0].n + ' (reach not measured)'); } else state = 'under';
     } else if (nb.some(q => isLava(terrAt(plan, q, p)) || isLava(terrAt(plan, q, f)))) state = 'lava';
     else {
-      if (nb.some(q => hydrates(terrAt(plan, q, p)) || hydrates(terrAt(plan, q, f)))) why.push('water beside it');
+      const still = (q, z) => hydrates(terrAt(plan, q, z)) && !((flowAt(q, z) || {}).f === FL_RUN);
+      if (nb.some(q => still(q, p) || still(q, f))) why.push('water beside it');
       const Q = sprayed(x, y, f); if (Q) { why.push('the sprinkler at ' + Q.ob.x + ', ' + Q.ob.y); Q.n++; }
       if (plan.wx === 'rain' && !roofedCell(k)) why.push('rain');
       const B = basins.find(b => b.has && inR(b.hm, x, y, p)); if (B) why.push(B.who[0].n + '\'s water basin (reach not measured)');
@@ -1759,6 +1762,102 @@ function drawSignals(c, s) {
   drawSignalLines(c, (x, y) => [view.px + (x + 0.5) * s, view.py + (y + 0.5) * s], recs, s);
 }
 function setShowSignals(v) { showSignals = v; LS.set(LSK + 'signals', v ? '1' : '0'); sysSync(); requestDraw(); }
+let pourMode = 'paint', pourLow = false, pourPrev = null, FLOWIX = null;
+const FL_ROOT = 1, FL_FALL = 2, FL_RUN = 3;
+const canPour = (it) => !!it && !!it.lq && !it.lq[2];
+const flowKey = (k, z) => (z - ZMIN) * plan.w * plan.h + k;
+function flowIndex() { const m = new Map(); for (const s of plan.src || []) for (const c of s.cells) m.set(Math.floor(c / 4), { s, f: c % 4 }); FLOWIX = m; }
+function flowAt(k, z) { return FLOWIX ? FLOWIX.get(flowKey(k, z)) || null : null; }
+function flowFall(i) { const it = ITEMS[i]; return it.n === 'Water' ? BY_NAME.get('Waterfall') : it; }
+function computeFlow(x, y, z, i, low) {
+  const W = plan.w, it = ITEMS[i], liq = i + 1, fallIt = flowFall(i), S0 = (low ? Math.floor(it.lq[0] / 2) : it.lq[0]) - 1, water = it.n !== 'Lava';
+  const srcKeys = new Set((plan.src || []).map(s => flowKey(s.y * W + s.x, s.z)));
+  const enter = (k, z) => { if (z < ZMIN || z > ZMAX || occAt(plan, k, z)) return 0; const t = terrAt(plan, k, z); if (!t) return 1; const kk = flowKey(k, z); if (srcKeys.has(kk)) return 0; if (FLOWIX && FLOWIX.has(kk)) return 1; if (t === liq || t === fallIt.i + 1) return 2; return 0; };
+  const solidBelow = (k, z) => z - 1 < ZMIN || (!!terrAt(plan, k, z - 1) && !(FLOWIX && FLOWIX.has(flowKey(k, z - 1)) && FLOWIX.get(flowKey(k, z - 1)).f === FL_FALL)) || !!occAt(plan, k, z - 1);
+  const openAt = (k, z) => { if (z < ZMIN || z > ZMAX || occAt(plan, k, z)) return false; const t = terrAt(plan, k, z); return !t || !!ITEMS[t - 1].lq; };
+  const cost = (k, z) => { const x = k % W, y = (k / W) | 0; let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy; if (inB(plan, a, b) && openAt(b * W + a, z)) n++; } return n <= 2 ? 1 : n === 3 ? 2.5 : 3.5; };
+  const wet = new Map(), heap = [], roots = [];
+  const hpush = (e) => { heap.push(e); let i2 = heap.length - 1; while (i2 > 0) { const p = (i2 - 1) >> 1; if (heap[p][0] <= heap[i2][0]) break; [heap[p], heap[i2]] = [heap[i2], heap[p]]; i2 = p; } };
+  const hpop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i2 = 0; for (; ;) { const l = 2 * i2 + 1, r = l + 1; let m = i2; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i2) break; [heap[m], heap[i2]] = [heap[i2], heap[m]]; i2 = m; } } return top; };
+  const visit = (k, z, c, f) => { const kk = flowKey(k, z), e = wet.get(kk); if (e && (e.c <= c || e.f === FL_ROOT)) return false; wet.set(kk, { k, z, c, f, pass: enter(k, z) === 2 }); return true; };
+  const root = (k, z) => { if (wet.size > 5000) return; if (visit(k, z, 0, FL_ROOT)) { roots.push([k, z]); hpush([0, k, z]); } };
+  const fallFrom = (k, z) => { let zz = z; while (zz > ZMIN && !solidBelow(k, zz)) { const kk = flowKey(k, zz); if (!wet.has(kk) || wet.get(kk).f !== FL_ROOT) wet.set(kk, { k, z: zz, c: 0, f: FL_FALL, pass: enter(k, zz) === 2 }); zz--; if (enter(k, zz) !== 1) return; } root(k, zz); };
+  const seek = (k, z) => {
+    const prev = new Map([[k, -1]]), q = [[k, 0]];
+    while (q.length) { const [c, d] = q.shift(); const cx = c % W, cy = (c / W) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = cx + dx, b = cy + dy; if (!inB(plan, a, b)) continue; const n = b * W + a; if (prev.has(n) || enter(n, z) !== 1) continue; prev.set(n, c);
+        if (!solidBelow(n, z)) { const path = []; for (let p = c; p !== -1; p = prev.get(p)) path.push(p); path.reverse(); path.forEach((p, j) => { if (j) visit(p, z, j, FL_RUN); }); fallFrom(n, z); return true; }
+        if (d + 1 < 4) q.push([n, d + 1]); } }
+    return false;
+  };
+  if (!solidBelow(y * W + x, z)) fallFrom(y * W + x, z); else root(y * W + x, z);
+  let guard = 0;
+  while (heap.length && guard++ < 20000) {
+    const [c, k, zz] = hpop(), e = wet.get(flowKey(k, zz)); if (!e || e.c !== c) continue;
+    if (e.f === FL_ROOT && water && !low && seek(k, zz)) continue;
+    const cx = k % W, cy = (k / W) | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue; const a = cx + dx, b = cy + dy; if (!inB(plan, a, b)) continue; const n = b * W + a;
+      const en = enter(n, zz); if (!en) continue; const nc = c + cost(n, zz) * (dx && dy ? 1.5 : 1); if (nc > S0) continue;
+      if (!solidBelow(n, zz)) { const kk = flowKey(n, zz); if (!wet.has(kk)) fallFrom(n, zz); continue; }
+      if (visit(n, zz, nc, 0)) hpush([nc, n, zz]);
+    }
+    if (wet.size > 5000) break;
+  }
+  const cells = [...wet.values()].filter(e => !e.pass), lavaWater = [];
+  const isWaterT = (v) => !!v && !!ITEMS[v - 1].lq && ITEMS[v - 1].n !== 'Lava';
+  for (const e of cells) { const ex = e.k % W, ey = (e.k / W) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = ex + dx, b = ey + dy; if (!inB(plan, a, b)) continue; const v = terrAt(plan, b * W + a, e.z); if (water ? v && ITEMS[v - 1].n === 'Lava' : isWaterT(v)) { lavaWater.push([a, b]); break; } } if (lavaWater.length) break; }
+  return { x, y, z, i, low, cells, falls: cells.filter(e => e.f === FL_FALL).length, roots: roots.length, lavaWater, capped: wet.size > 5000 };
+}
+function pourTap(cx, cy) {
+  const it = currentItem(), k = cy * plan.w + cx, tz = topTerr(k), top = tz == null ? 0 : terrAt(plan, k, tz);
+  if (pourPrev && pourPrev.x === cx && pourPrev.y === cy) { pourCommit(); return; }
+  if (top && ITEMS[top - 1].lq && layerZ == null) { toast('There\'s liquid here already. Pour next to it.'); return; }
+  const z = layerZ != null ? layerZ : standZ(k);
+  if (occAt(plan, k, z) || terrAt(plan, k, z)) { toast('Something is in the way on level ' + lvNum(z)); return; }
+  pourPrev = computeFlow(cx, cy, z, it.i, pourLow); renderOptbar(); requestDraw();
+}
+function pourCommit() {
+  const P = pourPrev; if (!P) return; pourPrev = null; const it = ITEMS[P.i], fallIt = flowFall(P.i), N = plan.w * plan.h;
+  beginTx(); const keys = new Set();
+  for (const e of P.cells) { setTerr(e.k, e.z, (e.f === FL_FALL ? fallIt : it).i + 1); keys.add(flowKey(e.k, e.z)); }
+  const src = { id: uid(), x: P.x, y: P.y, z: P.z, i: P.i, low: !!P.low, cells: P.cells.map(e => flowKey(e.k, e.z) * 4 + (e.f || 0)) };
+  setSources([...(plan.src || []).map(s => ({ ...s, cells: s.cells.filter(c => !keys.has(Math.floor(c / 4))) })), src]);
+  commitTx('Pour ' + it.n.toLowerCase()); renderOptbar();
+  toast(it.n + ' poured: ' + P.cells.length + ' tile' + (P.cells.length === 1 ? '' : 's') + (P.falls ? ', ' + P.falls + ' falling' : ''));
+}
+function pourCancel() { if (!pourPrev) return; pourPrev = null; renderOptbar(); requestDraw(); }
+function setSources(next) { beginTx(); if (!tx.s) tx.s = [plan.src || []]; plan.src = next; tx.s[1] = next; }
+function removeFlow(s, keep) {
+  const N = plan.w * plan.h, liq = s.i + 1, fall = flowFall(s.i).i + 1, others = new Set((plan.src || []).filter(q => q !== s).flatMap(q => q.cells.map(c => Math.floor(c / 4))));
+  for (const c of s.cells) { const kk = Math.floor(c / 4); if (others.has(kk) || kk === keep) continue; const z = Math.floor(kk / N) + ZMIN, k = kk % N, t = terrAt(plan, k, z); if (t === liq || t === fall) setTerr(k, z, 0); }
+}
+function flowSourcesCheck() {
+  if (!tx || !plan.src || !plan.src.length) return;
+  const gone = plan.src.filter(s => { const k = s.y * plan.w + s.x, t = terrAt(plan, k, s.z); return (t !== s.i + 1 && t !== flowFall(s.i).i + 1) || occAt(plan, k, s.z); });
+  if (!gone.length) return;
+  for (const s of gone) removeFlow(s, null);
+  setSources(plan.src.filter(s => !gone.includes(s)));
+}
+function drawPourPreview(c, s) {
+  if (selection && selection.flow && plan.src && plan.src.includes(selection.flow)) { const F = selection.flow, N = plan.w * plan.h, cells = new Set(F.cells.map(q => Math.floor(q / 4) % N)); c.save(); c.strokeStyle = theme.accent; c.lineWidth = 2; c.globalAlpha = 0.9; c.beginPath(); for (const k of cells) { const x = k % plan.w, y = (k / plan.w) | 0, px = view.px + x * s, py = view.py + y * s; if (!cells.has(k - plan.w)) { c.moveTo(px, py); c.lineTo(px + s, py); } if (!cells.has(k + plan.w)) { c.moveTo(px, py + s); c.lineTo(px + s, py + s); } if (x === 0 || !cells.has(k - 1)) { c.moveTo(px, py); c.lineTo(px, py + s); } if (x === plan.w - 1 || !cells.has(k + 1)) { c.moveTo(px + s, py); c.lineTo(px + s, py + s); } } c.stroke(); c.lineWidth = 3; c.strokeRect(view.px + F.x * s + 1.5, view.py + F.y * s + 1.5, s - 3, s - 3); c.restore(); }
+  const P = pourPrev; if (!P) return; const it = ITEMS[P.i], col = it.col || '#4aa2d6';
+  c.save(); for (const e of P.cells) { const x = e.k % plan.w, y = (e.k / plan.w) | 0; c.globalAlpha = e.f === FL_FALL ? 0.75 : 0.5; c.fillStyle = col; c.fillRect(view.px + x * s, view.py + y * s, s, s); }
+  c.globalAlpha = 1; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + P.x * s + 1.5, view.py + P.y * s + 1.5, s - 3, s - 3); c.restore();
+}
+function showFlowInspector(s) {
+  const it = ITEMS[s.i], n = s.cells.length, falls = s.cells.filter(c => c % 4 === FL_FALL).length, runs = s.cells.filter(c => c % 4 === FL_RUN).length;
+  selection = { flow: s };
+  const box = inspectorShell(it.n + ' (poured)', swatchEl(it), (s.low ? 'Low' : 'Normal') + ' level · source at ' + s.x + ', ' + s.y + ', level ' + lvNum(s.z), 'Liquid poured from a source tile. Erasing the source tile, or putting something on it, removes the whole flow, as in the game.');
+  box.append(h('div', { class: 'note', style: 'margin-top:6px' }, 'Covers ' + n + ' tile' + (n === 1 ? '' : 's') + (falls ? ', ' + falls + ' of them falling' : '') + '.' + (runs ? ' It runs straight to a drop ' + runs + ' tile' + (runs === 1 ? '' : 's') + ' away, so that stretch is flowing water, which doesn\'t water fields.' : '')));
+  box.append(h('div', { class: 'note', style: 'margin-top:6px' }, 'Its edge should be within a tile of what\'s shown: in the game the shape also depends on the order you dug and filled things. Pour again after changing the ground around it.'));
+  box.acts.append(ibtn('rotate', 'Pour again', () => repour(s), 'primary'), ibtn('trash', 'Remove it', () => { beginTx(); removeFlow(s, null); const k = s.y * plan.w + s.x; if ([s.i + 1, flowFall(s.i).i + 1].includes(terrAt(plan, k, s.z))) setTerr(k, s.z, 0); setSources((plan.src || []).filter(q => q.id !== s.id)); commitTx('Remove ' + it.n.toLowerCase()); closeInspector(); }, 'danger'));
+  requestDraw();
+}
+function repour(s) {
+  beginTx(); removeFlow(s, null); const k = s.y * plan.w + s.x; if ([s.i + 1, flowFall(s.i).i + 1].includes(terrAt(plan, k, s.z))) setTerr(k, s.z, 0); setSources((plan.src || []).filter(q => q.id !== s.id)); flowIndex();
+  pourPrev = computeFlow(s.x, s.y, s.z, s.i, s.low); pourCommit(); closeInspector(); const ns = (plan.src || [])[plan.src.length - 1]; if (ns) showFlowInspector(ns);
+}
 function setShowWater(v) { showWater = v; LS.set(LSK + 'water', v ? '1' : '0'); sysSync(); requestDraw(); }
 function setShowPower(v) { showPower = v; LS.set(LSK + 'power', v ? '1' : '0'); sysSync(); requestDraw(); }
 function powerNetOf(ob) { if (!POWER) return null; const t = POWER.tx.get(ob.id); if (t) return t.net; const d = POWER.dev.get(ob.id); if (d && d.tx) return d.tx.net; const g = POWER.gen.get(ob.id); if (g && g.tx) return g.tx.net; return null; }
@@ -1827,6 +1926,7 @@ function areaSummary(a) {
 }
 let firstEval = true;
 function evaluateAll() {
+  flowIndex();
   const prev = zoneStatus; zoneStatus = new Map();
   for (const z of plan.zones) { const r = evaluateZone(z); r.area = computeArea(z, r); zoneStatus.set(z.id, r); const p = prev.get(z.id); if (!firstEval && r.ok && (!p || !p.ok) && r.kind !== 'label') celebrate(z, r); }
   detectHouses();
@@ -2008,6 +2108,7 @@ function mapOverlay3d(o) {
   if (sel && sel.obj && plan.objs.has(sel.obj.id) && isBox(ITEMS[sel.obj.i])) for (const x of boxReport(sel.obj)) o.ring(x.Z.x, x.Z.y, x.Z.w, x.Z.h, x.n === x.all ? theme.good : theme.warn, 0.9, 0.1);
   const reach3d = (R, strong) => { for (const k of R.cells) o.cell(k % plan.w, (k / plan.w) | 0, R.col, strong ? 0.3 : 0.14); if (R.watch) for (const k of R.watch) o.cell(k % plan.w, (k / plan.w) | 0, R.col, 0.55); if (R.box && strong) o.box(R.box.x, R.box.y, R.box.w, R.box.h, R.box.z0, R.box.z1 - R.box.z0 + 1, R.col, 0.07); };
   if (FIELDS && FIELDS.any && showWater) for (const f of FIELDS.cells.values()) o.cell(f.x, f.y, FIELD_COL[f.state], f.state === 'wet' ? 0.4 : 0.55);
+  if (pourPrev) { const pc = ITEMS[pourPrev.i].col || '#4aa2d6'; for (const e of pourPrev.cells) o.box(e.k % plan.w, (e.k / plan.w) | 0, 1, 1, e.z, 1, pc, e.f === FL_FALL ? 0.5 : 0.35); o.ring(pourPrev.x, pourPrev.y, 1, 1, A, 1, 0.12); }
   const selOb = sel && sel.obj && plan.objs.has(sel.obj.id) ? sel.obj : null;
   if (showReach) for (const ob of reachList()) if (ob !== selOb) { const R = reachOf(ob); if (R) reach3d(R, false); }
   if (showSignals && SIG) for (const rec of SIG.inputs.values()) if (rec.ob !== selOb) { const R = reachOf(rec.ob); if (!R) continue; if (R.box) { o.box(R.box.x, R.box.y, R.box.w, R.box.h, R.box.z0, R.box.z1 - R.box.z0 + 1, R.col, 0.05); o.ring(R.box.x, R.box.y, R.box.w, R.box.h, R.col, 0.8, 0.08); } else if (!showReach) reach3d(R, false); }
@@ -2763,6 +2864,7 @@ function draw(t, c = ctx) {
     }
   }
   drawFields(c, s);
+  drawPourPreview(c, s);
   drawReach(c, s);
   drawPower(c, s);
   drawSignals(c, s);
@@ -2875,12 +2977,14 @@ function currentItem() { return BY_NAME.get(curItem); }
 function brushFor() { if (tool === 'place') { const it = currentItem(); if (it && it.L !== 'g' && (it.w > 1 || it.h > 1)) return 1; return brush; } if (tool === 'erase') return brush; return 1; }
 function normRect(r) { const x = Math.min(r.x0, r.x1), y = Math.min(r.y0, r.y1); return { x, y, w: Math.abs(r.x1 - r.x0) + 1, h: Math.abs(r.y1 - r.y0) + 1 }; }
 function setTool(t) {
+  pourPrev = null;
   if (tool === 'stamp' && t !== 'stamp') stampHab = null; if (t !== 'move') moving = null;
   tool = t; $$('.tbtn[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t ? 'true' : 'false'));
   if (!['select', 'pan', 'move', 'paste'].includes(t) && selection && selection.group) closeInspector();
   renderOptbar(); requestDraw();
 }
 function selectItem(name, switchTool = true) {
+  pourPrev = null;
   if (decorMini && name !== decorMini.item) { decorMini = null; renderMini(); }
   curItem = name; rotated = false; placeR = null; const i = recent.indexOf(name); if (i >= 0) recent.splice(i, 1); recent.unshift(name); recent.length = Math.min(recent.length, 8);
   if (switchTool && !['place', 'rect'].includes(tool)) setTool('place'); else renderOptbar();
@@ -2954,6 +3058,7 @@ function startAction(cx, cy, sx, sy) {
   if (tool === 'place') {
     const it = currentItem(); if (!it) { toast('Pick an item in Build first'); return; }
     if (it.L !== 'g' && (it.w > 1 || it.h > 1)) { drag = { kind: 'kit', x: cx, y: cy }; return; }
+    if (pourMode === 'pour' && canPour(it)) { drag = null; pourTap(cx, cy); return; }
     drag = { kind: 'stroke', label: 'Place ' + it.n, last: [cx, cy], seen: new Set() }; placeCell(cx, cy, drag.seen); requestDraw(); return;
   }
   if (tool === 'erase') {
@@ -3076,6 +3181,8 @@ addEventListener('keydown', e => {
   if (IED.ob) { iedKey(e); return; }
   if (e.target.matches('input, textarea, select')) return;
   if (e.key === 'Escape' && !$('#sysmenu').hidden) { sysOpen(false); $('#zsys').focus(); return; }
+  if (e.key === 'Escape' && pourPrev) { pourCancel(); return; }
+  if (e.key === 'Enter' && pourPrev && tool === 'place') { pourCommit(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (e.key === ' ') { spaceDown = true; cv.style.cursor = 'grab'; e.preventDefault(); return; }
@@ -3478,7 +3585,12 @@ function renderOptbar() {
       if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', 'data-tip': sizeGuessed(it) || heightGuessed(it) ? 'Guessed ' + (sizeGuessed(it) && heightGuessed(it) ? 'size and height' : sizeGuessed(it) ? 'size' : 'height') + ': change it if yours differs in game' : tall(it) ? 'Size in tiles, and the levels it takes up' : 'Size in tiles' }, (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? '?' : '') + (tall(it) && (heightOf(it) > 1 || heightGuessed(it)) ? ' · ' + heightOf(it) + ' high' + (heightGuessed(it) ? '?' : '') : ''), turnable(it) || ft[0] !== ft[1] ? ibtn('rotate', 'Turn (Q)', () => turnPlace(1), 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'))); }
       if ((it.L !== 'g' && multi(it)) || isRug(it)) { }
       else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, segmented([['solid', 'Solid'], ['outline', 'Outline']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode'), tipBtn('Drag a rectangle. Outline fills only its edge: quick walls.')));
-      else if (tool === 'place') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
+      else if (tool === 'place' && !(pourMode === 'pour' && canPour(it))) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
+      if (tool === 'place' && canPour(it)) {
+        ob.append(h('span', { class: 'pill' }, segmented([['paint', 'Paint'], ['pour', 'Pour']], pourMode, v => { pourMode = v; pourPrev = null; renderOptbar(); requestDraw(); }, 'Paint or pour'), tipBtn('Paint puts ' + it.n.toLowerCase() + ' exactly where you tap, to copy what\'s in your game. Pour drops a source on the tile you tap and lets it flow as in the game: ' + (it.n === 'Lava' ? '12 tiles along a 1-wide channel, 6 at low level' : '25 tiles along a 1-wide channel, 12 at low level, 10 in a 2-wide one') + ', a smaller circle on open ground, falling over edges and starting again below. Tap a tile to see where it goes, then tap it again or press Pour.')));
+        if (pourMode === 'pour') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), segmented([[false, 'Normal'], [true, 'Low']], pourLow, v => { pourLow = v; if (pourPrev) pourPrev = computeFlow(pourPrev.x, pourPrev.y, pourPrev.z, pourPrev.i, v); renderOptbar(); requestDraw(); }, 'Liquid level')));
+        if (pourMode === 'pour' && pourPrev) { const P = pourPrev; ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'About ' + P.cells.length + ' tile' + (P.cells.length === 1 ? '' : 's') + (P.falls ? ', ' + P.falls + ' falling' : '') + (P.capped ? ' (stopped at 5,000)' : '')), tipBtn('Where it should reach. The game also depends on the order you dug and filled things, so the edge can be a tile off.' + (P.lavaWater.length ? ' It touches ' + (it.n === 'Lava' ? 'water' : 'lava') + ' at ' + P.lavaWater[0].join(', ') + ': Water Gun turns lava into black rock you can walk on.' : '')), h('button', { class: 'btn sm primary', onclick: pourCommit }, 'Pour'), h('button', { class: 'btn sm', onclick: pourCancel }, 'Cancel'))); }
+      }
       if (leveled(it)) ob.append(levelPill(it));
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item'));
     if (recent.length > 1) { const r = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Recent')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
@@ -3515,11 +3627,12 @@ function tapSelect(x, y) {
   const k = y * plan.w + x, z = zoneAt(x, y), hs = houseAt(x, y) || autoHouses.find(q => q.doors.has(k));
   const pile = [...shownStack(k).map(ob => ({ obj: ob, key: topOf(ob), lv: zOf(ob) })), ...rugsOf(plan).filter(r => rugShown(r) && overlaps(r, x, y, 1, 1)).map(r => ({ rug: r, key: zOf(r) - 0.5, lv: zOf(r) }))].sort((a, b) => b.key - a.key);
   const at = layerZ != null ? pile.findIndex(q => q.lv === layerZ) : -1; if (at > 0) pile.unshift(pile.splice(at, 1)[0]);
-  const stack = [...pile.map(q => q.obj ? { obj: q.obj } : { rug: q.rug }), z && { zone: z }, hs && { house: hs }].filter(Boolean);
+  const tz0 = topTerrShown(k), fl = tz0 != null && !pile.length ? flowAt(k, tz0) : null;
+  const stack = [...pile.map(q => q.obj ? { obj: q.obj } : { rug: q.rug }), fl && { flow: fl.s }, z && { zone: z }, hs && { house: hs }].filter(Boolean);
   if (!stack.length) { selection = null; closeInspector(); return; }
-  const now = selection ? stack.findIndex(q => q.obj ? selection.obj && selection.obj.id === q.obj.id : q.rug ? selection.rug && selection.rug.id === q.rug.id : q.zone ? selection.zone === q.zone : selection.house === q.house.id) : -1;
+  const now = selection ? stack.findIndex(q => q.obj ? selection.obj && selection.obj.id === q.obj.id : q.rug ? selection.rug && selection.rug.id === q.rug.id : q.flow ? selection.flow && selection.flow.id === q.flow.id : q.zone ? selection.zone === q.zone : selection.house === q.house.id) : -1;
   const p = stack[now < 0 ? 0 : stack[now].obj && !(stack[now + 1] && (stack[now + 1].obj || stack[now + 1].rug)) ? now : (now + 1) % stack.length];
-  if (p.obj) { selection = { obj: p.obj }; showObjInspector(p.obj); } else if (p.rug) showRugInspector(p.rug); else if (p.zone) selectZone(p.zone); else selectHouse(p.house);
+  if (p.obj) { selection = { obj: p.obj }; showObjInspector(p.obj); } else if (p.rug) showRugInspector(p.rug); else if (p.flow) showFlowInspector(p.flow); else if (p.zone) selectZone(p.zone); else selectHouse(p.house);
 }
 function showRugInspector(r) {
   const it = ITEMS[r.i]; selection = { rug: r };
@@ -4841,7 +4954,7 @@ function renderPlans() {
   }
   root.append(h('h4', { class: 'hrow' }, 'How it works', h('span', { class: 'note' }, 'tap a topic')));
   root.append(h('div', { class: 'reqs' }, [
-    ['Painting', 'Paint terrain and plants with Place; drag Fill for big areas. Liquids (Water, Ocean, Muddy, Hot-spring, Lava, Waterfall) count toward habitat needs.'],
+    ['Painting', 'Paint terrain and plants with Place; drag Fill for big areas. Liquids (Water, Ocean, Muddy, Hot-spring, Lava, Waterfall) count toward habitat needs. With a liquid picked, Pour drops a source that flows as in the game; tap the tile again to pour it.'],
     ['Zones', 'Draw a Zone around a cluster. It checks the cluster against all ' + HAB.length + ' habitats and turns green when one forms.'],
     ['Terrain levels', 'Every block has a level, terrain too. Terrain starts at level 0, so things on the ground are on level 1. Place terrain to stack a block on top and build hills; Paint swaps the top block instead. Erase takes the top block off, so you can dig down. A 2-level rise inside a zone counts as a "High-up location".'],
     ['Stacking', 'Everything you place goes on top of the highest block at that spot, kit houses too. Blocks, walls and terrain can go on top of items; items never go on top of other items, only on terrain or a block. Items have a height: most take 1 level, tall ones such as a refrigerator take 2, and rugs take none, so furniture stands on them. Heights are guesses until you set them with Resize.'],

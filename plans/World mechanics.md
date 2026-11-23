@@ -272,4 +272,14 @@ The exact six berry tiles weren't published, so the planner shows all eight. Pha
 - the warnings
 - a **Game rules** section in Settings for four disputed rules: sensor, sprinkler, Smooth Rock and generator reach
 
-In plans with nothing that makes power, lights and appliances count as powered. Phase 5 (Pouring liquids) is next.
+In plans with nothing that makes power, lights and appliances count as powered. Phase 5 is done too. It added:
+
+- pouring with a preview, at normal or low level
+- a flow model tuned to the measured reaches
+- falls that restart the flow and are saved as Waterfall for water
+- runs to an edge
+- later flows covering earlier ones
+- removing a source removing its flow
+- a panel for poured liquid, with Pour again and Remove
+
+Mud-covered blocks aren't in the item list, so muddy water downstream isn't modelled. Phase 6 (Specialties) is next.
