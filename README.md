@@ -71,7 +71,7 @@ Plans saved before terrain had levels open with their heights turned into stacke
 
 Height decides what counts:
 
-- **Making a house:** found on whatever level its walls stand, on the ground, on a hill or in a basement, with terrain counting as wall. The 3 kinds of furniture have to stand inside the walls at the door's level. A kit house needs 3 different kinds on the floor with its door.
+- **Making a house:** found on whatever level its walls stand, on the ground, on a hill or in a basement, with terrain counting as wall. The 3 kinds of furniture have to stand inside the walls at the door's level. A kit house needs 3 different kinds on the floor with its door. In the two-floor house kits that take 2 Pokémon per floor (the Leaf, Sand, Stone, City and Imperial houses), each floor is its own home, so each floor someone lives on needs its own 3 kinds.
 - **Comfort and favourites:** anything in the active area counts at its own height, from 4 levels below to 3 above the door. That includes things just outside the walls, on a loft, on a block or on top of a wall.
 - **Light, warmth and humidity:** only what's inside the walls, from 1 below to 3 above the floor (see below). Things on top of walls never count.
 - Items on top of walls don't break the house. Habitats only count items standing on the ground.
@@ -329,7 +329,7 @@ Every item, and every tile of water, lava, ice or grass, carries light, warmth a
 
 - **A habitat**: light and humidity count everything in its dotted area, from 4 levels below to 4 above; warmth only from 1 below to 3 above. Walls don't block a lamp's light. Daylight is 90 × tiles open to the sky ÷ every tile of the area, so an open habitat starts at 90. A block with a gap under it, or a roof piece, covers the tile below it. Once a Pokémon moves into a house, the house's environment counts for it instead.
 - **A house you built from blocks**, or a kit built from blocks such as the coloured huts and cottages and the log cabin: only what's on the floor inside the walls or on a door tile counts, from 1 level below to 3 above the floor. Each item counts at its own level, so a lamp on a block counts and one raised 4 up doesn't. The floor itself sits 1 below, so the floor of a tile dug 1 deep doesn't count, though what stands on it does. The walls, anything on top of or under them, and anything outside never count. Lights hung higher than 3 don't count either. Daylight is 90 × floor tiles open to the sky ÷ every tile of the house, walls included. That's 62 at most even in the biggest house (9×10), and 45 in a 5×4. A roof is any block 2 or more above the floor. Set how much is roofed with **Roof**; unset counts as open sky. Kits built from blocks count as roofed, and only their ground floor counts.
-- **A kit house with its own interior**: everything inside counts, on both floors and at any height. There's no daylight, and windows, curtains, wallpaper and floors don't count.
+- **A kit house with its own interior**: everything inside counts, at any height. There's no daylight, and windows, curtains, wallpaper and floors don't count. In the two-floor house kits that take 2 Pokémon per floor, each floor is its own home: the 2 Pokémon upstairs are judged only on what's upstairs, and the 2 downstairs only on what's downstairs, for light, warmth, humidity, favourites and the rest, toy and decoration. The home's panel shows each floor separately.
 
 **When a home is bright, warm or humid**
 

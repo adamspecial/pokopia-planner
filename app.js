@@ -537,6 +537,11 @@ function kitInfo(ob) {
   return { kind: it.kind || 'in', w: I.w || it.iw || Math.max(3, ob.w * 2 - 2), h: I.h || it.ih || Math.max(3, ob.h * 2 - 2), fl, pf: fl > 1 ? (it.pf || 0) : 0, est: !!it.ie && !I.w, small: !!it.sm, custom: !!(I.w || I.h || I.fl) };
 }
 function kitHome(ob) { const it = ITEMS[ob.i], ki = kitInfo(ob); return { kind: 'kit', key: 'kit:' + ob.id, ob, cap: it.cap, floors: ki.fl, pf: ki.pf, label: it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y, ax: ob.x, ay: ob.y }; }
+const splitFloors = (home) => !!home && home.kind === 'kit' && home.floors > 1 && home.pf > 0;
+const floorOf = (home, f) => splitFloors(home) && f != null ? { ...home, floor: f, label: home.label + ' · ' + floorName(f).toLowerCase() } : home;
+function kitFloorsToFurnish(ob) { const hm = kitHome(ob); if (!splitFloors(hm)) return [0]; const fs = [0, 1].filter(f => residentsOf(hm, f).length); return fs.length ? fs : [0]; }
+const kitReady = (ob) => kitFloorsToFurnish(ob).every(f => kitFurniture(ob, f) >= 3);
+const furnChip = (n, split) => h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': split ? 'Furniture on this floor: each floor is its own home, so it needs 3 different kinds before anyone moves in there' : 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, (n >= 3 ? '✓' : '✗') + 'required (' + n + '/3)');
 const floorName = (f) => f ? 'Upstairs' : 'Ground floor';
 const SIZE_NAME = { s: 'Small', m: 'Medium', l: 'Large' }, SIZE_RANK = { s: 0, m: 1, l: 2 };
 const pkSize = (p) => (p && (userSizes['pk:' + p.n] || p.ps)) || 'm';
@@ -686,7 +691,7 @@ let resRecheckOn = false;
 function resRecheck() { if (resRecheckOn) return; resRecheckOn = true; setTimeout(() => { resRecheckOn = false; if (plan) { evaluateAll(); requestDraw(); } }, 0); }
 function intFloor(ob, f) { const I = ob.int; return I && I.f && I.f[f] ? I.f[f] : { o: [], wp: null, fc: null }; }
 function kitPieces(ob, floor) { const ki = kitInfo(ob), out = []; for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; for (const a of intFloor(ob, f).o) { const [i, x, y] = a; if (x < ki.w && y < ki.h && ITEMS[i]) out.push({ it: ITEMS[i], x, y, f, w: a[3] || 1, h: a[4] || 1 }); } } return out; }
-function kitFurniture(ob) { return new Set(kitPieces(ob, 0).filter(p => !isWall(p.it) && !isDoor(p.it)).map(p => p.it.i)).size; }
+function kitFurniture(ob, f = 0) { return new Set(kitPieces(ob, f).filter(p => !isWall(p.it) && !isDoor(p.it)).map(p => p.it.i)).size; }
 function presentFavs(home, floor) {
   const out = new Map();
   const add = (it) => { if (it && it.fv) for (const f of it.fv) { if (!out.has(f)) out.set(f, []); const l = out.get(f); if (!l.includes(it.n)) l.push(it.n); } };
@@ -817,7 +822,7 @@ function burnersAt(x, y, z, ranges) {
   return [...out];
 }
 function fireLitBy(ob) { return burnersAt(ob.x, ob.y, zOf(ob), homeRanges()); }
-const envPks = (home) => home.kind === 'habitat' ? home.pks : residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
+const envPks = (home) => home.kind === 'habitat' ? home.pks : residentsOf(home, home.floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean);
 function habitatHome(z) {
   const r = zoneStatus.get(z.id); if (!r || r.kind !== 'habitat' || !r.area) return null;
   const hb = r.best ? r.best.hb : r.target || (r.near && r.near.hb); if (!hb) return null;
@@ -844,7 +849,7 @@ function envOf(home) {
     const zs = plan.tz, tt = plan.tt;
     for (let j = zs.length - 1; j >= 0; j--) { const v = tt[j][k]; if (!v) continue; const z = zs[j], d = z - base; if (d < lo || d > hi) continue; const it = ITEMS[v - 1]; if (!envFx(it) || (terrAt(plan, k, z + 1) && !(it.lq && it.lq[2]) && !((flowAt(k, z) || {}).f === FL_FALL))) continue; const e = tiles.get(v - 1) || [0, 0]; e[0]++; if (d >= tlo && d <= thi) e[1]++; tiles.set(v - 1, e); }
   };
-  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : null)) addIt(pc.it, null); }
+  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, kind === 'block' ? 0 : home.floor)) addIt(pc.it, null); }
   else if (hab) {
     const a = home.area, R = a.rect, base = a.base, D = habitatDaylight(a); E.day = D;
     add('b', 'Daylight (' + D.open + ' of ' + D.total + ' tiles open to the sky)', D.v);
@@ -928,11 +933,12 @@ function envBlock(home, E = envOf(home)) {
 function envHelp(home) {
   if (home.kind === 'habitat') return 'Light and humidity count everything in the dotted area, from 4 levels down to 4 up; warmth only from 1 down to 3 up. Walls don\'t block a lamp. Daylight = 90 × tiles open to the sky ÷ all tiles in the area. Bright at 100+, dark at 60 or less; humid at 100+, dry at 30 or less; warm at +60, cool at −60. These are the Pokémon this habitat attracts; once one moves into a house, the house\'s environment counts for it instead. Fires count when a Burn Pokémon lives nearby to light them. Points are from a player\'s in-game tests.';
   const E = { kind: envKind(home), built: home.kind === 'house' };
-  return (E.kind === 'kit' ? 'Everything inside counts, both floors, any height. No daylight; windows, wallpaper and floors don\'t count. Bright at 40+, dark at 40 or less; humid at 40+, dry at 60 or less (exactly 40 light, or 40–60 humidity, suits both).'
+  return (E.kind === 'kit' ? 'Everything inside counts, at any height. In a house with 2 Pokémon per floor, each floor is its own home: only what\'s on a Pokémon\'s floor counts for it. No daylight; windows, wallpaper and floors don\'t count. Bright at 40+, dark at 40 or less; humid at 40+, dry at 60 or less (exactly 40 light, or 40–60 humidity, suits both).'
     : (E.built ? 'Only what\'s on the floor inside the walls or on a door tile counts, from 1 below to 3 above the floor; never walls or outside. Daylight = 90 × floor tiles open to the sky ÷ all tiles, walls included.' : 'Built from blocks, so it works like a house you built: only the ground floor counts, and it\'s roofed (no daylight).') + ' Bright at 100+, dark at 60 or less; humid at 100+, dry at 30 or less.')
     + ' Warm at +60, cool at −60. Tap a ✗ to see what to change. Points are from a player\'s in-game tests; "untested" values are the planner\'s guess. Fires count when a Burn Pokémon lives nearby to light them, appliances when on, tubs and fountains when filled.';
 }
 function envSection(home, noHead) {
+  if (splitFloors(home) && home.floor == null) { const wrap = h('div', { class: 'envsec' }); if (!noHead) wrap.append(h('div', { class: 'hrow', style: 'margin-top:8px' }, h('b', null, 'Environment'), h('span', { class: 'note' }, 'each floor on its own'), tipBtn(envHelp(home)))); for (const f of [0, 1]) wrap.append(h('div', { class: 'note', style: 'margin-top:6px;font-weight:700' }, floorName(f)), envSection(floorOf(home, f), true)); return wrap; }
   const wrap = h('div', { class: 'envsec' }), kit = envKind(home) === 'kit', E = envOf(home);
   if (!noHead) wrap.append(h('div', { class: 'hrow', style: 'margin-top:8px' }, h('b', null, 'Environment'), home.floors > 1 ? h('span', { class: 'note' }, kit ? 'both floors' : 'ground floor') : '', tipBtn(envHelp(home))));
   wrap.append(envBlock(home, E));
@@ -946,9 +952,9 @@ function compat(p, others) { let shared = 0; for (const o of others) for (const 
 function decorPlan(home, floor) {
   const res = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const present = presentFavs(home, floor);
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
-  const lack = new Set(comfortTrio(home).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
+  const fh = floorOf(home, floor), lack = new Set(comfortTrio(fh).filter(t => !t[1]).map(t => t[2])), all = [], fillW = 2 * Math.max(1, res.length);
   const rf = restFit(home, floor), big = rf ? rf.short : [], needR = rf && rf.short.length ? rf.need : 0, needBig = needR > 0;
-  const env = envOf(home), envN = envNeeds(env);
+  const env = envOf(fh), envN = envNeeds(env);
   for (const it of ITEMS) {
     const fx = envFx(it); if ((!it.fv && !it.tg && !fx) || it.c === 'Terrain' || it.c === 'Kits') continue;
     const nature = it.c === 'Nature'; if (nature && (it.n === 'Molten rock' || !(fx && (fx.b || fx.t || Math.abs(fx.u) >= 10)))) continue;
@@ -1002,9 +1008,10 @@ function residentsSection(home) {
   wrap.append(chips);
   if (home.kind === 'house') for (const t of bigWayNotes(home.hs, pks)) wrap.append(h('div', { class: 'note', style: 'color:var(--bad)', 'data-tip': 'Large Pokémon take 2×2 tiles: they need a door 2 wide and paths 2 tiles wide to reach what they use.' }, '⚠ ' + t));
   if (smallOnly(home)) { const big = pks.filter(tooBig); if (big.length) wrap.append(h('div', { class: 'note', style: 'color:var(--bad)', 'data-tip': 'Dens and the Poké Ball house take medium Pokémon or smaller: move ' + (big.length > 1 ? 'them' : 'it') + ' to a hut or bigger.' }, '⚠ Too big for a den: ' + listNames(big.map(p => p.n)))); }
-  const reqs = trioChips(home), cv = favCoverage(home);
-  if (home.kind === 'kit') { const n = kitFurniture(home.ob); reqs.prepend(h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, (n >= 3 ? '✓' : '✗') + 'required (' + n + '/3)')); }
-  if (cv.total) reqs.append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')'));
+  const split = splitFloors(home), reqs = split ? h('div') : trioChips(home), cv = favCoverage(home);
+  if (split) { const need = kitFloorsToFurnish(home.ob); for (const f of [0, 1]) { const row = trioChips(floorOf(home, f), f); row.prepend(h('b', { class: 'note' }, floorName(f)), need.includes(f) ? furnChip(kitFurniture(home.ob, f), true) : ''); reqs.append(row); } }
+  else if (home.kind === 'kit') reqs.prepend(furnChip(kitFurniture(home.ob), false));
+  if (cv.total) (split ? reqs.appendChild(h('div', { class: 'reqs' })) : reqs).append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')'));
   wrap.append(reqs);
   for (const el of workLines(home.key, home)) wrap.append(el);
   wrap.append(envSection(home));
@@ -1018,9 +1025,9 @@ function pkRow(p, extra, onPick) {
       h('div', { class: 'ds', style: 'white-space:normal' }, (p.fv || []).map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')), extra ? h('div', { class: 'ds', style: 'white-space:normal;color:var(--ink)' }, extra) : ''));
 }
 function residentPicker(home, floor) {
-  const current = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const att = planPokemon(); let q = '';
+  const current = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean), mates = splitFloors(home) && floor != null ? residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean) : current; const att = planPokemon(); let q = '';
   if (home.floors > 1 && floor != null && !floorHasRoom(home, floor)) { toast(floorName(floor) + ' is full'); return; }
-  const it = home.kind === 'kit' ? ITEMS[home.ob.i] : null, E = envOf(home);
+  const it = home.kind === 'kit' ? ITEMS[home.ob.i] : null, E = envOf(floorOf(home, floor));
   modal('Add a resident' + (home.floors > 1 && floor != null ? ' · ' + floorName(floor).toLowerCase() : ''), (box) => {
     box.classList.add('wide');
     box.append(h('p', { class: 'sub' }, home.label + ' · ' + current.length + '/' + home.cap + (it && it.sm ? ' · S/M only' : '')));
@@ -1030,10 +1037,10 @@ function residentPicker(home, floor) {
       list.textContent = '';
       let cands = PK.filter(p => p.fv && p.fv.length && !current.includes(p)); const hidden = cands.filter(p => !fitsHome(p, home)).length; cands = cands.filter(p => fitsHome(p, home));
       if (q) cands = cands.filter(p => p.n.toLowerCase().includes(q) || (p.ideal || '').toLowerCase().includes(q) || (p.fv || []).some(f => FAVS[f].toLowerCase().includes(q)));
-      const scored = cands.map(p => { const hm = homeOfPokemon(p.n), k = envAxisOf(p.ideal); return { p, c: compat(p, current), inPlan: att.has(p.n), hm, suits: !!k && !envGap(p.ideal, E.ax[k].v, E.kind) }; });
+      const scored = cands.map(p => { const hm = homeOfPokemon(p.n), k = envAxisOf(p.ideal); return { p, c: compat(p, mates), inPlan: att.has(p.n), hm, suits: !!k && !envGap(p.ideal, E.ax[k].v, E.kind) }; });
       scored.sort((a, b) => (!!a.hm - !!b.hm) || (b.inPlan - a.inPlan) || (b.c.score + 2 * b.suits) - (a.c.score + 2 * a.suits) || a.p.n.localeCompare(b.p.n));
       for (const sc of scored.slice(0, 60)) {
-        const bits = []; if (sc.inPlan) bits.push('In your habitats'); if (smallOnly(home) && sizeUnsure(sc.p)) bits.push('den untested'); if (sc.suits) bits.push('✓ ' + sc.p.ideal.toLowerCase() + ' here'); if (current.length) bits.push(sc.c.shared + ' shared like' + (sc.c.shared === 1 ? '' : 's') + (!sc.c.sameEnv ? ' · ⚠ opposite of ' + listNames(sc.c.clash) : sc.c.same ? ' · same ideal' : '')); if (sc.hm) bits.push('now in ' + sc.hm.label);
+        const bits = []; if (sc.inPlan) bits.push('In your habitats'); if (smallOnly(home) && sizeUnsure(sc.p)) bits.push('den untested'); if (sc.suits) bits.push('✓ ' + sc.p.ideal.toLowerCase() + ' here'); if (mates.length) bits.push(sc.c.shared + ' shared like' + (sc.c.shared === 1 ? '' : 's') + (!sc.c.sameEnv ? ' · ⚠ opposite of ' + listNames(sc.c.clash) : sc.c.same ? ' · same ideal' : '')); if (sc.hm) bits.push('now in ' + sc.hm.label);
         list.append(pkRow(sc.p, bits.join(' · '), () => { assignResident(sc.p.n, home, floor); closeModal(); toast(sc.p.n + ' moved in'); afterResChange(home); }));
       }
       if (!scored.length) list.append(h('p', { class: 'empty' }, 'No Pokémon match.'));
@@ -1255,14 +1262,14 @@ function iedSide() {
   if (room) chips.append(ibtn('useradd', 'Add resident', () => residentPicker(home, f == null ? undefined : IED.floor), 'sm'));
   el.append(chips);
   if (ki.fl > 1) { const other = residentsOf(home, 1 - IED.floor); if (other.length) el.append(h('div', { class: 'note hrow' }, (2 - IED.floor) + 'F:', other.map(r => pkTag(r.p, 20)))); }
-  const n = kitFurniture(ob), dp = iedSuggest(home, f), cv = favCoverage(home);
-  el.append(h('div', { class: 'reqs' }, h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, (n >= 3 ? '✓' : '✗') + 'required (' + n + '/3)'),
-    comfortTrio(home).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', 'data-tip': TRIO_TIP[lb] + (ok ? ' is here.' : ' isn\'t here yet.') + ' Tap to list them. Pokémon are most comfortable with a rest, a toy and a decoration item nearby.', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, (ok ? '✓' : '·') + lb)),
+  const split = splitFloors(home), fh = floorOf(home, f), n = kitFurniture(ob, split ? IED.floor : 0), dp = iedSuggest(home, f), cv = favCoverage(home);
+  el.append(h('div', { class: 'reqs' }, furnChip(n, split),
+    comfortTrio(fh).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', 'data-tip': TRIO_TIP[lb] + (ok ? ' is here.' : ' isn\'t here yet.') + ' Tap to list them. Pokémon are most comfortable with a rest, a toy and a decoration item nearby.', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, (ok ? '✓' : '·') + lb)),
     largeRestChip(home, f), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds inside: ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')') : ''));
   if (!dp.res.length && !isTagFilt(IED.filt)) { el.append(h('p', { class: 'hint' }, 'Add residents for suggestions.')); return; }
   for (const p of dp.res) el.append(h('div', { class: 'card', style: 'margin:6px 0' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
     h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', 'data-tip': 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv])))));
-  el.append(h('h4', { class: 'hrow', style: 'margin:12px 0 0' }, 'Environment', ki.fl > 1 ? h('span', { class: 'note' }, ki.kind === 'ow' ? 'ground floor' : 'both floors') : '', tipBtn(envHelp(home))), envBlock(home));
+  el.append(h('h4', { class: 'hrow', style: 'margin:12px 0 0' }, 'Environment', ki.fl > 1 ? h('span', { class: 'note' }, ki.kind === 'ow' ? 'ground floor' : split ? floorName(IED.floor).toLowerCase() + ' only' : 'both floors') : '', tipBtn(envHelp(home))), envBlock(fh));
   if (dp.envN.length) el.append(h('div', { class: 'reqs' }, dp.envN.map(n => h('button', { class: 'req', 'aria-pressed': IED.filt === 'env:' + n.ideal ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === 'env:' + n.ideal ? null : 'env:' + n.ideal; iedSide(); } }, 'Make it ' + n.ideal.toLowerCase()))));
   const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv); const tagF = isTagFilt(IED.filt) ? IED.filt.slice(3) : null, envF = isEnvFilt(IED.filt) ? IED.filt.slice(4) : null;
   const envFix = dp.envN.some(n => dp.envFor(n.ideal).length);
@@ -1322,7 +1329,7 @@ function iedAutoPlace() {
   if (dp.needBig) { const bed = dp.byTag('Relaxation').find(x => x.fits > 0 && ok(x.it)); if (bed) take(bed.it, true); }
   for (const n of dp.envN) { const k = envAxisOf(n.ideal); for (const x of dp.envFor(n.ideal)) { if (!envGap(n.ideal, sim[k], E.kind) || pick.length >= 12) break; if (ok(x.it) && delta(x.it, k)) take(x.it); } }
   for (const t of dp.lack) { if (pick.some(it => it.tg === t)) continue; const best = dp.byTag(t).find(x => ok(x.it)); if (best) take(best.it); }
-  for (const sg of dp.sugg) { if (kitFurniture(ob) + pick.length >= 3) break; if (ok(sg.it)) take(sg.it); }
+  for (const sg of dp.sugg) { if (kitFurniture(ob, splitFloors(home) ? IED.floor : 0) + pick.length >= 3) break; if (ok(sg.it)) take(sg.it); }
   const left = dp.envN.filter(n => envGap(n.ideal, sim[envAxisOf(n.ideal)], E.kind));
   const spots = iedRing(ki, IED.floor); let n = 0;
   for (const it of pick) { const size = footOf(it); for (let k = 0; k < spots.length; k++) { const [x, y] = spots[k]; let sz = size; if (!iedFree(x, y, sz[0], sz[1])) { sz = [size[1], size[0]]; if (!iedFree(x, y, sz[0], sz[1])) continue; } iedPut(x, y, it.i, sz); spots.splice(k, 1); n++; break; } }
@@ -1457,7 +1464,7 @@ function floorItems(hs) { const ids = new Set(); for (const k of hs.cells) for (
 const TRIO = [['Relaxation', 'Rest'], ['Toy', 'Toy'], ['Decoration', 'Decoration']];
 function comfortTrio(home) {
   const tags = new Set();
-  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob)) if (pc.it.tg) tags.add(pc.it.tg); }
+  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, home.floor)) if (pc.it.tg) tags.add(pc.it.tg); }
   else for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; if (it.tg && !tags.has(it.tg) && objInArea(ob, home.hs.area)) tags.add(it.tg); }
   return TRIO.map(([t, lb]) => [lb, tags.has(t), t]);
 }
@@ -1465,7 +1472,7 @@ const isRest = (it) => !!it && it.tg === 'Relaxation';
 const restClass = (w, h) => Math.min(w, h) >= 2 ? 'large' : Math.max(w, h) >= 2 ? 'medium' : 'small';
 function restFit(home, floor) {
   const pks = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(p => p && pkSize(p) !== 's'); if (!pks.length) return null;
-  const rest = home.kind === 'kit' ? kitPieces(home.ob).filter(pc => isRest(pc.it)) : [...plan.objs.values()].filter(ob => isRest(ITEMS[ob.i]) && objInArea(ob, home.hs.area));
+  const rest = home.kind === 'kit' ? kitPieces(home.ob, splitFloors(home) ? (floor != null ? floor : home.floor) : null).filter(pc => isRest(pc.it)) : [...plan.objs.values()].filter(ob => isRest(ITEMS[ob.i]) && objInArea(ob, home.hs.area));
   const top = rest.reduce((m, o) => Math.max(m, SIZE_RANK[restClass(o.w, o.h)[0]]), -1);
   const short = pks.filter(p => SIZE_RANK[pkSize(p)] > top), need = short.reduce((m, p) => Math.max(m, SIZE_RANK[pkSize(p)]), 0);
   return { pks, short: short.map(p => p.n), need, guess: short.some(pkSizeGuess) };
@@ -1473,7 +1480,7 @@ function restFit(home, floor) {
 const RANK_FOOT = ['1×1', '2×1', '2×2'], RANK_WORD = ['small', 'medium', 'large'];
 function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) return ''; const ok = !b.short.length; return h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': (ok ? 'The rest items are big enough for everyone.' : listNames(b.short) + (b.short.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[b.need] + ' rest item (' + RANK_FOOT[b.need] + ' or bigger).') + ' Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large.' + (b.guess ? ' Some sizes are guesses: tap a size to change it.' : '') }, (ok ? '✓Rest size' : '·Rest ' + RANK_FOOT[b.need] + (b.guess ? '?' : ''))); }
 const TRIO_TIP = { Rest: 'A rest item (bed, seat…)', Toy: 'A toy', Decoration: 'A decoration' };
-function trioChips(home) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓' : '·') + lb)), largeRestChip(home)); }
+function trioChips(home, floor) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓' : '·') + lb)), largeRestChip(home, floor)); }
 const CBOX = 'Community box', BOX_R = 4;
 const isBox = (it) => it && it.n === CBOX;
 function growRect(R, n) { const x0 = Math.max(0, R.x - n), y0 = Math.max(0, R.y - n), x1 = Math.min(plan.w - 1, R.x + R.w - 1 + n), y1 = Math.min(plan.h - 1, R.y + R.h - 1 + n); return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; }
@@ -2262,7 +2269,7 @@ function mapLabels3d(o) {
   if (s >= 8) for (const ob of plan.objs.values()) {
     const it = ITEMS[ob.i]; if (!it.cap || !obShown(ob) || (layerZ != null && zOf(ob) > layerZ)) continue; const e = rix().homes.get('kit:' + ob.id); if (!e) continue;
     const b = o.flatRect(ob.x, ob.y, ob.w, ob.h, zOf(ob) + htOf(ob)), t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = b.x1 - tw - 3, by = b.y0 + 3;
-    c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
+    c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitReady(ob) ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
     if (s >= 10 && S.faces) faces(e.list.map(r => r.p), b.x0 + 3, b.y1);
   }
   for (const hs of autoHouses) {
@@ -3019,7 +3026,7 @@ function drawTerr(c, V, arr, s) {
 function kitBadge(c, ob, s, rix) {
   const it = ITEMS[ob.i]; if (!it.cap || s < 8) return; const e = rix().homes.get('kit:' + ob.id); if (!e) return;
   const t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = view.px + (ob.x + ob.w) * s - tw - 3, by = view.py + ob.y * s + 3;
-  c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitFurniture(ob) >= 3 ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
+  c.fillStyle = it.sm && e.list.some(r => tooBig(PK_BY_NAME.get(r.p))) ? theme.bad : kitReady(ob) ? theme.accent : theme.warn; roundRect(c, bx, by, tw, 16, 8); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + 5, by + 8);
   if (s >= 10 && S.faces) { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, e.list.map(r => r.p), view.px + ob.x * s + 3, view.py + (ob.y + ob.h) * s - d * 0.62, d); }
 }
 function drawGhost(c, it, x, y, w, h, z, s, r) { const g = { i: it.i, x, y, w, h, z, r: r === undefined ? placeR != null && turnable(it) ? placeR : null : r < 0 ? null : r }, d = z - standOver(x, y, w, h); if (d === 0) drawPicItem(c, it, view.px + x * s, view.py + y * s, s, w, h, false, [x, y, w, h, z, faceOf(g)]); else if (structural(it)) drawUp(c, g, s, d); else if (it.c === 'Kits') drawKitUp(c, g, s, d); else drawRaised(c, g, s, d); }
@@ -4258,7 +4265,7 @@ function createZone(r) {
 }
 function kitHomesList(hs) {
   const l = h('div', { class: 'list' });
-  for (const ob of hs.kitHomes) { const it = ITEMS[ob.i], hm = kitHome(ob), n = residentsOf(hm).length; l.append(h('div', { class: 'row', style: 'cursor:default' }, swatchEl(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n.replace(/ kit$/, '')), h('div', { class: 'ds' }, n + '/' + it.cap + ' living · ' + kitFurniture(ob) + ' furniture')), ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'sm'))); }
+  for (const ob of hs.kitHomes) { const it = ITEMS[ob.i], hm = kitHome(ob), n = residentsOf(hm).length; l.append(h('div', { class: 'row', style: 'cursor:default' }, swatchEl(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n.replace(/ kit$/, '')), h('div', { class: 'ds' }, n + '/' + it.cap + ' living · ' + (splitFloors(hm) ? kitFurniture(ob, 0) + ' + ' + kitFurniture(ob, 1) : kitFurniture(ob)) + ' furniture')), ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'sm'))); }
   return l;
 }
 function selectHouse(hs) {
@@ -4669,9 +4676,9 @@ function renderHabitats() {
     const pv = prefabTotal();
     root.append(h('h4', { class: 'hrow' }, 'Kit homes (' + kitObs.length + ')', h('span', { class: 'req' + (pv > 40 ? ' miss' : ''), style: 'font-weight:600', 'data-tip': 'Prefab homes: ' + pv + ' of the 40 allowed in one area (1 for a one-Pokémon home, 2 for bigger ones). Kits built from blocks don\'t count.' }, 'Prefab ' + pv + '/40')));
     for (const ob of kitObs) {
-      const it = ITEMS[ob.i], hm = kitHome(ob), l = residentsOf(hm), n = kitFurniture(ob), cv = favCoverage(hm), host = houseAt(ob.x, ob.y);
-      root.append(h('div', { class: 'card ' + (n >= 3 ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, swatchEl(it), h('span', { class: 'title' }, it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y), h('span', { class: 'note', style: 'margin-left:auto' }, l.length + '/' + it.cap)),
-        h('div', { class: 'note' }, 'required (' + n + '/3)' + (cv.total ? ' · favourite (' + cv.have + '/' + cv.total + ')' : '') + (hm.floors > 1 ? ' · 2 floors' : '') + (host ? ' · in ' + (host.enclosure ? 'an enclosure' : 'a house') : '')),
+      const it = ITEMS[ob.i], hm = kitHome(ob), l = residentsOf(hm), n = splitFloors(hm) ? kitFloorsToFurnish(ob).map(f => (f ? '2F ' : '1F ') + kitFurniture(ob, f) + '/3').join(', ') : kitFurniture(ob) + '/3', cv = favCoverage(hm), host = houseAt(ob.x, ob.y);
+      root.append(h('div', { class: 'card ' + (kitReady(ob) ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, swatchEl(it), h('span', { class: 'title' }, it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y), h('span', { class: 'note', style: 'margin-left:auto' }, l.length + '/' + it.cap)),
+        h('div', { class: 'note' }, 'required (' + n + ')' + (cv.total ? ' · favourite (' + cv.have + '/' + cv.total + ')' : '') + (hm.floors > 1 ? ' · 2 floors' : '') + (host ? ' · in ' + (host.enclosure ? 'an enclosure' : 'a house') : '')),
         l.length ? pkChips(l.map(r => r.p), 22, openPokemon, hm.floors > 1 ? (p) => h('span', { class: 'note' }, (l.find(r => r.p === p.n) || {}).f ? '2F' : '1F') : null) : h('div', { class: 'mons', style: 'margin-top:4px' }, 'Nobody yet'),
         h('div', { class: 'acts' }, ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'sm primary'), ibtn('map', 'Show on map', () => { mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); selection = { obj: ob }; showObjInspector(ob); }, 'sm'), ibtn('trash', 'Delete', () => deleteObjNow(ob), 'sm danger', { style: 'margin-left:auto' }))));
     }
