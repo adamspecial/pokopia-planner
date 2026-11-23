@@ -107,8 +107,8 @@ const LS = {
   del(k) { try { localStorage.removeItem(k); } catch (e) { } },
 };
 const SET_KEY = 'pokopia-planner:settings';
-const SET_DEF = { map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
-const SET_OPTS = { theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
+const SET_DEF = { gSensor: 2, gSprinkler: 5, gRock: 4, gGen: 10, map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
+const SET_OPTS = { gSensor: [2, 1], gSprinkler: [5, 4], gRock: [4, 6], gGen: [10, 7], theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
 let S = Object.assign({}, SET_DEF);
 try { const v = JSON.parse(LS.get(SET_KEY) || 'null'); if (v && typeof v === 'object') for (const k in SET_DEF) if (k in v && (SET_OPTS[k] ? SET_OPTS[k].includes(v[k]) : typeof v[k] === 'boolean')) S[k] = v[k]; } catch (e) { }
 const TOAST_K = { short: 0.6, normal: 1, long: 1.8 };
@@ -734,16 +734,17 @@ function envFx(it) {
 }
 const envT = (fx, ac) => fx.ac ? ac * 60 : fx.t;
 const PGN = { n: 'while liquid turns its wheel', r: 'while it has fuel' };
-const SIG_IN = { l: 'When anything changes in the 2 tiles in front of it, it switches what\'s beside it, behind it and above and below it', f: 'Opens every door within 2 tiles (5×5×5) when stepped on, and closes them soon after', w: 'Switches everything within 3 tiles (7×7×7) on or off', c: 'Switches everything within 3 tiles (7×7×7) on or off with a key card' };
-const REACH_TXT = { Sprinkler: 'Waters fields within 5 tiles (61 tiles) while there\'s water at its own height in that reach. Still works buried.', 'Smooth rock': 'Dries the top block within 4 tiles, from a level above it to 2 below, except in rain or by a running sprinkler.', 'Bubble machine': 'Blows bubbles over the 3×3 around it, which underwater crops need.' };
+const SIG_IN = { get l() { return 'When anything changes in the ' + (S.gSensor > 1 ? S.gSensor + ' tiles' : 'tile') + ' in front of it, it switches'; }, l2: ' what\'s beside it, behind it and above and below it', f: 'Opens every door within 2 tiles (5×5×5) when Ditto or a walking Pokémon steps on it (floating ones don\'t press it), and closes them soon after', w: 'Switches everything within 3 tiles (7×7×7) on or off', c: 'Switches everything within 3 tiles (7×7×7) on or off with a key card' };
+const diaN = (r) => 2 * r * r + 2 * r + 1;
+const REACH_TXT = { get Sprinkler() { return 'Waters fields within ' + S.gSprinkler + ' tiles (' + diaN(S.gSprinkler) + ' tiles) while there\'s water at its own height in that reach. Still works buried.'; }, get 'Smooth rock'() { return 'Dries the top block within ' + S.gRock + ' tiles, from a level above it to 2 below, except in rain or by a running sprinkler.'; }, 'Bubble machine': 'Blows bubbles over the 3×3 around it, which underwater crops need.' };
 const isPowerGen = (it) => !!it && !!it.pg, isTransmitter = (it) => !!it && !!it.pt, isPowered = (it) => !!it && it.pd != null;
 const signalTarget = (it) => !!it && (!!it.so || it.pt === 'ws' || inWall(it) || isPowered(it) && it.c !== 'Kits');
 function howItWorks(it) {
   const out = [];
-  if (it.pg) out.push('Makes ' + it.pg + ' power' + (it.pgh ? ', or ' + it.pgh + ' on high ground' : '') + (it.pgn ? ' ' + PGN[it.pgn] : '') + '. A transmitter within 10 tiles carries it.');
+  if (it.pg) out.push('Makes ' + it.pg + ' power' + (it.pgh ? ', or ' + it.pgh + ' on high ground' : '') + (it.pgn ? ' ' + PGN[it.pgn] : '') + '. A transmitter within ' + S.gGen + ' tiles carries it.');
   if (it.pt) out.push('Carries power to items and generators within 10 tiles, and to other transmitters within 15, up to 5 levels up or down. Takes one generator and up to 20 items.' + (it.pt === 'p' ? ' A block between it and another pole or a generator stops the wire.' : ' Goes through walls.') + (it.pt === 'ws' ? ' Switches off by hand or from a switch.' : ''));
   if (it.pd != null) out.push(it.pd ? 'Uses 1 power.' : 'Needs power but uses none.');
-  if (it.si) out.push(SIG_IN[it.si] + '. Needs no power.');
+  if (it.si) out.push((it.si === 'l' ? SIG_IN.l + SIG_IN.l2 : SIG_IN[it.si]) + '. Needs no power.');
   if (!it.si && signalTarget(it)) out.push('Switches and sensors nearby can work it.');
   if (REACH_TXT[it.n]) out.push(REACH_TXT[it.n]);
   if (isBerryTree(it)) out.push('Grows 1 berry an hour, up to 3. They fall on 6 of the 8 tiles around it, set by the way it faced when planted.');
@@ -758,11 +759,11 @@ function reachOf(ob) {
   const pl = (n) => n + ' level' + (n > 1 ? 's' : ''), lv = (up, down) => !up && !down ? 'this level only' : up === down ? pl(up) + ' up and down' : up && down ? pl(up) + ' up, ' + down + ' down' : up ? pl(up) + ' up' : pl(down) + ' down';
   if (it.pt || it.pg) {
     const f = faceOf(ob), foot = it.pg && (ob.w > 1 || ob.h > 1) ? [[ob.x, ob.y + ob.h - 1], [ob.x, ob.y], [ob.x + ob.w - 1, ob.y], [ob.x + ob.w - 1, ob.y + ob.h - 1]][f] : [cx, cy];
-    return { kind: 'power', col: REACH_COL.power, cells: diamond(foot[0], foot[1], 10), far: it.pt ? diamond(foot[0], foot[1], 15) : null, z, label: it.pt ? '10 tiles to items, 15 to transmitters' : '10 tiles to a transmitter', lv: lv(5, 5) };
+    return { kind: 'power', col: REACH_COL.power, cells: diamond(foot[0], foot[1], it.pt ? 10 : S.gGen), far: it.pt ? diamond(foot[0], foot[1], 15) : null, z, label: it.pt ? '10 tiles to items, 15 to transmitters' : S.gGen + ' tiles to a transmitter', lv: lv(5, 5) };
   }
   if (!rc && GROUPS.has('Berry tree (any)') && GROUPS.get('Berry tree (any)').has(it.i)) { const cells = []; for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) if (inB(plan, x, y) && !(x >= ob.x && x < ob.x + ob.w && y >= ob.y && y < ob.y + ob.h)) cells.push(y * plan.w + x); return { kind: 'berry', col: REACH_COL.berry, cells, z, label: 'berries fall on 6 of these', lv: lv(0, 0) }; }
   if (!rc) return null;
-  const [shape, r, up = 0, dn = 0] = rc, kind = it.si ? 'signal' : it.n === 'Smooth rock' ? 'dry' : 'water', col = REACH_COL[kind];
+  const [shape, , up = 0, dn = 0] = rc, r = it.n === 'Sprinkler' ? S.gSprinkler : it.n === 'Smooth rock' ? S.gRock : it.si === 'l' ? S.gSensor : rc[1], kind = it.si ? 'signal' : it.n === 'Smooth rock' ? 'dry' : 'water', col = REACH_COL[kind];
   if (shape === 'd') return { kind, col, cells: diamond(cx, cy, r), z, label: r + ' tiles', lv: lv(up, -dn) };
   if (shape === 's') { const x0 = Math.max(0, ob.x - r), y0 = Math.max(0, ob.y - r), x1 = Math.min(plan.w - 1, ob.x + ob.w - 1 + r), y1 = Math.min(plan.h - 1, ob.y + ob.h - 1 + r), cells = []; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cells.push(y * plan.w + x); return { kind, col, cells, box: { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, z0: z + dn, z1: z + up }, z, label: (2 * r + 1) + '×' + (2 * r + 1) + '×' + (up - dn + 1), lv: lv(up, -dn) }; }
   if (shape === 'l') {
@@ -828,7 +829,7 @@ function envOf(home) {
     if (fx.need === 'f') { const who = ob ? burnersAt(ob.x, ob.y, zOf(ob), rng()) : pks.filter(burnsIt).map(p => p.n); if (!who.length) { off(it, 'not lit: no Burn Pokémon lives nearby'); return; } by = listNames(who.slice(0, 2)) + (who.length > 2 ? ' +' + (who.length - 2) : ''); }
     if (fx.need === 'd' && plan.wx === 'rain' && !interior) { off(it, 'it\'s raining'); return; }
     if (it.n === 'Sprinkler' && ob && FIELDS && FIELDS.spr.get(ob.id) && !FIELDS.spr.get(ob.id).works) { off(it, 'no water in reach'); return; }
-    if (fx.need === 'p' && it.pd != null && (ob ? !powerOn(ob) : !(POWER && POWER.kit.get(home.ob.id) && POWER.kit.get(home.ob.id).on))) { off(it, 'no power'); return; }
+    if (fx.need === 'p' && it.pd != null && (ob ? !powerOn(ob) : !!(POWER && POWER.any) && !(POWER.kit.get(home.ob.id) && POWER.kit.get(home.ob.id).on))) { off(it, 'no power'); return; }
     const nm = fx.ac ? it.n + (ac > 0 ? ' (on hot)' : ac < 0 ? ' (on cold)' : ' (off)') : it.n;
     add('b', nm, fx.b, fx, 1, by); if (warmOk) add('t', nm, envT(fx, ac), fx, 1, by); add('u', nm, fx.u, fx, 1, by);
   };
@@ -1564,12 +1565,12 @@ function computePower() {
     const it = ITEMS[ob.i];
     if (it.pt) {
       const t = { ob, foot: powerFoot(ob), gen: null, devs: [], links: [], net: -1, blocked: [] }; P.tx.set(ob.id, t); T.push(t); P.any = true;
-      let bg = null, bd = Infinity; for (const g of P.gen.values()) { if (g.tx) continue; const d = pwDist(t, g.ob); if (d <= PW_R && d < bd) { bd = d; bg = g; } } if (bg) { bg.tx = t; t.gen = bg; }
+      let bg = null, bd = Infinity; for (const g of P.gen.values()) { if (g.tx) continue; const d = pwDist(t, g.ob); if (d <= S.gGen && d < bd) { bd = d; bg = g; } } if (bg) { bg.tx = t; t.gen = bg; }
       const free = [...P.dev.values()].filter(d => !d.tx).map(d => [d, pwDist(t, d.ob)]).filter(([, d]) => d <= PW_R).sort((a, b) => a[1] - b[1] || a[0].ob.id - b[0].ob.id);
       for (const [d] of free) { if (t.devs.length >= PW_CAP) break; d.tx = t; t.devs.push(d); }
     } else if (it.pg) {
       const g = { ob, units: genUnits(ob), tx: null }; P.gen.set(ob.id, g); P.any = true;
-      const [t, d] = near(ob, T, (q) => !q.gen); if (t && d <= PW_R) { g.tx = t; t.gen = g; }
+      const [t, d] = near(ob, T, (q) => !q.gen); if (t && d <= S.gGen) { g.tx = t; t.gen = g; }
     } else if (isPowerDev(it)) {
       const d = { ob, draw: it.pd, tx: null, inReach: 0 }; P.dev.set(ob.id, d);
       const [t, dd] = near(ob, T, (q) => q.devs.length < PW_CAP); if (t && dd <= PW_R) { d.tx = t; t.devs.push(d); }
@@ -1584,7 +1585,7 @@ function computePower() {
   for (const ob of objs) {
     const it = ITEMS[ob.i]; if (!it.cap || !ob.int) continue;
     let sup = 0, draw = 0, n = 0; for (const f of ob.int.f || []) if (f) for (const o of f.o) { const q = ITEMS[o[0]]; if (!q) continue; if (q.pg && !q.pgn) sup += q.pg; else if (q.pd != null) { draw += q.pd; n++; } }
-    if (!n && !sup) continue; P.any = true;
+    if (!n && !sup) continue; if (sup) P.any = true;
     const K = { ob, sup, draw, n, net: null, out: kitOutside(it) };
     if (K.out) { let bt = null, bd = Infinity; for (const t of T) { const d = pwDist(t, ob); if (d <= PW_R && d < bd) { bd = d; bt = t; } } if (bt && !(sup && sup >= draw)) { K.net = bt.net; bt.net.draw += draw; bt.net.devs += n; } }
     P.kit.set(ob.id, K);
@@ -1600,13 +1601,14 @@ function powerWhy(d) {
   const N = d.tx.net; if (!N.supply) return N.gens ? 'its generator makes no power' : 'no generator on its network';
   return 'its network is overloaded: it uses ' + N.draw + ' of ' + N.supply;
 }
-function powerOn(ob) { if (!POWER) return true; const d = POWER.dev.get(ob.id); return !d || d.on; }
+function powerOn(ob) { if (!POWER || !POWER.any) return true; const d = POWER.dev.get(ob.id); return !d || d.on; }
 function powerSection(ob, box) {
   if (!POWER) return;
   const it = ITEMS[ob.i], d = POWER.dev.get(ob.id), t = POWER.tx.get(ob.id), g = POWER.gen.get(ob.id), K = POWER.kit.get(ob.id), at = (o) => o.x + ', ' + o.y;
   const net = (N) => N.tx.length + ' transmitter' + (N.tx.length > 1 ? 's' : '') + ' · ' + N.gens + ' generator' + (N.gens === 1 ? '' : 's') + ' · ' + N.draw + ' of ' + N.supply + ' power used';
   const line = (txt, bad, tip) => box.append(h('div', { class: 'note', style: 'margin-top:6px' + (bad ? ';color:var(--warn)' : ''), 'data-tip': tip || null }, txt));
-  const T_TIP = 'Generators reach a transmitter within 10 tiles, transmitters reach each other within 15 and their items within 10, counted along each axis and added up, and never more than 5 levels up or down. Linked transmitters share their generators. Using more than they make turns the whole network off.';
+  const T_TIP = 'Generators reach a transmitter within ' + S.gGen + ' tiles, transmitters reach each other within 15 and their items within 10, counted along each axis and added up, and never more than 5 levels up or down. Linked transmitters share their generators. Using more than they make turns the whole network off.';
+  if (!POWER.any) { if (d) line('Needs power. Nothing in this plan makes power yet, so the planner counts it as working.', false, T_TIP); return; }
   if (d) { if (d.on) line('⚡ Powered · ' + net(d.tx.net), false, T_TIP); else line('⚠ No power: ' + powerWhy(d) + '.', true, T_TIP); if (d.inReach > 1) line('In reach of ' + d.inReach + ' transmitters. The game joins it to one when you place it; the planner picks the nearest with room, in the order you placed things.'); }
   if (t) {
     const N = t.net; line((N.over ? '⚠ Overloaded · ' : !N.supply ? '⚠ No power · ' : '⚡ ') + net(N), N.over || !N.supply, T_TIP);
@@ -1614,7 +1616,7 @@ function powerSection(ob, box) {
     for (const q of t.blocked) line('⚠ ' + q.at.what + ' at ' + q.at.x + ', ' + q.at.y + ' is in the way of the wire to ' + ITEMS[q.to.ob.i].n + ' at ' + at(q.to.ob) + '. It only works if the wire was strung before that was placed.', true);
   }
   if (g) {
-    if (g.tx) line('⚡ Feeds ' + ITEMS[g.tx.ob.i].n + ' at ' + at(g.tx.ob) + ' · ' + net(g.tx.net), false, T_TIP); else line('⚠ Not connected: ' + (g.nearest <= PW_R ? 'every transmitter in reach already has a generator' : g.nearest === Infinity ? 'no transmitter in reach' : 'the nearest transmitter is ' + g.nearest + ' tiles away (10 at most)') + '.', true, T_TIP);
+    if (g.tx) line('⚡ Feeds ' + ITEMS[g.tx.ob.i].n + ' at ' + at(g.tx.ob) + ' · ' + net(g.tx.net), false, T_TIP); else line('⚠ Not connected: ' + (g.nearest <= S.gGen ? 'every transmitter in reach already has a generator' : g.nearest === Infinity ? 'no transmitter in reach' : 'the nearest transmitter is ' + g.nearest + ' tiles away (' + S.gGen + ' at most)') + '.', true, T_TIP);
     if (it.pgn === 'n' && !g.units) line('⚠ No liquid at its wheel, so it makes nothing.', true);
     if (it.pgh) box.append(h('label', { class: 'toggle', style: 'margin-top:6px' }, h('input', { type: 'checkbox', checked: !!ob.hg, onchange: (e) => { if (e.target.checked) ob.hg = 1; else delete ob.hg; markDirty(); evaluateAll(); requestDraw(); showObjInspector(ob); } }), 'High ground (' + it.pgh + ' power)', tipBtn('Tick it if it stands 45 or more tiles above the map\'s floor (47 in Rocky Ridges). There it makes ' + it.pgh + ' instead of ' + it.pg + '.')));
   }
@@ -1629,9 +1631,9 @@ function computeFields() {
   const F = { cells: new Map(), spr: new Map(), rock: new Map(), any: false }, W = plan.w, farm = BY_NAME.get('Farm soil');
   const objs = [...plan.objs.values()], ranges = homeRanges();
   for (const ob of objs) { const it = ITEMS[ob.i]; if (it.n !== 'Sprinkler') continue; const zs = zOf(ob); let water = null;
-    for (let dy = -5; dy <= 5 && !water; dy++) for (let dx = -(5 - Math.abs(dy)); dx <= 5 - Math.abs(dy); dx++) { const x = ob.x + dx, y = ob.y + dy; if (!inB(plan, x, y)) continue; const k = y * W + x; if (hydrates(terrAt(plan, k, zs)) || hydrates(terrAt(plan, k, zs - 1))) { water = [x, y]; break; } }
+    const SR = S.gSprinkler; for (let dy = -SR; dy <= SR && !water; dy++) for (let dx = -(SR - Math.abs(dy)); dx <= SR - Math.abs(dy); dx++) { const x = ob.x + dx, y = ob.y + dy; if (!inB(plan, x, y)) continue; const k = y * W + x; if (hydrates(terrAt(plan, k, zs)) || hydrates(terrAt(plan, k, zs - 1))) { water = [x, y]; break; } }
     F.spr.set(ob.id, { ob, works: !!water, water, n: 0 }); }
-  const sprayed = (x, y, z) => { for (const S of F.spr.values()) if (S.works && Math.abs(S.ob.x - x) + Math.abs(S.ob.y - y) <= 5 && z - zOf(S.ob) >= -1 && z - zOf(S.ob) <= 2) return S; return null; };
+  const SR2 = S.gSprinkler, sprayed = (x, y, z) => { for (const Q of F.spr.values()) if (Q.works && Math.abs(Q.ob.x - x) + Math.abs(Q.ob.y - y) <= SR2 && z - zOf(Q.ob) >= -1 && z - zOf(Q.ob) <= 2) return Q; return null; };
   for (const ob of objs) { const it = ITEMS[ob.i]; if (it.n !== 'Smooth rock') continue; const off = plan.wx === 'rain' ? 'it\'s raining' : sprayed(ob.x, ob.y, zOf(ob)) ? 'a running sprinkler sprays it' : ''; F.rock.set(ob.id, { ob, off, n: 0 }); }
   const basins = []; for (const hm of ranges) { const who = hm.pks.filter(p => (p.s || []).includes('Water')); if (!who.length) continue; const R = hm.rect; let has = false; for (const ob of objs) if (ITEMS[ob.i].n === 'Water basin' && ob.x >= R.x && ob.y >= R.y && ob.x < R.x + R.w && ob.y < R.y + R.h && Math.abs(zOf(ob) - hm.base) <= AREA_R) { has = true; break; } basins.push({ hm, who, has }); }
   const growers = []; for (const hm of ranges) { const who = hm.pks.filter(p => (p.s || []).includes('Grow')); if (who.length) growers.push({ hm, who }); }
@@ -1647,13 +1649,13 @@ function computeFields() {
     } else if (nb.some(q => isLava(terrAt(plan, q, p)) || isLava(terrAt(plan, q, f)))) state = 'lava';
     else {
       if (nb.some(q => hydrates(terrAt(plan, q, p)) || hydrates(terrAt(plan, q, f)))) why.push('water beside it');
-      const S = sprayed(x, y, f); if (S) { why.push('the sprinkler at ' + S.ob.x + ', ' + S.ob.y); S.n++; }
+      const Q = sprayed(x, y, f); if (Q) { why.push('the sprinkler at ' + Q.ob.x + ', ' + Q.ob.y); Q.n++; }
       if (plan.wx === 'rain' && !roofedCell(k)) why.push('rain');
       const B = basins.find(b => b.has && inR(b.hm, x, y, p)); if (B) why.push(B.who[0].n + '\'s water basin (reach not measured)');
       state = why.length ? 'wet' : 'dry';
     }
     let dried = null;
-    if (!planter && state !== 'lava') for (const R of F.rock.values()) { if (R.off) continue; const rz = zOf(R.ob); if (Math.abs(R.ob.x - x) + Math.abs(R.ob.y - y) > 4 || f < rz - 2 || f > rz + 1) continue; let top = f; for (let z = rz + 1; z > f; z--) if (terrAt(plan, k, z)) { top = z; break; } if (top !== f) continue; dried = R; R.n++; break; }
+    if (!planter && state !== 'lava') for (const R of F.rock.values()) { if (R.off) continue; const rz = zOf(R.ob); if (Math.abs(R.ob.x - x) + Math.abs(R.ob.y - y) > S.gRock || f < rz - 2 || f > rz + 1) continue; let top = f; for (let z = rz + 1; z > f; z--) if (terrAt(plan, k, z)) { top = z; break; } if (top !== f) continue; dried = R; R.n++; break; }
     if (dried) { state = 'dried'; why.unshift('the Smooth Rock at ' + dried.ob.x + ', ' + dried.ob.y); }
     const grow = growers.filter(g => inR(g.hm, x, y, p)).flatMap(g => g.who.map(q => q.n));
     F.cells.set(k, { x, y, f, crop, planter, state, why, grow: [...new Set(grow)] });
@@ -1666,10 +1668,10 @@ function fieldDays(c) { const it = c.crop ? ITEMS[c.crop.i] : null, n = it && it
 const isBerryTree = (it) => !!it && GROUPS.has('Berry tree (any)') && GROUPS.get('Berry tree (any)').has(it.i);
 function fieldSection(ob, box) {
   const it = ITEMS[ob.i], line = (txt, bad, tip) => box.append(h('div', { class: 'note', style: 'margin-top:6px' + (bad ? ';color:var(--warn)' : ''), 'data-tip': tip || null }, txt));
-  const W_TIP = 'A field is watered by still water, ocean or hot-spring water right beside it (not diagonal, not mud or lava), a running sprinkler within 5 tiles, rain where there\'s no roof, or a Water Pokémon with a filled water basin living nearby. A crop grows one stage at 5:00 each day it\'s wet, and a Grow Pokémon living nearby adds one more a day.';
+  const W_TIP = 'A field is watered by still water, ocean or hot-spring water right beside it (not diagonal, not mud or lava), a running sprinkler within ' + S.gSprinkler + ' tiles, rain where there\'s no roof, or a Water Pokémon with a filled water basin living nearby. A crop grows one stage at 5:00 each day it\'s wet, and a Grow Pokémon living nearby adds one more a day.';
   if (FIELDS && isCrop(it)) { const c = FIELDS.cells.get(ob.y * plan.w + ob.x); if (c) { line((c.state === 'wet' ? '💧 ' : '⚠ ') + fieldWord[c.state] + ': ' + fieldWhy(c) + '.', c.state !== 'wet', W_TIP); const d = fieldDays(c); line(d ? 'Ripe ' + (d === 'at once' ? 'at once' : 'in ' + d) + (c.grow.length ? ', with ' + listNames(c.grow.slice(0, 2)) + ' helping it grow (reach not measured)' : '; 1 day with a Grow Pokémon living nearby') + '.' : 'It won\'t grow until it\'s watered.'); if (c.planter) line('In a planter, so Smooth Rock leaves it alone (one player says it doesn\'t).'); } }
-  if (FIELDS && it.n === 'Sprinkler') { const S = FIELDS.spr.get(ob.id); if (S) line(S.works ? '💧 Runs on the water at ' + S.water[0] + ', ' + S.water[1] + ' · waters ' + S.n + ' field tile' + (S.n === 1 ? '' : 's') : '⚠ Doesn\'t run: no water within 5 tiles at its own level or one below, so it waters nothing and adds no humidity.', !S.works); }
-  if (FIELDS && it.n === 'Smooth rock') { const R = FIELDS.rock.get(ob.id); if (R) line(R.off ? 'Off: ' + R.off + '.' : R.n ? '⚠ Dries ' + R.n + ' field tile' + (R.n === 1 ? '' : 's') + ' within 4 tiles. Rain or a running sprinkler that reaches it stops it.' : 'No fields within its reach.', !R.off && R.n > 0); }
+  if (FIELDS && it.n === 'Sprinkler') { const Q = FIELDS.spr.get(ob.id); if (Q) line(Q.works ? '💧 Runs on the water at ' + Q.water[0] + ', ' + Q.water[1] + ' · waters ' + Q.n + ' field tile' + (Q.n === 1 ? '' : 's') : '⚠ Doesn\'t run: no water within ' + S.gSprinkler + ' tiles at its own level or one below, so it waters nothing and adds no humidity.', !Q.works); }
+  if (FIELDS && it.n === 'Smooth rock') { const R = FIELDS.rock.get(ob.id); if (R) line(R.off ? 'Off: ' + R.off + '.' : R.n ? '⚠ Dries ' + R.n + ' field tile' + (R.n === 1 ? '' : 's') + ' within ' + S.gRock + ' tiles. Rain or a running sprinkler that reaches it stops it.' : 'No fields within its reach.', !R.off && R.n > 0); }
   if (isBerryTree(it)) { let bad = 0; const z = zOf(ob); for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) { if (!inB(plan, x, y) || (x >= ob.x && x < ob.x + ob.w && y >= ob.y && y < ob.y + ob.h)) continue; const k = y * plan.w + x, t = terrAt(plan, k, z); if ((t && ITEMS[t - 1].lq) || occAt(plan, k, z) || terrAt(plan, k, z)) bad++; } if (bad) line('⚠ ' + bad + ' of the 8 tiles around it ' + (bad > 1 ? 'hold' : 'holds') + ' water, a block or an item, so berries can roll away or get stuck there.', true); }
 }
 const fieldWord = { wet: 'Wet', dry: 'Dry', dried: 'Dried out', lava: 'Lava beside it', under: 'Underwater' };
@@ -1678,7 +1680,7 @@ function fieldWhy(c) {
   if (c.state === 'dried') return c.why[0] + ' dries it' + (c.why.length > 1 ? ', even though ' + listNames(c.why.slice(1)) + ' water' + (c.why.length > 2 ? '' : 's') + ' it' : '');
   if (c.state === 'lava') return 'lava next to a field stops it being watered';
   if (c.state === 'under') return 'crops under water need bubbles: a powered Bubble machine within 1 tile, or a Water Pokémon living nearby';
-  return 'no still water beside it, no running sprinkler within 5 tiles' + (plan.wx === 'rain' ? ', and a roof keeps the rain off' : '') + ', and no Water Pokémon with a water basin nearby';
+  return 'no still water beside it, no running sprinkler within ' + S.gSprinkler + ' tiles' + (plan.wx === 'rain' ? ', and a roof keeps the rain off' : '') + ', and no Water Pokémon with a water basin nearby';
 }
 function drawFields(c, s) {
   if (!FIELDS || !FIELDS.any || !showWater) return;
@@ -1688,6 +1690,75 @@ function drawFields(c, s) {
   for (const S of FIELDS.spr.values()) { const px = view.px + (S.ob.x + 1) * s - r - 1, py = view.py + S.ob.y * s + r + 1; c.fillStyle = S.works ? theme.good : theme.bad; c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.beginPath(); c.arc(px, py, r, 0, 7); c.fill(); c.stroke(); }
   c.restore();
 }
+let SIG = null, showSignals = LS.get(LSK + 'signals') === '1';
+const SIG_R = { f: 2, w: 3, c: 3 }, WANDER = /^(Hatch window|Shutter|Simple curtain)/, MOVERS = /^(Toy blocks|Sandbox|Alarm clock|Pinwheel|Weather vane|Ship's wheel|Rowlet clock)/i;
+const FACE_V = [[0, 1], [-1, 0], [0, -1], [1, 0]];
+function sigEffect(it, kind) {
+  if (inWall(it) || (it.so && /curtain|shutter|hatch/i.test(it.n))) return kind === 'f' ? 'opens it, and closes it soon after you step off' : 'opens or closes it';
+  if (it.pt === 'ws') return 'cuts or restores power to its items';
+  if (it.n === 'Mini floodgate') return 'starts or stops its water';
+  if (/^Music mat/.test(it.n)) return 'plays its note';
+  if (/Bell$/.test(it.n)) return 'rings it';
+  if (it.n === 'Fiery Magby statue') return 'makes it breathe fire, which can light a campfire or oven';
+  if (isPowered(it)) return 'turns it on or off';
+  return 'switches it';
+}
+function computeSignals() {
+  const G = { inputs: new Map(), of: new Map(), any: false }, W = plan.w;
+  for (const ob of plan.objs.values()) {
+    const it = ITEMS[ob.i]; if (!it.si) continue; G.any = true;
+    const z = zOf(ob), rec = { ob, kind: it.si, targets: [], watch: null, moving: true, onlySensor: false }, seen = new Set();
+    const visit = (x, y, lz) => { if (!inB(plan, x, y)) return; const o = occAt(plan, y * W + x, lz); if (!o || o === ob.id || seen.has(o)) return; seen.add(o); const q = plan.objs.get(o); if (q && signalTarget(ITEMS[q.i])) rec.targets.push(q); };
+    if (it.si === 'l') {
+      const [fx, fy] = FACE_V[faceOf(ob)];
+      for (const [x, y] of [[ob.x - fy, ob.y + fx], [ob.x + fy, ob.y - fx], [ob.x - fx, ob.y - fy]]) for (let dz = -1; dz <= 1; dz++) visit(x, y, z + dz);
+      visit(ob.x, ob.y, z - 1); visit(ob.x, ob.y, z + 1);
+      const w = []; let moving = false;
+      for (let i = 1; i <= S.gSensor; i++) {
+        const x = ob.x + fx * i, y = ob.y + fy * i; if (!inB(plan, x, y)) continue; const k = y * W + x, t = terrAt(plan, k, z), o = occAt(plan, k, z), q = o && plan.objs.get(o);
+        if (t && ITEMS[t - 1].lq) { w.push(ITEMS[t - 1].n.toLowerCase()); moving = true; }
+        else if (q) { const qi = ITEMS[q.i]; if (qi.si === 'l') w.push('a laser sensor'); else if (signalTarget(qi) || MOVERS.test(qi.n)) { w.push(qi.n.toLowerCase()); moving = true; } else w.push(qi.n.toLowerCase() + ', which doesn\'t move'); }
+        else if (t) w.push('a block');
+        else if (terrAt(plan, k, z - 1) || occAt(plan, k, z - 1)) { w.push('open ground, so anyone walking past sets it off'); moving = true; }
+        else w.push('empty air');
+      }
+      rec.watch = [...new Set(w)]; rec.moving = moving; rec.onlySensor = !moving && w.includes('a laser sensor');
+    } else { const r = SIG_R[it.si]; for (let dz = -r; dz <= r; dz++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) visit(ob.x + dx, ob.y + dy, z + dz); }
+    G.inputs.set(ob.id, rec);
+    for (const q of rec.targets) { if (!G.of.has(q.id)) G.of.set(q.id, []); G.of.get(q.id).push(rec); }
+  }
+  SIG = G;
+}
+const sigNoPower = (q) => isPowered(ITEMS[q.i]) && !powerOn(q);
+function signalSection(ob, box) {
+  if (!SIG || !SIG.any) return;
+  const it = ITEMS[ob.i], rec = SIG.inputs.get(ob.id), by = SIG.of.get(ob.id), at = (o) => o.x + ', ' + o.y, line = (txt, bad, tip) => box.append(h('div', { class: 'note', style: 'margin-top:6px' + (bad ? ';color:var(--warn)' : ''), 'data-tip': tip || null }, txt));
+  const S_TIP = 'Switches and sensors need no power or wires: they work whatever sits in their reach. Things that respond: doors, windows, hatches, shutters and curtains; lights and appliances that have power; switch transmitters; the mini floodgate; music mats; bells; and the Fiery Magby statue. Timing isn\'t worked out, so a circuit here should work, but isn\'t guaranteed to.';
+  if (rec) {
+    if (!rec.targets.length) line('⚠ Reaches nothing that responds to it.', true, S_TIP);
+    else { line('Works ' + rec.targets.length + ':', false, S_TIP); const l = h('ul', { class: 'note', style: 'margin:2px 0 0 18px;padding:0' }); for (const q of rec.targets) { const qi = ITEMS[q.i]; l.append(h('li', { style: sigNoPower(q) ? 'color:var(--warn)' : '' }, qi.n + ' at ' + at(q) + ': ' + sigEffect(qi, rec.kind) + (sigNoPower(q) ? ' ⚠ but it has no power, so it ignores signals' : '') + (WANDER.test(qi.n) ? ' · wandering Pokémon open it too' : ''))); } box.append(l); }
+    if (rec.watch) { if (rec.moving) line('Watches ' + listNames(rec.watch) + '.'); else line('⚠ ' + (rec.onlySensor ? 'It only sees a laser sensor, and a sensor never sees another one fire. Put a door, hatch window or toy blocks between them.' : 'Nothing in the ' + (S.gSensor > 1 ? S.gSensor + ' tiles' : 'tile') + ' in front of it can move (' + listNames(rec.watch) + '), so it never fires.'), true); }
+  }
+  if (by && by.length) line('Worked by ' + listNames(by.map(r => ITEMS[r.ob.i].n + ' at ' + at(r.ob))) + ': ' + (by.length > 1 ? 'each ' : 'it ') + sigEffect(it, by[0].kind) + '.' + (sigNoPower(ob) ? ' ⚠ It has no power, so it ignores them.' : '') + (WANDER.test(it.n) ? ' Wandering Pokémon can open it too, which a sensor sees.' : ''), sigNoPower(ob), S_TIP);
+}
+function sigShown() { if (!SIG || !SIG.any) return null; if (showSignals) return [...SIG.inputs.values()]; const sel = selection && selection.obj && plan.objs.has(selection.obj.id) ? selection.obj : null; if (!sel) return null; const rec = SIG.inputs.get(sel.id); if (rec) return [rec]; const by = SIG.of.get(sel.id); return by && by.length ? by : null; }
+function drawSignalLines(c, pt, recs, s) {
+  c.save(); c.lineCap = 'round'; const col = REACH_COL.signal, r = Math.max(4, Math.min(9, s * 0.22));
+  for (const rec of recs) {
+    const a = pt(rec.ob.x, rec.ob.y, zOf(rec.ob));
+    for (const q of rec.targets) { const b = pt(q.x + (q.w - 1) / 2, q.y + (q.h - 1) / 2, zOf(q)), bad = sigNoPower(q); c.strokeStyle = bad ? theme.bad : col; c.globalAlpha = 0.9; c.lineWidth = 2; c.setLineDash([5, 4]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.setLineDash([]); c.lineWidth = 2.5; c.beginPath(); c.arc(b[0], b[1], r, 0, 7); c.stroke(); }
+    if (!rec.targets.length || (rec.watch && !rec.moving)) { c.globalAlpha = 1; c.fillStyle = theme.warn; c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.beginPath(); c.arc(a[0] + s * 0.32, a[1] - s * 0.32, Math.max(3.5, Math.min(7, s * 0.16)), 0, 7); c.fill(); c.stroke(); }
+  }
+  c.restore();
+}
+function drawSignals(c, s) {
+  const recs = sigShown(); if (!recs) return;
+  const sel = selection && selection.obj ? selection.obj : null;
+  if (showSignals) for (const rec of recs) if (rec.ob !== sel) { const R = reachOf(rec.ob); if (R) drawReachShape(c, s, R, false); }
+  if (sel && !SIG.inputs.has(sel.id)) for (const rec of recs) { const R = reachOf(rec.ob); if (R) drawReachShape(c, s, R, false); }
+  drawSignalLines(c, (x, y) => [view.px + (x + 0.5) * s, view.py + (y + 0.5) * s], recs, s);
+}
+function setShowSignals(v) { showSignals = v; LS.set(LSK + 'signals', v ? '1' : '0'); sysSync(); requestDraw(); }
 function setShowWater(v) { showWater = v; LS.set(LSK + 'water', v ? '1' : '0'); sysSync(); requestDraw(); }
 function setShowPower(v) { showPower = v; LS.set(LSK + 'power', v ? '1' : '0'); sysSync(); requestDraw(); }
 function powerNetOf(ob) { if (!POWER) return null; const t = POWER.tx.get(ob.id); if (t) return t.net; const d = POWER.dev.get(ob.id); if (d && d.tx) return d.tx.net; const g = POWER.gen.get(ob.id); if (g && g.tx) return g.tx.net; return null; }
@@ -1761,6 +1832,7 @@ function evaluateAll() {
   detectHouses();
   computePower();
   computeFields();
+  computeSignals();
   checkProblems(); updateStatus();
   firstEval = false;
 }
@@ -1826,13 +1898,17 @@ function checkProblems() {
     for (const g of POWER.gen.values()) if (!g.tx) out.push({ text: at(g.ob) + ' isn\'t connected', tip: 'Each generator needs a transmitter of its own within 10 tiles.', ob: g.ob });
     for (const t of POWER.tx.values()) for (const q of t.blocked) out.push({ text: 'Wire blocked at ' + q.at.x + ', ' + q.at.y, tip: q.at.what + ' is in the way between ' + at(t.ob) + ' and ' + at(q.to.ob) + '. It only works if the wire was strung first.', ob: t.ob });
   }
+  if (SIG && SIG.any) {
+    const at = (o) => ITEMS[o.i].n + ' at ' + o.x + ', ' + o.y;
+    for (const rec of SIG.inputs.values()) { if (!rec.targets.length) out.push({ text: at(rec.ob) + ' reaches nothing', tip: 'Nothing that responds to it is within its reach: doors, windows, lights and appliances with power, switch transmitters, floodgates, music mats or bells.', ob: rec.ob }); if (rec.watch && !rec.moving) out.push({ text: at(rec.ob) + ' never fires', tip: rec.onlySensor ? 'It only sees another laser sensor, and a sensor never sees one fire.' : 'Nothing in front of it can move.', ob: rec.ob }); }
+  }
   if (FIELDS && FIELDS.any) {
     const crops = [...FIELDS.cells.values()].filter(c => c.crop), n = (st) => crops.filter(c => c.state === st), pl = (a, one, many) => a.length + ' crop tile' + (a.length > 1 ? 's ' + many : ' ' + one);
     const dry = n('dry'), dried = n('dried'), bad = [...n('lava'), ...n('under')];
     if (dry.length) out.push({ text: pl(dry, 'is dry', 'are dry'), tip: 'Crops only grow on days they\'re wet. ' + fieldWhy(dry[0]) + '.', ob: dry[0].crop });
     if (dried.length) out.push({ text: pl(dried, 'is dried out', 'are dried out') + ' by a Smooth Rock', tip: fieldWhy(dried[0]) + '. Rain or a running sprinkler that reaches the rock stops it.', ob: dried[0].crop });
     if (bad.length) out.push({ text: pl(bad, 'can\'t be watered', 'can\'t be watered'), tip: fieldWhy(bad[0]) + '.', ob: bad[0].crop });
-    for (const S of FIELDS.spr.values()) if (!S.works) out.push({ text: 'Sprinkler at ' + S.ob.x + ', ' + S.ob.y + ' has no water', tip: 'A sprinkler needs water within 5 tiles at its own level or one below.', ob: S.ob });
+    for (const Q of FIELDS.spr.values()) if (!Q.works) out.push({ text: 'Sprinkler at ' + Q.ob.x + ', ' + Q.ob.y + ' has no water', tip: 'A sprinkler needs water within ' + S.gSprinkler + ' tiles at its own level or one below.', ob: Q.ob });
   }
   PROBS = out;
 }
@@ -1934,6 +2010,7 @@ function mapOverlay3d(o) {
   if (FIELDS && FIELDS.any && showWater) for (const f of FIELDS.cells.values()) o.cell(f.x, f.y, FIELD_COL[f.state], f.state === 'wet' ? 0.4 : 0.55);
   const selOb = sel && sel.obj && plan.objs.has(sel.obj.id) ? sel.obj : null;
   if (showReach) for (const ob of reachList()) if (ob !== selOb) { const R = reachOf(ob); if (R) reach3d(R, false); }
+  if (showSignals && SIG) for (const rec of SIG.inputs.values()) if (rec.ob !== selOb) { const R = reachOf(rec.ob); if (!R) continue; if (R.box) { o.box(R.box.x, R.box.y, R.box.w, R.box.h, R.box.z0, R.box.z1 - R.box.z0 + 1, R.col, 0.05); o.ring(R.box.x, R.box.y, R.box.w, R.box.h, R.col, 0.8, 0.08); } else if (!showReach) reach3d(R, false); }
   if (selOb && hasReach(ITEMS[selOb.i])) { const R = reachOf(selOb); if (R) reach3d(R, true); }
   if (pkDrag) {
     const R = (hm) => hm.kind === 'kit' ? hm.ob : hm.hs.area.outer;
@@ -1987,7 +2064,7 @@ function mapLabels3d(o) {
   const c = o.c, s = o.s, small = s < 14; let ix = null; const rix = () => ix || (ix = residentsIndex());
   const pill = (label, px, py, col, maxW) => { const fh = small ? 14 : 18; c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14), bw = maxW ? Math.min(tw, maxW) : tw; c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore(); };
   const faces = (list, x, y) => { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, list, x, y - d * 0.62, d); };
-  { const nets = powerShown(); if (nets) drawPowerLines(c, POWER, (x, y, z) => { const b = o.flatRect(x + 0.5, y + 0.5, 0, 0, z + 0.8); return [b.x0, b.y0]; }, nets, s, showPower); }
+  { const pt = (x, y, z) => { const b = o.flatRect(x + 0.5, y + 0.5, 0, 0, z + 0.8); return [b.x0, b.y0]; }, nets = powerShown(), recs = sigShown(); if (nets) drawPowerLines(c, POWER, pt, nets, s, showPower); if (recs) drawSignalLines(c, pt, recs, s); }
   if (s >= 8) for (const ob of plan.objs.values()) {
     const it = ITEMS[ob.i]; if (!it.cap || !obShown(ob) || (layerZ != null && zOf(ob) > layerZ)) continue; const e = rix().homes.get('kit:' + ob.id); if (!e) continue;
     const b = o.flatRect(ob.x, ob.y, ob.w, ob.h, zOf(ob) + htOf(ob)), t = e.list.length + '/' + it.cap; c.font = `700 ${s < 14 ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(t).width + 10, bx = b.x1 - tw - 3, by = b.y0 + 3;
@@ -2688,6 +2765,7 @@ function draw(t, c = ctx) {
   drawFields(c, s);
   drawReach(c, s);
   drawPower(c, s);
+  drawSignals(c, s);
   if (selection && selection.obj && plan.objs.has(selection.obj.id) && isBox(ITEMS[selection.obj.i])) drawBoxReach(c, selection.obj, s);
   if (pkDrag && c === ctx) drawPkDrop(c, s);
   if (selection && ((selection.obj && plan.objs.has(selection.obj.id)) || (selection.rug && plan.rugs.has(selection.rug.id)))) { const ob = selection.obj || selection.rug; c.strokeStyle = theme.accent; c.lineWidth = 3; c.strokeRect(view.px + ob.x * s - 1.5, view.py + ob.y * s - 1.5, ob.w * s + 3, ob.h * s + 3); }
@@ -2976,6 +3054,7 @@ const SYS = [
   ['areas', 'Active areas', 'The dotted line around each home: everything inside it counts for that home.', 'A', () => showAreas, v => setShowAreas(v)],
   ['reach', 'Reach', 'How far sprinklers, Smooth Rocks, switches, sensors and power reach, and where berries fall. A selected one always shows it.', '', () => showReach, v => setShowReach(v)],
   ['water', 'Fields', 'Which fields are wet (blue), dry (orange), dried out by a Smooth Rock (brown) or can\'t be watered (red), and which sprinklers run (green dot) or have no water (red dot).', '', () => showWater, v => setShowWater(v)],
+  ['signals', 'Switches and sensors', 'What each switch and sensor reaches, with a line to each door, light or machine it works. Red: it has no power. An orange dot: it reaches nothing, or a sensor can\'t see anything move.', '', () => showSignals, v => setShowSignals(v)],
   ['power', 'Power', 'Which items have power, and how transmitters link to generators, to each other and to their items. A selected one always shows its network.', '', () => showPower, v => setShowPower(v)]
 ];
 function sysSync() { const b = $('#zsys'), m = $('#sysmenu'); if (b) b.setAttribute('aria-pressed', SYS.some(x => x[4]()) ? 'true' : 'false'); if (m) for (const e of m.querySelectorAll('.mi')) { const x = SYS.find(q => q[0] === e.dataset.k); if (x) e.setAttribute('aria-checked', x[4]() ? 'true' : 'false'); } }
@@ -3496,6 +3575,7 @@ function showObjInspector(ob) {
   { const fx = envFx(it); if (fx && fx.need === 'f') { const who = fireLitBy(ob); box.append(h('div', { class: 'note', style: 'margin-top:6px' + (who.length ? '' : ';color:var(--warn)'), 'data-tip': 'A Burn Pokémon whose home is within 4 tiles lights it, and lights it again if rain puts it out.' }, who.length ? 'Lit by ' + listNames(who.slice(0, 3)) + (who.length > 3 ? ' and others' : '') + (plan.wx === 'rain' ? ' (rain can put it out where there\'s no roof, and they light it again)' : '') : '⚠ Not lit: no Burn Pokémon lives nearby, so its light and warmth don\'t count.')); } if (fx && fx.need === 'd' && plan.wx === 'rain') box.append(h('div', { class: 'note', style: 'margin-top:6px;color:var(--warn)' }, '⚠ Off while it rains, except inside a kit house.')); }
   powerSection(ob, box);
   fieldSection(ob, box);
+  signalSection(ob, box);
   if (it.cap) { box.append(residentsSection(kitHome(ob))); box.append(boxLine('kit:' + ob.id)); }
   if (isBox(it)) boxInspector(ob, box);
   const groups = GROUP_OF.get(it.i) || [];
@@ -4815,7 +4895,7 @@ function deletePlanDialog(id) {
   }, true);
 }
 
-const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['data', 'Data', 'list']];
+const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['rules', 'Game rules', 'filter'], ['data', 'Data', 'list']];
 const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
 const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map: active areas and reach'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
 let setsBack = null, setsAfter = null, setsWant = null;
@@ -4829,6 +4909,7 @@ function setPref(k, v) {
   if (k === 'tool' && ['pan', 'select'].includes(tool)) setTool(v);
   if (k === 'status') updateStatus();
   if (k === 'map3d') { if (v) enter3d(); else leave3d(); }
+  if (/^g[A-Z]/.test(k) && plan) { evaluateAll(); requestDraw(); renderPanel(); refreshInspector(); }
   if (k === 'tips' && !v) tipHide();
   if (k === 'offline') { if (v) fillPictures(); else picFill.force = false; picUI(); setsPics(); }
   requestDraw();
@@ -4904,6 +4985,13 @@ function renderSettings() {
     row('New versions', 'Ask me: a notice with Open it. Straight away: the new version opens as soon as it\'s ready, unless you\'re in the middle of something.', seg('updates', [['ask', 'Ask me'], ['auto', 'Straight away']], 'New versions')),
     row('Version ' + appVersion(), 'Looks for a newer version now.', h('button', { class: 'btn sm', type: 'button', onclick: updateNow }, 'Check for updates')),
     row('Save pictures for offline use', h('span', null, h('span', { class: 'note picline' }), h('span', { id: 'setsPicN', class: 'acts', style: 'margin-top:6px' })), sw('offline', 'Save pictures for offline use')));
+  const segN = (k, opts, label) => { const g = h('span', { class: 'seg', role: 'group', 'aria-label': label }), paint = () => { for (const b of g.children) b.setAttribute('aria-pressed', b.dataset.v === String(S[k]) ? 'true' : 'false'); }; for (const [v, t] of opts) g.append(h('button', { type: 'button', 'data-v': String(v), onclick: () => { setPref(k, v); paint(); } }, t)); paint(); return g; };
+  sec('rules',
+    h('p', { class: 'note', style: 'margin:0 0 8px' }, 'Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.'),
+    row('Laser sensor reach', 'How many tiles in front of a laser sensor it watches. 2 per GameWith and 攻略大百科; 1 per ぽこポケ学会\'s diagram.', segN('gSensor', [[2, '2 tiles'], [1, '1 tile']], 'Laser sensor reach')),
+    row('Sprinkler reach', 'How far a sprinkler waters, counted along each axis and added up. 5 per GameWith, 攻略大百科 and Serebii (61 tiles); ぽこポケ学会 points to 4 (41 tiles), and Game8 says one tile less.', segN('gSprinkler', [[5, '5 tiles'], [4, '4 tiles']], 'Sprinkler reach')),
+    row('Smooth Rock reach', 'How far a Smooth Rock dries the ground. 4 per ぽこポケ学会 (41 tiles, 1 level up and 2 down); GameWith gives 6.', segN('gRock', [[4, '4 tiles'], [6, '6 tiles']], 'Smooth Rock reach')),
+    row('Generator to transmitter', 'How far a generator reaches its transmitter. 10 per a player\'s tests, Serebii and GameWith\'s electricity page; GameWith\'s utility-pole page says 7.', segN('gGen', [[10, '10 tiles'], [7, '7 tiles']], 'Generator to transmitter')));
   sec('data',
     row('Storage', h('span', { class: 'note', id: 'setsUse' }, 'Checking…')),
     h('div', { id: 'setsKeep' }),

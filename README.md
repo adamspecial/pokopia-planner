@@ -18,6 +18,7 @@ The ⚙ button at the top right opens Settings; Plans has a Settings button too.
 - **Notices**: how long they stay (short, normal or long), and whether new habitats sparkle.
 - **Layout**: the panel on the left or right and narrow, normal or wide on big screens; how far it opens on a phone when you tap a tab; and whether the app opens on the last tab you used or on Build.
 - **Updates and offline**: ask before opening a new version, or open it straight away unless you're in the middle of something; check for updates; and whether pictures are saved for offline use, with a button to remove them and free up space.
+- **Game rules**: for rules the guides disagree on, which reading the planner uses: how far a laser sensor watches (2 tiles or 1), how far a sprinkler waters (5 or 4) and a Smooth Rock dries (4 or 6), and how far a generator reaches its transmitter (10 or 7). The first choice is the one most sources give.
 - **Data**: how much space the app uses, a way to ask the browser to keep your plans safe when space runs low, a shortcut to Plans for backups and sync, and **Reset settings**.
 
 ## Moving things
@@ -174,6 +175,7 @@ The **Show on the map** button by the zoom controls (S) turns on what's drawn ov
 
   The selected item always shows its reach, with a label, and so does an item while you place it.
 - **Fields**: each crop and farm-soil tile turns blue when it's watered, orange when it's dry, brown when a Smooth Rock dries it, and red when it can't be watered (lava beside it, or under water with no bubbles). Each sprinkler gets a green dot when it runs and a red one when it has no water.
+- **Switches and sensors**: each switch's and sensor's reach, with a dashed line to every door, light or machine it works. A red line means that one has no power. An orange dot marks a switch that reaches nothing, or a sensor that can't see anything move. Selecting a switch, a sensor or something they work always shows its links.
 - **Power**: how transmitters link to their generator (solid line), to each other (dashed) and to their items (dotted). Each item that needs power gets a green or red dot, and each network a label such as "12 of 25 power". Selecting a generator, transmitter or powered item always shows its network.
 
 An item's info and its panel say what it does in the game: how much power it makes or uses, what a switch or sensor works, how far a liquid flows and whether it waters fields, and how many days a crop or plant takes to grow.
@@ -201,6 +203,40 @@ A **Smooth Rock** dries the top block within 4 tiles, from 1 level above it to 2
 
 Dry crops, crops a Smooth Rock dries, crops that can't be watered and sprinklers with no water all show in the **⚠ problem** list.
 
+## Switches and sensors
+
+Switches and sensors need no power and no wires. Each one works whatever sits in its reach:
+
+| Input | Sets it off | Reach |
+|---|---|---|
+| Floor switch | Ditto or a walking Pokémon stepping on it (floating ones don't) | A 5×5×5 cube. It opens the doors there, then closes them soon after |
+| Wall switch | Ditto pressing it | A 7×7×7 cube. It switches everything there on or off |
+| Card reader | A key card | A 7×7×7 cube, like the wall switch |
+| Laser sensor | Anything changing in the 2 tiles in front of it | 11 cells: beside it, behind it, and above and below it, one level up and down |
+
+What responds:
+
+- doors, windows, hatches, shutters and curtains (open or close)
+- lights and appliances that have power (on or off)
+- switch transmitters (power to their items)
+- the mini floodgate (its water)
+- music mats (their note)
+- bells (ring)
+- the Fiery Magby statue (breathes fire)
+
+A switch's or sensor's panel lists everything it works and what it does to each. A door or light lists the switches and sensors that reach it.
+
+Warnings:
+
+- something that needs power but has none, since it ignores signals
+- a switch that reaches nothing
+- a laser sensor facing only blocks or still items, so it never fires
+- a sensor facing only another sensor, which never sees one fire
+- hatch windows, shutters and curtains, which wandering Pokémon can open
+
+The planner doesn't work out timing, so a circuit that looks right should work, but isn't guaranteed to.
+
+## Power
 
 The planner works out power the way the game does:
 
@@ -222,6 +258,7 @@ The planner works out power the way the game does:
 - **Order matters.** As in the game, an item joins a transmitter when it's placed, so the planner goes through things in the order you placed them. An item joins the nearest transmitter in reach that has room. A new transmitter picks up items nobody has yet, nearest first.
 - **Overload:** when a network uses more than its generators make, everything on it goes off.
 - **Wires:** a utility pole's wire to another pole or to its generator is a straight line. A block in the way gets a warning, since the wire only works if it was strung first. Wireless transmitters ignore walls.
+- **No power planned:** in a plan with no generator or transmitter at all, the planner counts lights and appliances as powered.
 - **Kit houses:** dens, huts and tents only take power from a mini generator inside. Cottages and houses also take it from a transmitter within 10 tiles, and then everything inside is powered.
 
 Each item's panel says whether it has power, from which network, and if not, why: too far from a transmitter, every transmitter in reach full, no generator, or the network overloaded. Lights and appliances without power add no light, warmth or humidity. Overloads, items without power, generators with no transmitter and blocked wires show in the **⚠ problem** list, and **Show** takes you to each one.
