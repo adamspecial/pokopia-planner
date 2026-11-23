@@ -1520,23 +1520,35 @@ function drawBoxReach(c, ob, s) {
 let showReach = LS.get(LSK + 'reach') === '1';
 const hasReach = (it) => !!it && (!!it.rc || !!it.pt || !!it.pg || (GROUPS.has('Berry tree (any)') && GROUPS.get('Berry tree (any)').has(it.i)));
 function reachList() { const out = []; for (const ob of plan.objs.values()) if (hasReach(ITEMS[ob.i]) && obShown(ob)) out.push(ob); return out; }
+let evalSeq = 0; const REACH_CACHE = new Map();
+function reachCached(ob) { const e = REACH_CACHE.get(ob.id); if (e && e.seq === evalSeq && e.ob === ob) return e.R; const R = reachOf(ob); REACH_CACHE.set(ob.id, { seq: evalSeq, ob, R }); return R; }
+function reachPaths(R) {
+  if (R.fp) return R; const W = plan.w, fp = new Path2D(), ep = new Path2D(), wp = new Path2D(), xp = new Path2D(), set = new Set(R.cells);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const edges = (cells, st, path) => { for (const k of cells) { const x = k % W, y = (k / W) | 0; if (!st.has(k - W)) { path.moveTo(x, y); path.lineTo(x + 1, y); } if (!st.has(k + W)) { path.moveTo(x, y + 1); path.lineTo(x + 1, y + 1); } if (x === 0 || !st.has(k - 1)) { path.moveTo(x, y); path.lineTo(x, y + 1); } if (x === W - 1 || !st.has(k + 1)) { path.moveTo(x + 1, y); path.lineTo(x + 1, y + 1); } } };
+  for (const k of R.cells) { const x = k % W, y = (k / W) | 0; fp.rect(x, y, 1, 1); x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1); }
+  edges(R.cells, set, ep); if (R.watch) for (const k of R.watch) wp.rect(k % W, (k / W) | 0, 1, 1);
+  if (R.far) { const fs = new Set(R.far); edges(R.far, fs, xp); for (const k of R.far) { const x = k % W, y = (k / W) | 0; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x + 1); y1 = Math.max(y1, y + 1); } }
+  Object.assign(R, { fp, ep, wp, xp, bb: [x0, y0, x1, y1] }); return R;
+}
 function drawReachShape(c, s, R, strong) {
-  const W = plan.w, edges = (cells, set) => { c.beginPath(); for (const k of cells) { const x = k % W, y = (k / W) | 0, px = view.px + x * s, py = view.py + y * s; if (!set.has(k - W)) { c.moveTo(px, py); c.lineTo(px + s, py); } if (!set.has(k + W)) { c.moveTo(px, py + s); c.lineTo(px + s, py + s); } if (x === 0 || !set.has(k - 1)) { c.moveTo(px, py); c.lineTo(px, py + s); } if (x === W - 1 || !set.has(k + 1)) { c.moveTo(px + s, py); c.lineTo(px + s, py + s); } } c.stroke(); };
-  c.save(); c.fillStyle = R.col; c.globalAlpha = strong ? 0.16 : 0.07; c.beginPath(); for (const k of R.cells) c.rect(view.px + (k % W) * s, view.py + ((k / W) | 0) * s, s, s); c.fill();
-  if (R.watch && R.watch.length) { c.globalAlpha = 0.4; c.beginPath(); for (const k of R.watch) c.rect(view.px + (k % W) * s, view.py + ((k / W) | 0) * s, s, s); c.fill(); }
-  c.strokeStyle = R.col; c.lineWidth = strong ? 2 : 1.5; c.globalAlpha = strong ? 0.95 : 0.6; c.setLineDash(R.kind === 'power' ? [] : [6, 4]); edges(R.cells, new Set(R.cells));
-  if (strong && R.far) { c.globalAlpha = 0.6; c.lineWidth = 1.5; c.setLineDash([3, 4]); edges(R.far, new Set(R.far)); }
-  if (strong && s >= 7) {
-    let x0 = Infinity, y0 = Infinity; for (const k of R.far || R.cells) { x0 = Math.min(x0, k % W); y0 = Math.min(y0, (k / W) | 0); }
-    const t = R.label + ' · ' + R.lv; c.setLineDash([]); c.globalAlpha = 1; c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top';
-    const tw = c.measureText(t).width + 8, lx = Math.max(view.px + x0 * s, 2), ly = Math.max(view.py + y0 * s - 17, 2); c.fillStyle = R.col; roundRect(c, lx, ly, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(t, lx + 4, ly + 2);
-  }
+  if (!R.cells.length) return; reachPaths(R); const [x0, y0, x1, y1] = R.bb;
+  if (view.px + x1 * s < 0 || view.py + y1 * s < 0 || view.px + x0 * s > W || view.py + y0 * s > H) return;
+  const m = c.getTransform(); c.save(); c.setTransform(m.a * s, m.b, m.c, m.d * s, m.e + m.a * view.px, m.f + m.d * view.py);
+  c.fillStyle = R.col; c.globalAlpha = strong ? 0.16 : 0.07; if (strong || s >= 6) c.fill(R.fp);
+  if (R.watch && R.watch.length) { c.globalAlpha = 0.4; c.fill(R.wp); }
+  c.strokeStyle = R.col; c.lineWidth = (strong ? 2 : 1.5) / s; c.globalAlpha = strong ? 0.95 : 0.6; c.setLineDash(R.kind === 'power' ? [] : [6 / s, 4 / s]); c.stroke(R.ep);
+  if (strong && R.far) { c.globalAlpha = 0.6; c.lineWidth = 1.5 / s; c.setLineDash([3 / s, 4 / s]); c.stroke(R.xp); }
   c.restore();
+  if (strong && s >= 7) {
+    c.save(); const t = R.label + ' · ' + R.lv; c.globalAlpha = 1; c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top';
+    const tw = c.measureText(t).width + 8, lx = Math.max(view.px + x0 * s, 2), ly = Math.max(view.py + y0 * s - 17, 2); c.fillStyle = R.col; roundRect(c, lx, ly, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(t, lx + 4, ly + 2); c.restore();
+  }
 }
 function drawReach(c, s) {
   const sel = selection && selection.obj && plan.objs.has(selection.obj.id) ? selection.obj : null;
-  if (showReach) for (const ob of reachList()) if (ob !== sel) { const R = reachOf(ob); if (R) drawReachShape(c, s, R, false); }
-  if (sel && hasReach(ITEMS[sel.i])) { const R = reachOf(sel); if (R) drawReachShape(c, s, R, true); }
+  if (showReach) for (const ob of reachList()) if (ob !== sel) { const R = reachCached(ob); if (R) drawReachShape(c, s, R, false); }
+  if (sel && hasReach(ITEMS[sel.i])) { const R = reachCached(sel); if (R) drawReachShape(c, s, R, true); }
 }
 const PW_R = 10, PW_TT = 15, PW_DZ = 5, PW_CAP = 20;
 let POWER = null, showPower = LS.get(LSK + 'power') === '1';
@@ -1762,8 +1774,8 @@ function drawSignalLines(c, pt, recs, s) {
 function drawSignals(c, s) {
   const recs = sigShown(); if (!recs) return;
   const sel = selection && selection.obj ? selection.obj : null;
-  if (showSignals) for (const rec of recs) if (rec.ob !== sel) { const R = reachOf(rec.ob); if (R) drawReachShape(c, s, R, false); }
-  if (sel && !SIG.inputs.has(sel.id)) for (const rec of recs) { const R = reachOf(rec.ob); if (R) drawReachShape(c, s, R, false); }
+  if (showSignals) for (const rec of recs) if (rec.ob !== sel) { const R = reachCached(rec.ob); if (R) drawReachShape(c, s, R, false); }
+  if (sel && !SIG.inputs.has(sel.id)) for (const rec of recs) { const R = reachCached(rec.ob); if (R) drawReachShape(c, s, R, false); }
   drawSignalLines(c, (x, y) => [view.px + (x + 0.5) * s, view.py + (y + 0.5) * s], recs, s);
 }
 function setShowSignals(v) { showSignals = v; LS.set(LSK + 'signals', v ? '1' : '0'); sysSync(); requestDraw(); }
@@ -1987,6 +1999,7 @@ function areaSummary(a) {
 }
 let firstEval = true;
 function evaluateAll() {
+  evalSeq++; REACH_CACHE.clear();
   flowIndex();
   const prev = zoneStatus; zoneStatus = new Map();
   for (const z of plan.zones) { const r = evaluateZone(z); r.area = computeArea(z, r); zoneStatus.set(z.id, r); const p = prev.get(z.id); if (!firstEval && r.ok && (!p || !p.ok) && r.kind !== 'label') celebrate(z, r); }
@@ -2179,7 +2192,7 @@ function mapOverlay3d(o) {
   for (const { home } of dropsShown()) for (const t of litterTiles(home)) o.cell(t.x, t.y, t.ok ? REACH_COL.berry : theme.bad, t.ok ? 0.38 : 0.25);
   if (pourPrev) { const pc = ITEMS[pourPrev.i].col || '#4aa2d6'; for (const e of pourPrev.cells) o.box(e.k % plan.w, (e.k / plan.w) | 0, 1, 1, e.z, 1, pc, e.f === FL_FALL ? 0.5 : 0.35); o.ring(pourPrev.x, pourPrev.y, 1, 1, A, 1, 0.12); }
   const selOb = sel && sel.obj && plan.objs.has(sel.obj.id) ? sel.obj : null;
-  if (showReach) for (const ob of reachList()) if (ob !== selOb) { const R = reachOf(ob); if (R) reach3d(R, false); }
+  if (showReach) for (const ob of reachList()) if (ob !== selOb) { const R = reachCached(ob); if (R) reach3d(R, false); }
   if (showSignals && SIG) for (const rec of SIG.inputs.values()) if (rec.ob !== selOb) { const R = reachOf(rec.ob); if (!R) continue; if (R.box) { o.box(R.box.x, R.box.y, R.box.w, R.box.h, R.box.z0, R.box.z1 - R.box.z0 + 1, R.col, 0.05); o.ring(R.box.x, R.box.y, R.box.w, R.box.h, R.col, 0.8, 0.08); } else if (!showReach) reach3d(R, false); }
   if (selOb && hasReach(ITEMS[selOb.i])) { const R = reachOf(selOb); if (R) reach3d(R, true); }
   if (pkDrag) {
@@ -3237,9 +3250,9 @@ function sysSync() { const b = $('#zsys'), m = $('#sysmenu'); if (b) b.setAttrib
 function sysRender() {
   const m = $('#sysmenu'); m.textContent = '';
   m.append(h('div', { class: 'shd' }, 'Show on the map'));
-  for (const [k, name, ds, key, get, set] of SYS) m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemcheckbox', 'aria-checked': get() ? 'true' : 'false', 'data-k': k, onclick: () => set(!get()) }, h('span', { class: 'ck' }), h('span', null, h('span', { class: 'mt' }, name, key ? h('kbd', null, key) : ''), h('span', { class: 'md' }, ds))));
+  for (const [k, name, ds, key, get, set] of SYS) m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemcheckbox', 'aria-checked': get() ? 'true' : 'false', 'data-k': k, 'data-tip': ds, onclick: () => set(!get()) }, h('span', { class: 'ck' }), h('span', null, h('span', { class: 'mt' }, name, key ? h('kbd', null, key) : ''), h('span', { class: 'md' }, ds))));
 }
-function sysOpen(open) { const m = $('#sysmenu'), b = $('#zsys'); if (open == null) open = m.hidden; if (open === !m.hidden) return; m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { sysRender(); const f = m.querySelector('.mi'); if (f) f.focus(); } }
+function sysOpen(open) { const m = $('#sysmenu'), b = $('#zsys'); if (open == null) open = m.hidden; if (open === !m.hidden) return; m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { sysRender(); m.classList.remove('compact'); const room = b.getBoundingClientRect().bottom - $('#mapwrap').getBoundingClientRect().top - 12; if (m.offsetHeight > room) m.classList.add('compact'); const f = m.querySelector('.mi'); if (f) f.focus({ preventScroll: true }); } }
 function toggleAreas() { setShowAreas(!showAreas); toast(showAreas ? 'Active areas shown' : 'Active areas hidden'); }
 $('#zlayers').onclick = () => openLayers();
 $('#zsys').onclick = () => sysOpen();
@@ -3659,7 +3672,7 @@ function renderOptbar() {
       else if (tool === 'place' && !(pourMode === 'pour' && canPour(it))) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
       if (tool === 'place' && canPour(it)) {
         ob.append(h('span', { class: 'pill' }, segmented([['paint', 'Paint'], ['pour', 'Pour']], pourMode, v => { pourMode = v; pourPrev = null; renderOptbar(); requestDraw(); }, 'Paint or pour'), tipBtn('Paint puts ' + it.n.toLowerCase() + ' exactly where you tap, to copy what\'s in your game. Pour drops a source on the tile you tap and lets it flow as in the game: ' + (it.n === 'Lava' ? '12 tiles along a 1-wide channel, 6 at low level' : '25 tiles along a 1-wide channel, 12 at low level, 10 in a 2-wide one') + ', a smaller circle on open ground, falling over edges and starting again below. Tap a tile to see where it goes, then tap it again or press Pour.')));
-        if (pourMode === 'pour') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), segmented([[false, 'Normal'], [true, 'Low']], pourLow, v => { pourLow = v; if (pourPrev) pourPrev = computeFlow(pourPrev.x, pourPrev.y, pourPrev.z, pourPrev.i, v); renderOptbar(); requestDraw(); }, 'Liquid level')));
+        if (pourMode === 'pour') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, it.n === 'Lava' ? 'Lava level' : 'Water level'), segmented([[false, 'Normal'], [true, 'Low']], pourLow, v => { pourLow = v; if (pourPrev) pourPrev = computeFlow(pourPrev.x, pourPrev.y, pourPrev.z, pourPrev.i, v); renderOptbar(); requestDraw(); }, 'Liquid level')));
         if (pourMode === 'pour' && pourPrev) { const P = pourPrev; ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'About ' + P.cells.length + ' tile' + (P.cells.length === 1 ? '' : 's') + (P.falls ? ', ' + P.falls + ' falling' : '') + (P.capped ? ' (stopped at 5,000)' : '')), tipBtn('Where it should reach. The game also depends on the order you dug and filled things, so the edge can be a tile off.' + (P.lavaWater.length ? ' It touches ' + (it.n === 'Lava' ? 'water' : 'lava') + ' at ' + P.lavaWater[0].join(', ') + ': Water Gun turns lava into black rock you can walk on.' : '')), h('button', { class: 'btn sm primary', onclick: pourCommit }, 'Pour'), h('button', { class: 'btn sm', onclick: pourCancel }, 'Cancel'))); }
       }
       if (leveled(it)) ob.append(levelPill(it));
@@ -3686,8 +3699,10 @@ function levelPill(it) {
   const sel = h('select', { class: 'lvsel', 'aria-label': 'Level to place on' }, h('option', { value: '' }, 'On top'), levelList(levelStats()).map(z => h('option', { value: String(z) }, 'Level ' + lvNum(z) + (hidden.has(z) ? ' (hidden)' : ''))), h('option', { value: '*' }, 'Other level…'));
   sel.value = layerZ == null ? '' : String(layerZ); sel.onchange = () => { if (sel.value === '*') { sel.value = layerZ == null ? '' : String(layerZ); levelDialog(); return; } setLayerZ(sel.value === '' ? null : +sel.value); };
   const p = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), sel);
-  if (layerZ == null && isTerr(it)) p.append(segmented([['stack', 'Stack'], ['paint', 'Paint']], terrMode, v => { terrMode = v; renderOptbar(); requestDraw(); }, 'Stack a new block on top, or paint over the top block'));
-  if (layerZ != null) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + lvNum(layerZ)));
+  const pouring = pourMode === 'pour' && canPour(it) && tool === 'place';
+  if (layerZ == null && isTerr(it) && !pouring) p.append(segmented([['stack', 'Stack'], ['paint', 'Paint']], terrMode, v => { terrMode = v; renderOptbar(); requestDraw(); }, 'Stack a new block on top, or paint over the top block'));
+  if (layerZ != null && !pouring) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + lvNum(layerZ)));
+  if (pouring) { p.append(tipBtn(layerZ == null ? 'The source goes on top of the ground where you tap.' : 'The source goes on level ' + lvNum(layerZ) + '.')); return p; }
   p.append(tipBtn(layerZ == null ? (isTerr(it) ? (terrMode === 'paint' ? 'Paint swaps the top terrain block for this one, at the same level.' : 'Stack puts a new terrain block on top of whatever is there, items included, one level up. Use Paint to swap the top block instead.') : stacker(it) ? 'Blocks go on top of whatever is there: terrain, other blocks or items.' : isRug(it) ? 'Rugs lie on top of the highest block, and furniture stands on them.' : 'Items go on top of the highest block there, terrain or a wall or block, never on another item. This one is ' + heightOf(it) + (heightOf(it) === 1 ? ' level' : ' levels') + ' high.') + ' Pick a level to place on that level instead, or pick one in Layers.' : 'Everything you place goes on level ' + lvNum(layerZ) + '. Keep leaves what\'s already on that level and skips those squares; Replace takes it away. Squares that will be replaced show red.'));
   return p;
 }
@@ -5032,7 +5047,7 @@ function renderPlans() {
     ['Terrain levels', 'Every block has a level, terrain too. Terrain starts at level 0, so things on the ground are on level 1. Place terrain to stack a block on top and build hills; Paint swaps the top block instead. Erase takes the top block off, so you can dig down. A 2-level rise inside a zone counts as a "High-up location".'],
     ['Stacking', 'Everything you place goes on top of the highest block at that spot, kit houses too. Blocks, walls and terrain can go on top of items; items never go on top of other items, only on terrain or a block. Items have a height: most take 1 level, tall ones such as a refrigerator take 2, and rugs take none, so furniture stands on them. Heights are guesses until you set them with Resize.'],
     ['Layers', 'Every level is a layer, from −99 to 99, with its own terrain and items. In Layers (or L), tap an eye to hide or show a level, the rugs or all terrain, and tap a level to work on it (Go to level, or Page Up and Page Down, reach any other): Place and Fill put things there, Erase only takes from there, and everything above fades out so you can see into a basement. With On top, blocks and terrain stack on what\'s there; on a chosen level, Keep or Replace decides what happens to what\'s already there.'],
-    ['Active areas', 'The dotted button by the zoom controls (or A) shows the white dotted line the game shows with the right stick: 4 tiles past a home on every side, 4 levels up or down. Light, warmth and humidity in a house you built only count the floor inside the walls.'],
+    ['Active areas', 'Show on the map, by the zoom controls (or S), then Active areas (or A), shows the white dotted line the game shows with the right stick: 4 tiles past a home on every side, 4 levels up or down. Light, warmth and humidity in a house you built only count the floor inside the walls.'],
     ['Houses you build', 'Found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Fill → Outline lays walls fast.'],
     ['Moving Pokémon in', 'In the Pokémon tab, drag a Pokémon by its dots onto a home: a kit house or a house you built on the map, or one in the tray that opens. On a phone the panel slides down while you drag; long-press a card to drag it too, and with a mouse drag the whole card. Tap the dots instead to choose a home from a list. Undo puts it back.'],
     ['Pokédex search', 'Filters narrow by status, Pokédex, type, specialty, ideal habitat, size, flavour, likes and habitat; each number says how many that choice would show. In the search box every word must match, and type:, spec:, likes:, ideal:, flavour:, hab:, home:, size: and no: look in one place only. "Quotes" keep a phrase together and a - in front leaves those out.'],
@@ -5040,8 +5055,17 @@ function renderPlans() {
     ['Portraits', 'Every Pokémon shows its picture from the game: the full picture where there is room, a round portrait of its face where space is short, and only portraits on the map. Portraits are framed automatically; to fix one, tap the picture on its Pokédex card, drag the circle onto the face and zoom. Yours syncs.'],
     ['Pokémon sizes', 'Large ones were tested by players (too big for dens); small or medium with a ? is a guess from height and weight. Tap a size to change it; yours syncs. Each Pokémon needs a rest item at least its size: 1×1 small, 2×1 medium, 2×2 large.'],
     ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls.'],
+    ['Show on the map', 'The button by the zoom controls (or S) turns on what\'s drawn over the map: active areas, how far items reach, which fields are wet, switches and sensors with what they work, Litter drops, and power networks. A selected item always shows its own.'],
+    ['Problems and limits', 'The ⚠ chip at the bottom left lists what won\'t work as planned: over a game limit, no power, dry crops, a switch that reaches nothing, a machine nobody runs and more. Show takes you to each one. Materials ends with the game\'s per-area limits.'],
+    ['Weather and fire', 'Set the town\'s weather in Plans. Fires count only when a Burn Pokémon lives within 4 tiles to light them; rain puts out fires with no roof (they light them again), turns Smooth Rocks off and waters open fields.'],
+    ['Power', 'Generators link to a transmitter within 10 tiles, transmitters link within 15 and power up to 20 items within 10, never more than 5 levels up or down. Using more than you make turns the whole network off. Items join a transmitter in the order you placed them.'],
+    ['Switches and sensors', 'Floor switches reach a 5×5×5 cube, wall switches and card readers 7×7×7, and a laser sensor watches the tiles in front of it and works 11 cells around it. They need no power or wires; what they work does, if it\'s a light or appliance.'],
+    ['Fields and crops', 'A crop grows a stage each day it\'s wet: water beside it, a running sprinkler within 5 tiles, rain with no roof, or a Water Pokémon with a water basin. 3 days to ripe, 1 with a Grow Pokémon nearby. Smooth Rock dries fields within 4 tiles.'],
+    ['Pouring liquids', 'Pick a liquid, choose Pour, tap a tile to see where it flows, and tap again to pour: 25 tiles along a 1-wide channel, 10 in a 2-wide one, about 6 out on open ground, starting again below every drop. Erasing the source takes the whole flow away.'],
+    ['Pokémon at work', 'Litter Pokémon drop their material around their home, Chop, Burn, Crush and Recycle Pokémon work from the nearest community box, and furnaces and mixers need a Burn or Crush Pokémon nearby. Homes and boxes say who does what.'],
+    ['Game rules', 'Where guides disagree (sensor, sprinkler, Smooth Rock and generator reach), Settings → Game rules picks the reading the planner uses.'],
     ['Tooltips', 'Hover, long-press or tap ⓘ for the details behind any button or chip.'],
-    ['Shortcuts', 'A active areas, L layers, Page Up/Down level, B place, R fill, E erase, V select, Z zone, I pick, H pan, Q turns the item (Shift+Q the other way), [ ] brush, Space+drag pan.']
+    ['Shortcuts', 'S show on the map, A active areas, L layers, Enter pour a previewed liquid, Esc cancel, Page Up/Down level, B place, R fill, E erase, V select, Z zone, I pick, H pan, Q turns the item (Shift+Q the other way), [ ] brush, Space+drag pan.']
   ].map(([lb, t]) => h('span', { class: 'req', 'data-tip': t }, lb))));
   root.append(h('h4', { class: 'hrow' }, 'Data sources', tipBtn('Community-researched data current to the game\'s Bubbly Basin update and the autumn 2026 event. Kit footprints marked estimated and group memberships (Seat, Table, Toy…) may differ slightly in game. Fan-made planner, not affiliated with Nintendo or The Pokémon Company.')));
   root.append(h('ul', { class: 'srcs', style: 'padding-left:18px;margin:0' }, DATA.sources.map(([t, u]) => h('li', null, h('a', { href: u, target: '_blank', rel: 'noopener' }, t)))));
@@ -5083,7 +5107,7 @@ function deletePlanDialog(id) {
 
 const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['rules', 'Game rules', 'filter'], ['data', 'Data', 'list']];
 const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
-const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map: active areas and reach'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map'], ['Enter', 'Pour the liquid you previewed'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Tilt the 3D view, or look straight down'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
 let setsBack = null, setsAfter = null, setsWant = null;
 const setsOpen = () => !$('#sets').hidden;
 function applyLook() { pokopiaLook(S); readTheme(); }

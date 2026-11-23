@@ -156,7 +156,7 @@ The pictures live in `pics/` inside the app, so they show without internet: item
 
 ## Reach, limits and problems
 
-The **Show on the map** button by the zoom controls (S) turns on what's drawn over the map:
+The **Show on the map** button by the zoom controls (S) turns on what's drawn over the map. When the screen is short, the menu leaves out the descriptions; point at an entry, or long-press it, to read one.
 
 - **Active areas** (A): the dotted line around each home. Everything inside it counts for that home.
 - **Reach**: how far these items work in the game.
@@ -173,7 +173,7 @@ The **Show on the map** button by the zoom controls (S) turns on what's drawn ov
   | Transmitters | 10 tiles to items and generators, 15 to other transmitters, up to 5 levels up or down |
   | Generators | A transmitter within 10 tiles, counted from the kit's front-left tile |
 
-  The selected item always shows its reach, with a label, and so does an item while you place it.
+  The selected item always shows its reach, with a label, and so does an item while you place it. Zoomed far out, the other items' reaches show as outlines only, to keep the map quick.
 - **Fields**: each crop and farm-soil tile turns blue when it's watered, orange when it's dry, brown when a Smooth Rock dries it, and red when it can't be watered (lava beside it, or under water with no bubbles). Each sprinkler gets a green dot when it runs and a red one when it has no water.
 - **Switches and sensors**: each switch's and sensor's reach, with a dashed line to every door, light or machine it works. A red line means that one has no power. An orange dot marks a switch that reaches nothing, or a sensor that can't see anything move. Selecting a switch, a sensor or something they work always shows its links.
 - **Litter drops**: where Litter Pokémon living in houses and kits drop their materials. Tiles that take drops are pink, blocked ones edged in red, and each home gets a label with its material. A selected home always shows its own.
