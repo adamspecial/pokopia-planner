@@ -282,4 +282,12 @@ In plans with nothing that makes power, lights and appliances count as powered. 
 - removing a source removing its flow
 - a panel for poured liquid, with Pour again and Remove
 
-Mud-covered blocks aren't in the item list, so muddy water downstream isn't modelled. Phase 6 (Specialties) is next.
+Mud-covered blocks aren't in the item list, so muddy water downstream isn't modelled. Phase 6 is done too. It added:
+
+- each Litter Pokémon's material
+- drop tiles for houses and kits, with an overlay
+- which community box processing Pokémon use, and what they make
+- who runs furnaces and mixers
+- the crowding warning
+
+Phase 7 (Finish) is next.

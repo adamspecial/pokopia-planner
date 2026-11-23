@@ -176,6 +176,7 @@ The **Show on the map** button by the zoom controls (S) turns on what's drawn ov
   The selected item always shows its reach, with a label, and so does an item while you place it.
 - **Fields**: each crop and farm-soil tile turns blue when it's watered, orange when it's dry, brown when a Smooth Rock dries it, and red when it can't be watered (lava beside it, or under water with no bubbles). Each sprinkler gets a green dot when it runs and a red one when it has no water.
 - **Switches and sensors**: each switch's and sensor's reach, with a dashed line to every door, light or machine it works. A red line means that one has no power. An orange dot marks a switch that reaches nothing, or a sensor that can't see anything move. Selecting a switch, a sensor or something they work always shows its links.
+- **Litter drops**: where Litter Pokémon living in houses and kits drop their materials. Tiles that take drops are pink, blocked ones edged in red, and each home gets a label with its material. A selected home always shows its own.
 - **Power**: how transmitters link to their generator (solid line), to each other (dashed) and to their items (dotted). Each item that needs power gets a green or red dot, and each network a label such as "12 of 25 power". Selecting a generator, transmitter or powered item always shows its network.
 
 An item's info and its panel say what it does in the game: how much power it makes or uses, what a switch or sensor works, how far a liquid flows and whether it waters fields, and how many days a crop or plant takes to grow.
@@ -288,6 +289,35 @@ The planner works out power the way the game does:
 - **Kit houses:** dens, huts and tents only take power from a mini generator inside. Cottages and houses also take it from a transmitter within 10 tiles, and then everything inside is powered.
 
 Each item's panel says whether it has power, from which network, and if not, why: too far from a transmitter, every transmitter in reach full, no generator, or the network overloaded. Lights and appliances without power add no light, warmth or humidity. Overloads, items without power, generators with no transmitter and blocked wires show in the **⚠ problem** list, and **Show** takes you to each one.
+
+## Pokémon at work
+
+What some specialties do on their own around a Pokémon's home:
+
+- **Litter.** Each Litter Pokémon always drops the same material, such as Venusaur's leaves, Mareep's fluff or Glimmet's iron ore. Where the drops land:
+  - for a kit house, the ring 1 tile around it, corners excluded;
+  - for a house you built, its floor and the tiles just outside its walls.
+
+  A tile takes drops only with a block under it and no item or liquid on it. The home's Residents section says how many tiles are free, and warns when none are. More comfort means more drops, and nothing drops while Ditto is watching. Where Pokémon living in a habitat drop things isn't known.
+- **Processing.** Chop, Burn, Crush and Recycle Pokémon work from the community box nearest their home. That box must sit wholly within 4 tiles of the home's dotted line.
+
+  | Specialty | Makes |
+  |---|---|
+  | Chop | 1 small log into 5 lumber |
+  | Burn | 1 squishy clay into 2 bricks |
+  | Crush | 1 berry into 5 paint |
+  | Recycle | 1 nonburnable garbage into 2 iron ore |
+
+  The home's panel names the box each one uses, and the box's panel lists who works from it.
+- **Machines.** A smelting furnace needs a Burn Pokémon living nearby, and a concrete mixer a Crush Pokémon. Each machine's panel says who runs it.
+- **Crowding.** Only 25 Pokémon show in one area at a time, and the rest may stop producing. More than 25 living in the plan's area gets a warning. Pokémon asleep in kit houses at night don't count.
+
+These show in the **⚠ problem** list:
+
+- drops with nowhere to land
+- machines nobody runs
+- processing Pokémon with no box, once the plan has a community box
+- crowding
 
 ## Light, warmth and humidity
 
