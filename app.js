@@ -290,8 +290,8 @@ const sizeGuessed = (it) => !!it.sg && !sizeSet(it);
 function footOf(it) { const s = sizeSet(it); return s ? [s[0], s[1]] : [it.w || 1, it.h || 1]; }
 const multi = (it) => { const f = footOf(it); return f[0] > 1 || f[1] > 1; };
 const heightSet = (it, p = plan) => { const u = userSizes['ht:' + it.n]; return u != null ? u : p && p.isz && p.isz['ht:' + it.n] != null ? p.isz['ht:' + it.n] : null; };
-function heightOf(it, p = plan) { if (!it) return 1; if (isRug(it)) return 0; if (it.L === 'g' || structural(it)) return 1; const u = heightSet(it, p); return clamp(u != null ? u | 0 : it.ht == null ? 1 : it.ht, 1, HMAX); }
-const HMAX = 20, tall = (it) => !!it && !isRug(it) && it.L !== 'g' && !structural(it), heightGuessed = (it) => tall(it) && !!it.hg && heightSet(it) == null;
+function heightOf(it, p = plan) { if (!it) return 1; if (isRug(it)) return 0; if (!tall(it)) return 1; const u = heightSet(it, p); return clamp(u != null ? u | 0 : it.ht == null ? 1 : it.ht, 1, HMAX); }
+const HMAX = 20, tall = (it) => !!it && !isRug(it) && it.L !== 'g' && (!structural(it) || isDoor(it) || fenceLike(it)), heightGuessed = (it) => tall(it) && !!it.hg && heightSet(it) == null;
 function addObj(i, x, y, w, h, z = 1, t) { const it = ITEMS[i]; const f = footOf(it); w = w || f[0]; h = h || f[1]; t = Math.max(1, t == null ? heightOf(it) : t); if (!fits(plan, x, y, w, h, 0, z, t)) return null; beginTx(); const ob = { id: plan.nextId++, i, x, y, w, h }; if (z) ob.z = z; if (t !== 1) ob.t = t; plan.objs.set(ob.id, ob); stampOcc(plan, ob, ob.id); touchOb(ob); tx.add.push(ob); return ob; }
 const touchOb = (ob) => mapView.touched(ob.x, ob.y, ob.w, ob.h, zOf(ob), ob.rug ? zOf(ob) : topOf(ob));
 const inWall = (it) => isDoor(it) || isWindow(it);
@@ -300,7 +300,7 @@ const lookK = (it) => it.look ? it.look.k : '';
 const ROUND = new Set('grass flower crop moss lily web coral stump rock tree palm pine pokeball orb gem stone column bollard uplog pipev pipeupx cone barrel pot pan plate platter firework paintballoon blob stool bin bucket metaldrum tire tires hydrant pile cake tiers pizza cookies cups vase flowers planter pottedplant pumpkin discoball planet crystal drum fountain parasol pole bell egg apple seed drop star heart nugget cap orb gem grandclock lamp campfire bonfire basin spout steppingstones logs manhole hatch grate roofflat roofdeco roofhip skylight glass slab scaffold ironframe netting platform sandbox balloons ring knot'.split(' '));
 const HANG = new Set('poster posterbolt posterwave postermtn wallclock calendar toolboard screen aircon scroll banner curtain curtainr shutter'.split(' '));
 const BACKS = new Set('steps ladder awning shelf fridge tv bed sofa bench fireplace vending arcade toilet sink stove washer whiteboard infoboard board mirror servers showcase'.split(' '));
-const hangs = (it) => !structural(it) && (it.c === 'Poster' || it.c === 'Wallpaper' || (it.sh === 'block' && !isWall(it)) || HANG.has(lookK(it)) || (lookK(it) === 'frame' && it.c !== 'Misc'));
+const hangs = (it) => !structural(it) && (!!it.wm || it.c === 'Poster' || it.c === 'Wallpaper' || (it.sh === 'block' && !isWall(it)) || HANG.has(lookK(it)) || (lookK(it) === 'frame' && it.c !== 'Misc'));
 const turnable = (it) => !!it && !structural(it) && !isRug(it) && it.L !== 'g' && (!ROUND.has(lookK(it)) || multi(it) || hangs(it));
 const solidWall = (it) => isWall(it) && !inWall(it) && !fenceLike(it);
 function backSolid(ob, d, p = plan) {
@@ -330,7 +330,10 @@ function thingTop(k, ign, blocksOnly) { let z = topTerr(k); const st = stackAt(k
 function lineAt(x, y, z = 1) { if (!inB(plan, x, y)) return null; const o = occAt(plan, y * plan.w + x, z); const q = o && plan.objs.get(o); return q && structural(ITEMS[q.i]) ? q : null; }
 function wallAlong(x, y, dx, dy, z) { for (let n = 0; n < 16; n++, x += dx, y += dy) { const q = lineAt(x, y, z); if (!q) return null; if (isWall(ITEMS[q.i]) && q.w === 1 && q.h === 1) return q.i; } return null; }
 function closeWall(r, keep) {
-  const z = zOf(r), runs = []; const kept = (x, y) => keep && x >= keep.x && x < keep.x + keep.w && y >= keep.y && y < keep.y + keep.h;
+  let any = false; for (let z = zOf(r); z <= topOf(r); z++) if (closeWallAt(r, keep, z)) any = true; return any;
+}
+function closeWallAt(r, keep, z) {
+  const runs = [], kept = (x, y) => keep && x >= keep.x && x < keep.x + keep.w && y >= keep.y && y < keep.y + keep.h && z >= zOf(keep) && z <= topOf(keep);
   const fill = (cells, wi) => { for (const [x, y] of cells) if (!kept(x, y) && !occAt(plan, y * plan.w + x, z) && !terrAt(plan, y * plan.w + x, z)) addObj(wi, x, y, 1, 1, z); };
   let done = false;
   if (r.w >= r.h) for (let y = r.y; y < r.y + r.h; y++) { if (!lineAt(r.x - 1, y, z) || !lineAt(r.x + r.w, y, z)) continue; const wi = wallAlong(r.x - 1, y, -1, 0, z) ?? wallAlong(r.x + r.w, y, 1, 0, z); if (wi == null) continue; const cells = []; for (let x = r.x; x < r.x + r.w; x++) cells.push([x, y]); runs.push([cells, wi]); done = true; }
@@ -399,7 +402,7 @@ function replaceMissed(list) {
 }
 function reshapeObj(ob, x, y, w, h, z = zOf(ob), t = htOf(ob)) {
   const it = ITEMS[ob.i], b = blocker(it, x, y, w, h, ob.id, z, t); if (b) return { err: b };
-  delObj(ob); if (inWall(it)) closeWall(ob, { x, y, w, h }); clearFor(x, y, w, h, 0, z, t); const n = keepObj(addObj(ob.i, x, y, w, h, z, t), ob); return { ob: n };
+  delObj(ob); if (inWall(it)) closeWall(ob, { x, y, w, h, z, t }); clearFor(x, y, w, h, 0, z, t); const n = keepObj(addObj(ob.i, x, y, w, h, z, t), ob); return { ob: n };
 }
 function removeObj(ob) { delObj(ob); if (inWall(ITEMS[ob.i])) closeWall(ob); }
 function ridersOf(ob) { const out = [], seen = new Set([ob.id]), q = [ob]; while (q.length) { const b = q.shift(), z = topOf(b) + 1; if (z > ZMAX) continue; for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { const r = objAtLv(y * plan.w + x, z); if (r && !seen.has(r.id) && r.x >= b.x && r.y >= b.y && r.x + r.w <= b.x + b.w && r.y + r.h <= b.y + b.h) { seen.add(r.id); out.push(r); q.push(r); } } } return out; }
@@ -5054,7 +5057,7 @@ function renderPlans() {
     ['Residents', 'Tap a house or kit house to choose who lives there. Decorate lists their favourite kinds of things, ticks what\'s already there and suggests items, including ones that bring light, warmth or humidity to what they like.'],
     ['Portraits', 'Every Pokémon shows its picture from the game: the full picture where there is room, a round portrait of its face where space is short, and only portraits on the map. Portraits are framed automatically; to fix one, tap the picture on its Pokédex card, drag the circle onto the face and zoom. Yours syncs.'],
     ['Pokémon sizes', 'Large ones were tested by players (too big for dens); small or medium with a ? is a guess from height and weight. Tap a size to change it; yours syncs. Each Pokémon needs a rest item at least its size: 1×1 small, 2×1 medium, 2×2 large.'],
-    ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls.'],
+    ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls. Doors, gates and fences can be more than one level high: set it with Resize, so a door 2 high fills a wall 2 high.'],
     ['Show on the map', 'The button by the zoom controls (or S) turns on what\'s drawn over the map: active areas, how far items reach, which fields are wet, switches and sensors with what they work, Litter drops, and power networks. A selected item always shows its own.'],
     ['Problems and limits', 'The ⚠ chip at the bottom left lists what won\'t work as planned: over a game limit, no power, dry crops, a switch that reaches nothing, a machine nobody runs and more. Show takes you to each one. Materials ends with the game\'s per-area limits.'],
     ['Weather and fire', 'Set the town\'s weather in Plans. Fires count only when a Burn Pokémon lives within 4 tiles to light them; rain puts out fires with no roof (they light them again), turns Smooth Rocks off and waters open fields.'],
@@ -5343,7 +5346,7 @@ function rvFlush() { if (!rvSaveT) return; clearTimeout(rvSaveT); rvSaveT = 0; r
 function rvSave() { clearTimeout(rvSaveT); rvSaveT = setTimeout(rvFlush, 900); }
 function rvSetItems(o) { const t = rvData().items; for (const k of Object.keys(t)) delete t[k]; Object.assign(t, o); }
 const rvMerge = (a, b) => { const o = Object.assign({}, a); for (const k in b || {}) { const v = b[k]; if (v && typeof v === 'object' && (!o[k] || (+v.u || 0) > (+o[k].u || 0))) o[k] = v; } return o; };
-const rvBase = (it) => ({ w: it.w || 1, h: it.h || 1, t: isRug(it) ? 0 : it.L === 'g' || structural(it) ? 1 : it.ht == null ? 1 : it.ht });
+const rvBase = (it) => ({ w: it.w || 1, h: it.h || 1, t: isRug(it) ? 0 : !tall(it) ? 1 : it.ht == null ? 1 : it.ht });
 const rvFloor = (it) => it.L === 'g' && !isRug(it);
 function rvCols(it) { const a = rvFloor(it) ? picsFor(it)[2] || it.col : it.look ? it.look.a : it.col; return [a, it.look && it.look.b ? it.look.b : shade(a, -0.25)]; }
 const rvHash = (s) => { let x = 2166136261; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return (x >>> 0).toString(36); };
