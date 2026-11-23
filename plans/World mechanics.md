@@ -265,4 +265,11 @@ Phase 3 is done too. It added:
 - berry trees' drop tiles
 - field problems
 
-The exact six berry tiles weren't published, so the planner shows all eight. Phase 4 (Switches and sensors) is next.
+The exact six berry tiles weren't published, so the planner shows all eight. Phase 4 is done too. It added:
+
+- what each switch and sensor works
+- the Switches and sensors overlay in 2D and 3D
+- the warnings
+- a **Game rules** section in Settings for four disputed rules: sensor, sprinkler, Smooth Rock and generator reach
+
+In plans with nothing that makes power, lights and appliances count as powered. Phase 5 (Pouring liquids) is next.
