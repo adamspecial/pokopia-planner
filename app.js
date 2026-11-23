@@ -675,10 +675,12 @@ function homeOfPokemon(name) { for (const r of plan.res || []) if (r.p === name)
 function floorHasRoom(home, f) { const all = residentsOf(home); if (all.length >= home.cap) return false; return !home.pf || all.filter(r => (r.f || 0) === f).length < home.pf; }
 function assignResident(name, home, floor) {
   if (home.floors > 1 && (floor == null || !floorHasRoom(home, floor))) floor = floorHasRoom(home, 0) ? 0 : 1;
-  plan.res = (plan.res || []).filter(r => r.p !== name); const r = { p: name, x: home.ax, y: home.ay, k: home.kind === 'kit' ? 'k' : 'h' }; if (home.floors > 1 && floor) r.f = 1; plan.res.push(r); markDirty();
+  plan.res = (plan.res || []).filter(r => r.p !== name); const r = { p: name, x: home.ax, y: home.ay, k: home.kind === 'kit' ? 'k' : 'h' }; if (home.floors > 1 && floor) r.f = 1; plan.res.push(r); markDirty(); resRecheck();
 }
-function setResidentFloor(name, f) { const r = (plan.res || []).find(q => q.p === name); if (r) { if (f) r.f = 1; else delete r.f; markDirty(); } }
-function removeResident(name) { plan.res = (plan.res || []).filter(r => r.p !== name); markDirty(); }
+function setResidentFloor(name, f) { const r = (plan.res || []).find(q => q.p === name); if (r) { if (f) r.f = 1; else delete r.f; markDirty(); resRecheck(); } }
+function removeResident(name) { plan.res = (plan.res || []).filter(r => r.p !== name); markDirty(); resRecheck(); }
+let resRecheckOn = false;
+function resRecheck() { if (resRecheckOn) return; resRecheckOn = true; setTimeout(() => { resRecheckOn = false; if (plan) { evaluateAll(); requestDraw(); } }, 0); }
 function intFloor(ob, f) { const I = ob.int; return I && I.f && I.f[f] ? I.f[f] : { o: [], wp: null, fc: null }; }
 function kitPieces(ob, floor) { const ki = kitInfo(ob), out = []; for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; for (const a of intFloor(ob, f).o) { const [i, x, y] = a; if (x < ki.w && y < ki.h && ITEMS[i]) out.push({ it: ITEMS[i], x, y, f, w: a[3] || 1, h: a[4] || 1 }); } } return out; }
 function kitFurniture(ob) { return new Set(kitPieces(ob, 0).filter(p => !isWall(p.it) && !isDoor(p.it)).map(p => p.it.i)).size; }
@@ -1001,6 +1003,7 @@ function residentsSection(home) {
   if (home.kind === 'kit') { const n = kitFurniture(home.ob); reqs.prepend(h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, (n >= 3 ? '✓' : '✗') + 'required (' + n + '/3)')); }
   if (cv.total) reqs.append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')'));
   wrap.append(reqs);
+  for (const el of workLines(home.key, home)) wrap.append(el);
   wrap.append(envSection(home));
   return wrap;
 }
@@ -1506,6 +1509,8 @@ function boxInspector(ob, box) {
     l.append(h('div', { class: 'row', style: 'cursor:default;align-items:flex-start' }, h('span', { class: 'req ' + (full ? 'ok' : 'miss'), style: 'flex:none' }, full ? '✓' : '✗'), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, x.hm.label + (x.hm.kind === 'habitat' ? ' habitat' : '')), h('div', { class: 'ds', style: 'white-space:normal' + (full && others ? ';color:var(--warn)' : '') }, why))));
   }
   sec.append(l);
+  const jobs = []; for (const x of rep) if (x.n === x.all && nearestBox(x.hm) === ob) for (const { p, sp } of workers(x.hm)) jobs.push(p.n + ' (' + sp + ': ' + PROC[sp][0] + ' → ' + PROC[sp][1] + ')');
+  if (jobs.length) sec.append(h('div', { class: 'note', style: 'margin-top:6px', 'data-tip': 'Put the raw materials in this box and these Pokémon turn them into the result, back in the same box.' }, '⚙ Works from it: ' + listNames([...new Set(jobs)])));
   box.append(sec);
 }
 function drawBoxReach(c, ob, s) {
@@ -1858,6 +1863,62 @@ function repour(s) {
   beginTx(); removeFlow(s, null); const k = s.y * plan.w + s.x; if ([s.i + 1, flowFall(s.i).i + 1].includes(terrAt(plan, k, s.z))) setTerr(k, s.z, 0); setSources((plan.src || []).filter(q => q.id !== s.id)); flowIndex();
   pourPrev = computeFlow(s.x, s.y, s.z, s.i, s.low); pourCommit(); closeInspector(); const ns = (plan.src || [])[plan.src.length - 1]; if (ns) showFlowInspector(ns);
 }
+let showDrops = LS.get(LSK + 'drops') === '1';
+const PROC = { Chop: ['small logs', 'lumber', '1 → 5'], Burn: ['squishy clay', 'bricks', '1 → 2'], Crush: ['berries', 'paint', '1 → 5'], Recycle: ['nonburnable garbage', 'iron ore', '1 → 2'] };
+const DROP_TIP = 'Drops land on the ring 1 tile around a kit house (not its corners), or on a built house\'s floor and 1 tile outside its walls, wherever the Pokémon happens to be. Each tile needs a block under it and no item or liquid on it. More comfort means more drops, and nothing drops while Ditto is watching.';
+function dropTile(x, y, L) {
+  if (!inB(plan, x, y)) return null; const k = y * plan.w + x; if (L == null) L = standZ(k);
+  const o = occAt(plan, k, L), q = o && plan.objs.get(o), t = terrAt(plan, k, L); let why = '';
+  if (t && ITEMS[t - 1].lq) why = 'liquid'; else if (t) why = 'a block'; else if (q && !isDoor(ITEMS[q.i])) why = ITEMS[q.i].n.toLowerCase(); else if (!terrAt(plan, k, L - 1) && !occAt(plan, k, L - 1)) why = 'nothing under it';
+  return { x, y, k, ok: !why, why };
+}
+function litterTiles(home) {
+  const out = [];
+  if (home.kind === 'kit') { const ob = home.ob, L = zOf(ob); for (let x = ob.x; x < ob.x + ob.w; x++) out.push(dropTile(x, ob.y - 1, L), dropTile(x, ob.y + ob.h, L)); for (let y = ob.y; y < ob.y + ob.h; y++) out.push(dropTile(ob.x - 1, y, L), dropTile(ob.x + ob.w, y, L)); }
+  else if (home.kind === 'house') { const hs = home.hs, R = hs.area.outer; for (const k of hs.cells) out.push(dropTile(k % plan.w, (k / plan.w) | 0, hs.level)); for (let x = R.x; x < R.x + R.w; x++) out.push(dropTile(x, R.y - 1), dropTile(x, R.y + R.h)); for (let y = R.y; y < R.y + R.h; y++) out.push(dropTile(R.x - 1, y), dropTile(R.x + R.w, y)); }
+  return out.filter(Boolean);
+}
+const litterers = (pks) => pks.filter(p => (p.s || []).includes('Litter'));
+function nearestBox(hm) { const boxes = boxesFor(hm); if (!boxes.length) return null; const R = hm.rect, cx = R.x + R.w / 2, cy = R.y + R.h / 2; return boxes.sort((a, b) => Math.abs(a.x - cx) + Math.abs(a.y - cy) - Math.abs(b.x - cx) - Math.abs(b.y - cy))[0]; }
+function workers(hm) { const out = []; for (const p of hm.pks) for (const sp of Object.keys(PROC)) if ((p.s || []).includes(sp)) out.push({ p, sp }); return out; }
+function workLines(key, home) {
+  const out = [], hm = homeRanges().find(x => x.key === key); if (!hm) return out;
+  const line = (txt, bad, tip) => out.push(h('div', { class: 'note', style: 'margin-top:6px' + (bad ? ';color:var(--warn)' : ''), 'data-tip': tip || null }, txt));
+  const lit = litterers(hm.pks);
+  if (lit.length) {
+    if (home && home.kind !== 'habitat') { const tiles = litterTiles(home), ok = tiles.filter(t => t.ok).length; for (const p of lit) line(ok ? '🍂 ' + p.n + ' drops ' + (p.lt || 'its material').toLowerCase() + ' on the ' + ok + ' free tile' + (ok === 1 ? '' : 's') + ' of ' + tiles.length + ' around ' + (home.kind === 'kit' ? 'the kit' : 'the house') + '.' : '⚠ ' + p.n + '\'s ' + (p.lt || 'material').toLowerCase() + ' has nowhere to land: every tile around ' + (home.kind === 'kit' ? 'the kit' : 'the house') + ' has an item, liquid or nothing under it.', !ok, DROP_TIP); }
+    else line('🍂 ' + listNames(lit.map(p => p.n + ' (' + (p.lt || 'its material').toLowerCase() + ')')) + ' drop' + (lit.length === 1 ? 's' : '') + ' materials around the habitat. Exactly where isn\'t known; in a house or kit, the planner shows the tiles.', false, DROP_TIP);
+  }
+  const wk = workers(hm);
+  if (wk.length) { const box = nearestBox(hm); for (const { p, sp } of wk) { const [a, b, r] = PROC[sp]; line(box ? '⚙ ' + p.n + ' (' + sp + ') turns ' + a + ' into ' + b + ' (' + r + ') from the community box at ' + box.x + ', ' + box.y + '.' : '⚠ ' + p.n + ' (' + sp + ') has no community box in reach to work from, so it can\'t turn ' + a + ' into ' + b + '.', !box, 'Processing Pokémon take what you put in the community box nearest their home and put the result back in it. The box must sit wholly within 4 tiles of the home\'s dotted line.'); } }
+  return out;
+}
+function machineLines(ob) {
+  const it = ITEMS[ob.i], out = [], line = (txt, bad, tip) => out.push(h('div', { class: 'note', style: 'margin-top:6px' + (bad ? ';color:var(--warn)' : ''), 'data-tip': tip || null }, txt));
+  const near = (sp) => { const s2 = new Set(); for (const hm of homeRanges()) { const R = hm.rect; if (ob.x < R.x || ob.y < R.y || ob.x >= R.x + R.w || ob.y >= R.y + R.h || Math.abs(zOf(ob) - hm.base) > AREA_R) continue; for (const p of hm.pks) if ((p.s || []).includes(sp)) s2.add(p.n); } return [...s2]; };
+  if (/smelting furnace$/i.test(it.n)) { const b = near('Burn'), g = near('Gather'); line(b.length ? '🔥 Run by ' + listNames(b.slice(0, 3)) + '. It smelts one kind of material at a time.' : '⚠ No Burn Pokémon lives within reach, so nobody runs it.', !b.length, 'A Burn Pokémon living nearby smelts ores into ingots, sand, sandstone or volcanic ash into glass, and fragments into Pokémetal. It keeps going until the furnace is empty.'); if (g.length) line('Filled from the community box by ' + listNames(g.slice(0, 3)) + '.'); }
+  if (it.n === 'Concrete mixer') { const c = near('Crush'); line(c.length ? '⚙ Run by ' + listNames(c.slice(0, 3)) + '.' : '⚠ No Crush Pokémon lives within reach, so nobody runs it.', !c.length, 'A Crush Pokémon living nearby turns limestone into concrete. Guides say the mixer also needs water, and that a batch takes about an hour.'); }
+  return out;
+}
+function crowdCount() { const s2 = new Set((plan.res || []).map(r => r.p)); for (const z of plan.zones) { const r = zoneStatus.get(z.id); if (r && r.kind === 'habitat' && r.ok) for (const n of r.best.hb.p) if (!homeOfPokemon(n)) s2.add(n); } return s2.size; }
+function dropHomes() { const out = []; for (const hs of autoHouses) if (!hs.enclosure) { const home = houseHome(hs), lit = litterers(residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean)); if (lit.length) out.push({ home, lit }); } for (const ob of plan.objs.values()) if (ITEMS[ob.i].cap) { const home = kitHome(ob), lit = litterers(residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean)); if (lit.length) out.push({ home, lit }); } return out; }
+function dropsShown() {
+  const sel = selection; let one = null;
+  if (sel && sel.obj && plan.objs.has(sel.obj.id) && ITEMS[sel.obj.i].cap) one = kitHome(sel.obj); else if (sel && sel.house) { const hs = houseById.get(sel.house); if (hs) one = houseHome(hs); }
+  const all = showDrops ? dropHomes() : [];
+  if (one && !all.some(d => d.home.key === one.key)) { const lit = litterers(residentsOf(one).map(r => PK_BY_NAME.get(r.p)).filter(Boolean)); if (lit.length) all.push({ home: one, lit }); }
+  return all;
+}
+function drawDrops(c, s) {
+  const list = dropsShown(); if (!list.length) return; c.save();
+  for (const { home, lit } of list) {
+    const tiles = litterTiles(home);
+    for (const t of tiles) { const px = view.px + t.x * s, py = view.py + t.y * s; if (t.ok) { c.globalAlpha = 0.35; c.fillStyle = REACH_COL.berry; c.fillRect(px + 1, py + 1, s - 2, s - 2); } else if (s >= 8) { c.globalAlpha = 0.85; c.strokeStyle = theme.bad; c.lineWidth = 1.5; c.strokeRect(px + 2, py + 2, s - 4, s - 4); } }
+    if (s >= 10 && tiles.length) { const t0 = tiles[0], txt = [...new Set(lit.map(p => p.lt || '?'))].join(', '); c.globalAlpha = 1; c.font = `700 ${s < 14 ? 10 : 11}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'top'; const tw = c.measureText(txt).width + 8; c.fillStyle = REACH_COL.berry; roundRect(c, view.px + t0.x * s, view.py + t0.y * s - 16, tw, 15, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, view.px + t0.x * s + 4, view.py + t0.y * s - 14); }
+  }
+  c.restore();
+}
+function setShowDrops(v) { showDrops = v; LS.set(LSK + 'drops', v ? '1' : '0'); sysSync(); requestDraw(); }
 function setShowWater(v) { showWater = v; LS.set(LSK + 'water', v ? '1' : '0'); sysSync(); requestDraw(); }
 function setShowPower(v) { showPower = v; LS.set(LSK + 'power', v ? '1' : '0'); sysSync(); requestDraw(); }
 function powerNetOf(ob) { if (!POWER) return null; const t = POWER.tx.get(ob.id); if (t) return t.net; const d = POWER.dev.get(ob.id); if (d && d.tx) return d.tx.net; const g = POWER.gen.get(ob.id); if (g && g.tx) return g.tx.net; return null; }
@@ -2010,6 +2071,13 @@ function checkProblems() {
     if (bad.length) out.push({ text: pl(bad, 'can\'t be watered', 'can\'t be watered'), tip: fieldWhy(bad[0]) + '.', ob: bad[0].crop });
     for (const Q of FIELDS.spr.values()) if (!Q.works) out.push({ text: 'Sprinkler at ' + Q.ob.x + ', ' + Q.ob.y + ' has no water', tip: 'A sprinkler needs water within ' + S.gSprinkler + ' tiles at its own level or one below.', ob: Q.ob });
   }
+  { const at = (o) => ITEMS[o.i].n + ' at ' + o.x + ', ' + o.y;
+    for (const { home, lit } of dropHomes()) if (!litterTiles(home).some(t => t.ok)) out.push({ text: listNames(lit.map(p => p.n)) + '\'s drops have nowhere to land', tip: 'Every tile around ' + (home.kind === 'kit' ? 'the kit' : 'the house') + ' has an item, liquid or nothing under it. ' + DROP_TIP, ob: home.kind === 'kit' ? home.ob : null });
+    const hms = homeRanges(), anyBox = [...plan.objs.values()].some(o => isBox(ITEMS[o.i]));
+    for (const ob of plan.objs.values()) { const it = ITEMS[ob.i]; if (!/smelting furnace$/i.test(it.n) && it.n !== 'Concrete mixer') continue; const sp = it.n === 'Concrete mixer' ? 'Crush' : 'Burn'; if (!hms.some(hm => { const R = hm.rect; return ob.x >= R.x && ob.y >= R.y && ob.x < R.x + R.w && ob.y < R.y + R.h && Math.abs(zOf(ob) - hm.base) <= AREA_R && hm.pks.some(p => (p.s || []).includes(sp)); })) out.push({ text: at(ob) + ' has nobody to run it', tip: 'It needs a ' + sp + ' Pokémon living nearby.', ob }); }
+    if (anyBox) for (const hm of hms) if (hm.kind !== 'habitat') { const wk = workers(hm); if (wk.length && !nearestBox(hm)) out.push({ text: listNames(wk.map(w => w.p.n)) + ' ' + (wk.length > 1 ? 'have' : 'has') + ' no community box in reach', tip: 'Processing Pokémon work from the community box nearest their home, which must sit wholly within 4 tiles of its dotted line.', ob: hm.ob || null }); }
+    const n = crowdCount(); if (n > 25) out.push({ text: n + ' Pokémon live in this area', tip: 'Only 25 show in one area at a time, and the others may stop producing. Pokémon asleep in kit houses at night don\'t count.' });
+  }
   PROBS = out;
 }
 function showProblemAt(ob) { closeModal(); if (!plan.objs.has(ob.id)) return; selection = { obj: ob }; mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); showObjInspector(ob); requestDraw(); }
@@ -2108,6 +2176,7 @@ function mapOverlay3d(o) {
   if (sel && sel.obj && plan.objs.has(sel.obj.id) && isBox(ITEMS[sel.obj.i])) for (const x of boxReport(sel.obj)) o.ring(x.Z.x, x.Z.y, x.Z.w, x.Z.h, x.n === x.all ? theme.good : theme.warn, 0.9, 0.1);
   const reach3d = (R, strong) => { for (const k of R.cells) o.cell(k % plan.w, (k / plan.w) | 0, R.col, strong ? 0.3 : 0.14); if (R.watch) for (const k of R.watch) o.cell(k % plan.w, (k / plan.w) | 0, R.col, 0.55); if (R.box && strong) o.box(R.box.x, R.box.y, R.box.w, R.box.h, R.box.z0, R.box.z1 - R.box.z0 + 1, R.col, 0.07); };
   if (FIELDS && FIELDS.any && showWater) for (const f of FIELDS.cells.values()) o.cell(f.x, f.y, FIELD_COL[f.state], f.state === 'wet' ? 0.4 : 0.55);
+  for (const { home } of dropsShown()) for (const t of litterTiles(home)) o.cell(t.x, t.y, t.ok ? REACH_COL.berry : theme.bad, t.ok ? 0.38 : 0.25);
   if (pourPrev) { const pc = ITEMS[pourPrev.i].col || '#4aa2d6'; for (const e of pourPrev.cells) o.box(e.k % plan.w, (e.k / plan.w) | 0, 1, 1, e.z, 1, pc, e.f === FL_FALL ? 0.5 : 0.35); o.ring(pourPrev.x, pourPrev.y, 1, 1, A, 1, 0.12); }
   const selOb = sel && sel.obj && plan.objs.has(sel.obj.id) ? sel.obj : null;
   if (showReach) for (const ob of reachList()) if (ob !== selOb) { const R = reachOf(ob); if (R) reach3d(R, false); }
@@ -2864,6 +2933,7 @@ function draw(t, c = ctx) {
     }
   }
   drawFields(c, s);
+  drawDrops(c, s);
   drawPourPreview(c, s);
   drawReach(c, s);
   drawPower(c, s);
@@ -3160,6 +3230,7 @@ const SYS = [
   ['reach', 'Reach', 'How far sprinklers, Smooth Rocks, switches, sensors and power reach, and where berries fall. A selected one always shows it.', '', () => showReach, v => setShowReach(v)],
   ['water', 'Fields', 'Which fields are wet (blue), dry (orange), dried out by a Smooth Rock (brown) or can\'t be watered (red), and which sprinklers run (green dot) or have no water (red dot).', '', () => showWater, v => setShowWater(v)],
   ['signals', 'Switches and sensors', 'What each switch and sensor reaches, with a line to each door, light or machine it works. Red: it has no power. An orange dot: it reaches nothing, or a sensor can\'t see anything move.', '', () => showSignals, v => setShowSignals(v)],
+  ['drops', 'Litter drops', 'Where Litter Pokémon living in houses and kits drop their materials: pink tiles take drops, red-edged ones are blocked. A selected home always shows its own.', '', () => showDrops, v => setShowDrops(v)],
   ['power', 'Power', 'Which items have power, and how transmitters link to generators, to each other and to their items. A selected one always shows its network.', '', () => showPower, v => setShowPower(v)]
 ];
 function sysSync() { const b = $('#zsys'), m = $('#sysmenu'); if (b) b.setAttribute('aria-pressed', SYS.some(x => x[4]()) ? 'true' : 'false'); if (m) for (const e of m.querySelectorAll('.mi')) { const x = SYS.find(q => q[0] === e.dataset.k); if (x) e.setAttribute('aria-checked', x[4]() ? 'true' : 'false'); } }
@@ -3689,6 +3760,7 @@ function showObjInspector(ob) {
   powerSection(ob, box);
   fieldSection(ob, box);
   signalSection(ob, box);
+  for (const el of machineLines(ob)) box.append(el);
   if (it.cap) { box.append(residentsSection(kitHome(ob))); box.append(boxLine('kit:' + ob.id)); }
   if (isBox(it)) boxInspector(ob, box);
   const groups = GROUP_OF.get(it.i) || [];
@@ -4203,6 +4275,7 @@ function selectZone(z) {
     else if (!r.target && r.near) { box.append(h('div', { class: 'note' }, 'Closest: ' + r.near.hb.n)); box.append(rows(r.near.r)); }
     if (r.matches.length > 1) box.append(h('div', { class: 'note hrow' }, 'Also fits: ' + r.matches.slice(1, 5).map(m => m.hb.n).join(', '), tipBtn('The game forms one habitat per cluster.')));
     const hh = habitatHome(z); if (hh && hh.pks.some(p => p.ideal)) box.append(envSection(hh));
+    if (r.ok) for (const el of workLines('zone:' + z.id, { kind: 'habitat' })) box.append(el);
   } else if (z.kind === 'house') {
     const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓' : '✗') + t);
     box.append(h('div', { class: 'reqs' }, ck(r.sizeOk, 'Size', 'Inside 2×2 to 9×10'), ck(r.walls > 0, 'Walls', 'Walls or fences'), ck(r.door, 'Door', 'A door or gate'), ck(r.furn >= 3, 'required (' + r.furn + '/3)', 'Furniture pieces: a house needs 3')));
