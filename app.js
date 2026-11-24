@@ -185,6 +185,7 @@ function buildIndex(d) {
 }
 
 let plan = null;
+const PMAX = 400;
 let plansIndex = [];
 const LSK = 'pokopia-planner:';
 
@@ -208,7 +209,7 @@ function serialize(p) {
     invs: JSON.stringify(p.inv || {}), res: JSON.stringify(p.res || []), rf: JSON.stringify(p.roofs || []), pool: JSON.stringify(p.pool || []), isz: JSON.stringify(p.isz || {}), wx: p.wx || null, hg: hgs.join('.'), src: JSON.stringify((p.src || []).map(q => [q.x, q.y, q.z, ITEMS[q.i].n, q.low ? 1 : 0, q.cells.map(c => c.toString(36)).join('.')])), updated: p.updated || Date.now() };
 }
 function deserialize(s) {
-  const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= 256 && h <= 256)) throw new Error('Bad plan size');
+  const w = s.w | 0, h = s.h | 0; if (!(w > 0 && h > 0 && w <= PMAX && h <= PMAX)) throw new Error('Bad plan size');
   const p = newPlan({ name: s.name, area: s.area, w, h }); p.id = s.id || uid(); p.updated = s.updated || Date.now(); p.wx = s.wx === 'rain' || s.wx === 'sun' ? s.wx : null; try { p.inv = s.invs ? JSON.parse(s.invs) : (s.inv || {}); } catch (e) { p.inv = {}; } try { p.res = s.res ? JSON.parse(s.res) : []; } catch (e) { p.res = []; } try { p.roofs = s.rf ? JSON.parse(s.rf) : []; } catch (e) { p.roofs = []; } try { p.pool = s.pool ? JSON.parse(s.pool) : []; } catch (e) { p.pool = []; } try { p.isz = s.isz ? JSON.parse(s.isz) : {}; } catch (e) { p.isz = {}; }
   const map = (s.dict || []).map(n => BY_NAME.get(n)), v2 = Array.isArray(s.g);
   const unpack = (str, T) => { const g = unrle(str, w * h, Uint16Array); for (let k = 0; k < g.length; k++) { const it = g[k] ? map[g[k] - 1] : null; T[k] = it ? it.i + 1 : 0; } };
@@ -2132,6 +2133,7 @@ function showProblems() {
 const cv = $('#map'); const ctx = cv.getContext('2d');
 const view = { zoom: 1, px: 40, py: 60, cs: 26 };
 let dpr = 1, W = 0, H = 0, needDraw = true;
+const zMin = () => plan ? Math.min(0.15, 0.8 * Math.min((W || 400) / (plan.w * view.cs), (H || 400) / (plan.h * view.cs))) : 0.15;
 let theme = {};
 function readTheme() { const cs = getComputedStyle(document.documentElement); for (const k of ['map-bg', 'map-empty', 'map-grid', 'map-chunk', 'accent', 'accent-soft', 'good', 'warn', 'bad', 'ink', 'panel', 'line', 'muted']) theme[k] = cs.getPropertyValue('--' + k).trim(); const m = document.querySelector('meta[name="theme-color"]'), pc = cs.getPropertyValue('--paper').trim(); if (m && pc) m.setAttribute('content', pc); requestDraw(); }
 function resize() { const r = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2); W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); requestDraw(); }
@@ -2161,7 +2163,7 @@ const map2d = {
   zoomGoal: () => glide && glideTo ? glideTo.zoom : view.zoom,
   zoomAt(z, sx, sy, smooth) { if (smooth) { glideView({ zoom: z }, [sx, sy], 200); return; } stopGlide(); const k = z / view.zoom; view.px = sx - (sx - view.px) * k; view.py = sy - (sy - view.py) * k; view.zoom = z; requestDraw(); updateStatus(); },
   centerOn(cx, cy, zoom) { const z = zoom || view.zoom, s = view.cs * z; glideView({ zoom: z, px: W / 2 - cx * s, py: H * (innerWidth < 900 ? 0.3 : 0.5) - cy * s }); },
-  fit(smooth) { if (!plan) return; const pad = 24; const sheet = innerWidth < 900 ? sheetStops().peek : 0; const avH = H - sheet - 24; const z = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / (plan.w * view.cs), (avH - 56) / (plan.h * view.cs)), 0.15, 3); const s = view.cs * z; const ob = ($('#optbar').getBoundingClientRect().height || 36) + 18; const to = { zoom: z, px: (W - plan.w * s) / 2, py: ob + Math.max(0, (avH - ob - plan.h * s) / 3) }; if (smooth) { glideView(to); return; } stopGlide(); Object.assign(view, to); requestDraw(); updateStatus(); },
+  fit(smooth) { if (!plan) return; const pad = 24; const sheet = innerWidth < 900 ? sheetStops().peek : 0; const avH = H - sheet - 24; const z = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / (plan.w * view.cs), (avH - 56) / (plan.h * view.cs)), zMin(), 3); const s = view.cs * z; const ob = ($('#optbar').getBoundingClientRect().height || 36) + 18; const to = { zoom: z, px: (W - plan.w * s) / 2, py: ob + Math.max(0, (avH - ob - plan.h * s) / 3) }; if (smooth) { glideView(to); return; } stopGlide(); Object.assign(view, to); requestDraw(); updateStatus(); },
   stop: stopGlide,
   touched() { },
   loaded() { },
@@ -3191,7 +3193,7 @@ function onMove(e) {
   if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
   if (pinch && pointers.size >= 2) {
     const [a, b] = [...pointers.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    mapView.setCam(pinch.cam); mapView.panBy(mx - pinch.cx, my - pinch.cy); mapView.zoomAt(clamp(pinch.cam.zoom * d / pinch.d, 0.15, 5), mx, my);
+    mapView.setCam(pinch.cam); mapView.panBy(mx - pinch.cx, my - pinch.cy); mapView.zoomAt(clamp(pinch.cam.zoom * d / pinch.d, zMin(), 5), mx, my);
     if (mapView.twist) mapView.twist(((Math.atan2(b.y - a.y, b.x - a.x) - pinch.a) * 180 / Math.PI + 540) % 360 - 180, mx, my); return;
   }
   const [cx, cy] = drag && drag.kind !== 'pan' && drag.kind !== 'orbit' ? mapView.dragPick(e.offsetX, e.offsetY) : mapView.pick(e.offsetX, e.offsetY);
@@ -3263,11 +3265,11 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('dblclick', e => { if (!plan) return; const [x, y] = mapView.pick(e.offsetX, e.offsetY); if (!inB(plan, x, y)) return; const ob = shownStack(y * plan.w + x).find(q => q && ITEMS[q.i].cap); if (ob && ['select', 'pan'].includes(tool)) interiorEditor(ob); });
 cv.addEventListener('wheel', e => {
   e.preventDefault(); mapView.stop();
-  if (e.ctrlKey || e.metaKey || (S.wheel === 'zoom' && Math.abs(e.deltaY) > 0 && !e.shiftKey && Math.abs(e.deltaX) < 1)) { const z = clamp(mapView.zoom() * Math.exp(-e.deltaY * (e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaY) < 50 ? 0.01 : 0.0015)), 0.15, 5); mapView.zoomAt(z, e.offsetX, e.offsetY); }
+  if (e.ctrlKey || e.metaKey || (S.wheel === 'zoom' && Math.abs(e.deltaY) > 0 && !e.shiftKey && Math.abs(e.deltaX) < 1)) { const z = clamp(mapView.zoom() * Math.exp(-e.deltaY * (e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaY) < 50 ? 0.01 : 0.0015)), zMin(), 5); mapView.zoomAt(z, e.offsetX, e.offsetY); }
   else mapView.panBy(-e.deltaX, -e.deltaY);
 }, { passive: false });
-$('#zin').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() * 1.3, 0.15, 5), W / 2, H / 2, true);
-$('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, 0.15, 5), W / 2, H / 2, true);
+$('#zin').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() * 1.3, zMin(), 5), W / 2, H / 2, true);
+$('#zout').onclick = () => mapView.zoomAt(clamp(mapView.zoomGoal() / 1.3, zMin(), 5), W / 2, H / 2, true);
 $('#zfit').onclick = () => mapView.fit(true);
 $('#zturn').onclick = (e) => turn3d(e.shiftKey ? -1 : 1);
 $('#ztilt').onclick = () => viewOpen();
@@ -5074,6 +5076,8 @@ function renderPlans() {
     downloads ? h('button', { class: 'btn sm', 'data-tip': 'Save as image', onclick: exportPNG }, icon('down'), 'Image') : '',
     downloads ? h('button', { class: 'btn sm', 'data-tip': 'Export plan file', onclick: exportJSON }, icon('down'), 'Export') : h('button', { class: 'btn sm', onclick: () => copyText(JSON.stringify(serialize(plan))) }, icon('copy'), 'Copy plan data'),
     h('label', { class: 'btn sm', for: 'importFile', 'data-tip': 'Import plan file' }, icon('up'), 'Import'), h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON })));
+  root.append(h('h4', { class: 'hrow' }, 'Game towns', tipBtn(TOWN_TIP)));
+  root.append(h('div', { class: 'card' }, h('p', { class: 'note', style: 'margin:0 0 6px' }, 'Start a new plan from a town as the game lays it out.'), townButtons()));
   root.append(syncCard());
   root.append(h('p', { class: 'note hrow', style: 'margin:4px 0' }, ...storageNote()));
   root.append(h('p', { class: 'note picline', style: 'margin:4px 0' })); picUI();
@@ -5087,6 +5091,7 @@ function renderPlans() {
   root.append(h('h4', { class: 'hrow' }, 'How it works', h('span', { class: 'note' }, 'tap a topic')));
   root.append(h('div', { class: 'reqs' }, [
     ['Painting', 'Paint terrain and plants with Place; drag Fill for big areas. Liquids (Water, Ocean, Muddy, Hot-spring, Lava, Waterfall) count toward habitat needs. With a liquid picked, Pour drops a source that flows as in the game; tap the tile again to pour it.'],
+    ['Game towns', 'Plans → Game towns, or New plan → Start from, opens one of the five story towns at full size as the game\'s map lays it out, with the Pokémon Center and your house in place. Each opens as a new plan, so the town is always there to start again from.'],
     ['Zones', 'Draw a Zone around a cluster. It checks the cluster against all ' + HAB.length + ' habitats and turns green when one forms.'],
     ['Terrain levels', 'Every block has a level, terrain too. Terrain starts at level 0, so things on the ground are on level 1. Place terrain to stack a block on top and build hills; Paint swaps the top block instead. Erase takes the top block off, so you can dig down. A 2-level rise inside a zone counts as a "High-up location".'],
     ['Stacking', 'Everything you place goes on top of the highest block at that spot, kit houses too. Blocks, walls and terrain can go on top of items; items never go on top of other items, only on terrain or a block. Items have a height: most take 1 level, tall ones such as a refrigerator take 2, and rugs take none, so furniture stands on them. Heights are guesses until you set them with Resize.'],
@@ -5116,19 +5121,22 @@ function renderPlans() {
 }
 function newPlanDialog() {
   modal('New plan', (box) => {
+    const from = h('select', { id: 'npFrom' }, h('option', { value: '' }, 'Empty grid'), TOWNS.map(([f, n, w]) => h('option', { value: f }, n + ' as in the game (' + w + '×' + w + ')')));
+    box.append(h('div', { class: 'field' }, h('label', { for: 'npFrom', class: 'hrow' }, 'Start from', tipBtn(TOWN_TIP)), from));
     box.append(h('div', { class: 'field' }, h('label', { for: 'npName' }, 'Name'), h('input', { id: 'npName', value: 'My ' + (plan ? plan.area : 'Withered Wasteland') + ' plan' })));
     box.append(h('div', { class: 'field' }, h('label', { for: 'npArea' }, 'Area'), h('select', { id: 'npArea' }, DATA.areas.map(a => h('option', { value: a.n, selected: plan && plan.area === a.n }, a.n)))));
-    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'npW' }, 'Width (tiles)'), h('input', { id: 'npW', type: 'number', min: 8, max: 192, value: 64 })), h('div', { class: 'field' }, h('label', { for: 'npH' }, 'Depth (tiles)'), h('input', { id: 'npH', type: 'number', min: 8, max: 192, value: 48 }))));
+    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'npW' }, 'Width (tiles)'), h('input', { id: 'npW', type: 'number', min: 8, max: PMAX, value: 64 })), h('div', { class: 'field' }, h('label', { for: 'npH' }, 'Depth (tiles)'), h('input', { id: 'npH', type: 'number', min: 8, max: PMAX, value: 48 }))));
     const tSel = h('select', { id: 'npFill' }, h('option', { value: '' }, 'Empty grid'), ITEMS.filter(i => i.c === 'Terrain').map(i => h('option', { value: i.n, selected: i.n === 'Ordinary soil' }, i.n)));
     box.append(h('div', { class: 'field' }, h('label', { for: 'npFill' }, 'Start with ground'), tSel));
-  }, 'Create', () => { const w = clamp(+$('#npW').value | 0, 8, 192), hh = clamp(+$('#npH').value | 0, 8, 192); const p = newPlan({ name: $('#npName').value.trim() || 'New plan', area: $('#npArea').value, w, h: hh, fill: $('#npFill').value }); installPlan(p); persistNow(); toast('Created ' + p.name); });
+    from.onchange = () => { const t = TOWNS.find(q => q[0] === from.value); for (const id of ['npW', 'npH', 'npFill', 'npArea']) $('#' + id).disabled = !!t; if (t) { $('#npArea').value = t[1]; $('#npW').value = t[2]; $('#npH').value = t[2]; $('#npName').value = t[1]; } };
+  }, 'Create', () => { if ($('#npFrom').value) { openTown($('#npFrom').value, $('#npName').value); return; } const w = clamp(+$('#npW').value | 0, 8, PMAX), hh = clamp(+$('#npH').value | 0, 8, PMAX); const p = newPlan({ name: $('#npName').value.trim() || 'New plan', area: $('#npArea').value, w, h: hh, fill: $('#npFill').value }); installPlan(p); persistNow(); toast('Created ' + p.name); });
 }
 function resizePlanDialog() {
   modal('Resize plan', (box) => {
     box.append(h('p', { class: 'sub' }, 'Grows or crops at the bottom-right; items outside are removed.'));
-    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rzW' }, 'Width'), h('input', { id: 'rzW', type: 'number', min: 8, max: 192, value: plan.w })), h('div', { class: 'field' }, h('label', { for: 'rzH' }, 'Depth'), h('input', { id: 'rzH', type: 'number', min: 8, max: 192, value: plan.h }))));
+    box.append(h('div', { class: 'grid2' }, h('div', { class: 'field' }, h('label', { for: 'rzW' }, 'Width'), h('input', { id: 'rzW', type: 'number', min: 8, max: PMAX, value: plan.w })), h('div', { class: 'field' }, h('label', { for: 'rzH' }, 'Depth'), h('input', { id: 'rzH', type: 'number', min: 8, max: PMAX, value: plan.h }))));
   }, 'Resize', () => {
-    const w = clamp(+$('#rzW').value | 0, 8, 192), hh = clamp(+$('#rzH').value | 0, 8, 192);
+    const w = clamp(+$('#rzW').value | 0, 8, PMAX), hh = clamp(+$('#rzH').value | 0, 8, PMAX);
     const s = serialize(plan); const old = deserialize(s); const p = newPlan({ name: plan.name, area: plan.area, w, h: hh }); p.id = plan.id; p.inv = plan.inv; p.isz = old.isz;
     for (let j = 0; j < old.tz.length; j++) { const z = old.tz[j], T = old.tt[j], D = tLayer(p, z); for (let y = 0; y < Math.min(hh, old.h); y++) for (let x = 0; x < Math.min(w, old.w); x++) D[y * w + x] = T[y * old.w + x]; }
     for (const ob of old.objs.values()) if (ob.x + ob.w <= w && ob.y + ob.h <= hh) { const n = { ...ob, id: p.nextId++ }; p.objs.set(n.id, n); stampOcc(p, n, n.id); }
@@ -5138,6 +5146,18 @@ function resizePlanDialog() {
     installPlan(p); markDirty(); toast('Resized to ' + w + ' × ' + hh);
   });
 }
+const TOWNS = [['withered-wasteland', 'Withered Wasteland', 240], ['bleak-beach', 'Bleak Beach', 272], ['rocky-ridges', 'Rocky Ridges', 272], ['sparkling-skylands', 'Sparkling Skylands', 352], ['palette-town', 'Palette Town', 384]];
+const TOWN_TIP = 'The five story towns at full size, laid out as the game\'s own map shows them: sea, coast, grass, sand, paths, rock and buildings, with the Pokémon Center and your house where the game has them, and the trees the map marks. The game\'s map draws every 8×8 tiles as one square, so edges are square and small details are missing. Heights are a guide: the map doesn\'t show them. Each one opens as a new plan, and the town itself stays here, so you can start again from it at any time.';
+async function openTown(file, name) {
+  const t = TOWNS.find(q => q[0] === file); if (!t) return;
+  let s; try { const r = await fetch('towns/' + file + '.json'); if (!r.ok) throw new Error(r.status); s = await r.json(); } catch (e) { toast('Couldn\'t load ' + t[1] + '. Try again when you\'re online.'); return; }
+  let nm = (name || '').trim(); if (!nm) { const used = new Set(plansIndex.map(q => q.name)); nm = t[1]; for (let k = 2; used.has(nm); k++) nm = t[1] + ' ' + k; }
+  s.id = uid(); s.name = nm; s.updated = Date.now();
+  let p; try { p = deserialize(s); } catch (e) { toast('That town could not be opened'); return; }
+  for (const z of p.zones) z.id = uid();
+  if (dirty) persistNow(); installPlan(p); persistNow(); toast('New plan of ' + t[1] + ' · ' + p.w + '×' + p.h + ' tiles');
+}
+function townButtons() { return h('div', { class: 'acts' }, TOWNS.map(([f, n, w]) => h('button', { class: 'btn sm', 'data-tip': 'New plan of ' + n + ', ' + w + '×' + w + ' tiles', onclick: () => openTown(f) }, icon('map'), n))); }
 function duplicatePlan() { const s = serialize(plan); s.id = uid(); s.name = plan.name + ' (copy)'; s.updated = Date.now(); const p = deserialize(s); installPlan(p); persistNow(); toast('Duplicated'); }
 function deletePlanDialog(id) {
   const meta = plansIndex.find(p => p.id === id); if (!meta) return;
