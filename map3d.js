@@ -1,7 +1,7 @@
 function make3d(canvas, onLost) {
   const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false });
   if (!gl) return null;
-  const CS = 32, PA = 52, PS = 10, TS = 32, NL = 160, ST = 44, DEPTH = 1000, TY = 1, ZMN = 0.15, ZMX = 5;
+  const CS = 32, PA = 52, PS = 10, TS = 32, NL = 160, ST = 44, DEPTH = 1000, TY = 1, ZMX = 5;
   const VS = `#version 300 es
 layout(location=0) in vec3 p;
 layout(location=1) in vec2 uv;
@@ -1087,7 +1087,7 @@ void main() {
   }
   function fitCam() {
     sync(); const c = copy(cam); c.yaw = snapYaw(c.yaw); const { B, u0, u1, v0, v1 } = bounds(c), pad = 24, sheet = innerWidth < 900 ? sheetStops().peek : 0, avH = H - sheet - 24;
-    c.zoom = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / ((u1 - u0) * view.cs), (avH - 56) / ((v1 - v0) * view.cs)), ZMN, 3);
+    c.zoom = clamp(Math.min((W - (innerWidth < 600 ? 16 : pad * 2)) / ((u1 - u0) * view.cs), (avH - 56) / ((v1 - v0) * view.cs)), zMin(), 3);
     const s = view.cs * c.zoom, ob = ($('#optbar').getBoundingClientRect().height || 36) + 18, topY = ob + Math.max(0, (avH - ob - (v1 - v0) * s) / 3);
     aim(c, B, (u0 + u1) / 2, v1 - (H / 2 - topY) / s); return c;
   }
@@ -1276,7 +1276,7 @@ void main() {
     fit(smooth) { if (!plan) return; const c = fitCam(); if (smooth) glideTo(c); else { stop(true); Object.assign(cam, c); requestDraw(); updateStatus(); } },
     touched,
     loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
-    enter(cx, cy, zoom, mode) { Object.assign(cam, { tx: cx, ty: TY, tz: cy, zoom: clamp(zoom, ZMN, ZMX), yaw: 0, pitch: pitchOf(mode) }); markAll(); requestDraw(); },
+    enter(cx, cy, zoom, mode) { Object.assign(cam, { tx: cx, ty: TY, tz: cy, zoom: clamp(zoom, zMin(), ZMX), yaw: 0, pitch: pitchOf(mode) }); markAll(); requestDraw(); },
     leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
     turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 45 * dir }, 260); },
     view(m) { m = clamp(m | 0, 0, 3); stop(true); const fr = copy(cam); glideTo({ ...fr, ty: TY, yaw: snapYaw(fr.yaw), pitch: pitchOf(m) }, 300); return m; },

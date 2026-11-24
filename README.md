@@ -8,6 +8,17 @@ The screen keeps to a few words. Most buttons are icons: hover over one, or long
 
 Notices appear at the bottom of the screen and stack: a new one slides in underneath and pushes the others up, so none hides another. Up to four show at once. Notices with a button, such as **Undo** or **Open it** for a new version, stay longest and are the last to make room, and pointing at one with the mouse keeps it open.
 
+## Game towns
+
+Plans → **Game towns** has the five story towns: Withered Wasteland, Bleak Beach, Rocky Ridges, Sparkling Skylands and Palette Town. Tap one to start a new plan from it, or pick it under **Start from** in **New plan**. Each opens as a new plan named after the town, so the town itself is always there to start again from, and **Duplicate** copies a plan you've already changed.
+
+- **Full size.** Withered Wasteland is 240×240 tiles, Bleak Beach and Rocky Ridges 272×272, Sparkling Skylands 352×352 and Palette Town 384×384. Plans can now be up to 400×400, and the map zooms out far enough to show a whole town.
+- **Laid out like the game's map.** Sea, lakes, coast, grass, sand, soil, paths, rock, cliffs and the paved, wooden and metal ground of the old buildings are where the game's own town map has them, in the town's materials. Places you can't go, and the sky around the Skylands, are left empty.
+- **What's placed.** The town's Pokémon Center kit stands where the game's Pokémon Center is, your house is marked with a label, and a tree stands at each tree the map shows. Bleak Beach marks the S.S. Anne, and Withered Wasteland and Palette Town mark the road between them.
+- **How exact it is.** The game's map draws every 8×8 tiles as one square, so coasts and edges come in steps of 8 and anything smaller isn't there. The map doesn't show heights: land is one level above the sea, and rock, mountains and cliffs are raised a few levels as a guide. Check the real ground in the game before you build on a spot.
+
+The towns are made by `tools/towns.py` from the game's town maps as published on Serebii.
+
 ## Settings
 
 The ⚙ button at the top right opens Settings; Plans has a Settings button too. Changes apply at once and are saved on this device only, so a phone and a PC can each be set up their own way. On a phone, Back closes Settings.
