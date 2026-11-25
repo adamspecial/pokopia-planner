@@ -275,7 +275,8 @@ function setHidden(key, hide) {
 }
 function showAllLayers() { if (!hidden.size) return; hidden.clear(); saveLayers(); layersChanged(); }
 function reveal(key) { if (!hidden.has(key)) return; setHidden(key, false); toast(lvName(key) + ' was hidden, so it\'s shown now'); }
-function setLayerZ(z) { if (z != null) z = clamp(Math.round(+z) || 0, ZMIN, ZMAX); if (z === layerZ) return; layerZ = z; layersChanged(); }
+function setLayerZ(z) { if (z != null) z = clamp(Math.round(+z) || 0, ZMIN, ZMAX); if (z != null && hidden.has(z)) reveal(z); if (z === layerZ) return; layerZ = z; layersChanged(); }
+function workOn(z) { setLayerZ(z); toMap(); }
 
 let tx = null; const undoStack = [], redoStack = [];
 function beginTx() { if (!tx) tx = { g: new Map(), add: [], del: [], z: null, in: null, r: null, f: null, s: null }; }
@@ -1300,7 +1301,7 @@ function iedSide() {
 }
 function iedItemRow(it, line) {
   const cost = it.m && it.m.length ? it.m.map(([m, k]) => k + ' ' + m).join(' · ') : (it.c === 'Special' ? 'Not crafted' : '');
-  return h('button', { class: 'row', 'data-item': it.i, 'aria-pressed': IED.item === it ? 'true' : 'false', style: 'align-items:flex-start', onclick: () => iedPick(it) }, swatchEl(it),
+  return h('button', { class: 'row', 'data-item': it.i, 'data-drag': 'item:' + it.n, 'aria-pressed': IED.item === it ? 'true' : 'false', style: 'align-items:flex-start', onclick: () => iedPick(it) }, swatchEl(it),
     h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, it.n, it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : ''), line ? h('div', { class: 'ds', style: 'white-space:normal;color:var(--ink)' }, line) : '', cost ? h('div', { class: 'ds', style: 'white-space:normal' }, cost) : ''));
 }
 const IED_CATS = ['Furniture', 'Misc', 'Utilities', 'Outdoor', 'Other', 'Special', 'Poster', 'Nature'];
@@ -2118,13 +2119,13 @@ function checkProblems() {
   }
   PROBS = out;
 }
-function showProblemAt(ob) { closeModal(); if (!plan.objs.has(ob.id)) return; selection = { obj: ob }; mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); showObjInspector(ob); requestDraw(); }
+function showProblemAt(ob) { closeModal(); if (!plan.objs.has(ob.id)) return; selection = { obj: ob }; mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); toMap(); showObjInspector(ob); requestDraw(); }
 function showProblems() {
   modal(PROBS.length === 1 ? '1 problem' : PROBS.length + ' problems', (box) => {
     const l = h('div', { class: 'list' });
     for (const p of PROBS) l.append(h('div', { class: 'row', style: 'cursor:default;align-items:flex-start' }, h('span', { class: 'req miss', style: 'flex:none' }, '!'), h('span', { class: 'meta' }, h('div', { class: 'nm', style: 'white-space:normal' }, p.text), h('div', { class: 'ds', style: 'white-space:normal' }, p.tip)), p.ob ? h('button', { class: 'btn sm', style: 'flex:none', onclick: () => showProblemAt(p.ob) }, 'Show') : ''));
     box.append(l);
-  }, 'See limits', () => { showTab('materials'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); });
+  }, 'See limits', () => { openTab('materials', 'half'); });
   const b = $('#modalBox .acts .btn'); if (b) b.textContent = 'Close';
 }
 
@@ -3100,11 +3101,19 @@ function currentItem() { return BY_NAME.get(curItem); }
 function brushFor() { if (tool === 'place') { const it = currentItem(); if (it && it.L !== 'g' && (it.w > 1 || it.h > 1)) return 1; return brush; } if (tool === 'erase') return brush; return 1; }
 function normRect(r) { const x = Math.min(r.x0, r.x1), y = Math.min(r.y0, r.y1); return { x, y, w: Math.abs(r.x1 - r.x0) + 1, h: Math.abs(r.y1 - r.y0) + 1 }; }
 function setTool(t) {
-  pourPrev = null;
+  pourPrev = null; const back = tool === 'move' && t !== 'move' ? moving : null;
   if (tool === 'stamp' && t !== 'stamp') stampHab = null; if (t !== 'move') moving = null;
   tool = t; $$('.tbtn[data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t ? 'true' : 'false'));
   if (!['select', 'pan', 'move', 'paste'].includes(t) && selection && selection.group) closeInspector();
-  renderOptbar(); requestDraw();
+  if (t === 'stamp' || t === 'paste' || t === 'move') toMap();
+  renderOptbar(); requestDraw(); if (back) moveBack(back);
+}
+function pickTool(t) { setTool(t); toMap(); const tab = t === 'place' || t === 'rect' ? 'build' : t === 'zone' ? 'habitats' : null; if (tab && activeTab !== tab) showTab(tab); }
+function startMove(m) { moving = m; $('#inspector').classList.remove('open'); setTool('move'); }
+function moveBack(m) {
+  if (m.grp) { const L = grpLive(m.grp); if (L.objs.length + L.rugs.length) grpSelect(m.grp); return; }
+  if (m.rug ? !plan.rugs.has(m.id) : !plan.objs.has(m.id)) return;
+  if (m.rug) showRugInspector(m); else { selection = { obj: m }; showObjInspector(m); }
 }
 function selectItem(name, switchTool = true) {
   pourPrev = null;
@@ -3168,9 +3177,10 @@ function onDown(e) {
   if (pointers.size > 2) return;
   const [cx, cy] = mapView.pick(e.offsetX, e.offsetY); hover = [cx, cy]; mapView.anchor(cx, cy); updateStatus();
   if (e.button === 2 && mapView.orbit) { drag = { kind: 'orbit', sx: e.offsetX, sy: e.offsetY, cam: mapView.cam() }; cv.style.cursor = 'grabbing'; return; }
-  if (tool === 'pan' || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, cam: mapView.cam(), cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
+  const own = e.button === 0 && !spaceDown && !downMod && !multiPick ? grabAt(cx, cy) : null;
+  if ((tool === 'pan' && !own) || e.button === 1 || spaceDown) { drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, cam: mapView.cam(), cx, cy, tap: tool === 'pan' && e.button === 0 && !spaceDown, moved: false }; cv.style.cursor = 'grabbing'; return; }
   if (e.button === 2) return;
-  const gob = grabAt(cx, cy);
+  const gob = tool === 'pan' ? own : grabAt(cx, cy);
   if (gob && gob.grp) { drag = { kind: 'grpmove', G: selection.group, F: grpFrame(selection.group), sn: null, P: null, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false }; return; }
   if (gob) { drag = { kind: 'objmove', ob: gob, gx: cx - gob.x, gy: cy - gob.y, cx, cy, sx: e.offsetX, sy: e.offsetY, moved: false, fit: null }; return; }
   if (e.pointerType === 'touch' && !drag) { drag = { kind: 'pending', cx, cy, sx: e.offsetX, sy: e.offsetY }; return; }
@@ -3240,7 +3250,7 @@ function onUp(e) {
   if (d.kind === 'objmove') {
     if (e.type === 'pointercancel') { requestDraw(); return; }
     if (d.moved) { if (d.fit) doMove(d.ob, d.fit); requestDraw(); return; }
-    if (tool === 'select' || downMod || multiPick) { pickTap(d.cx, d.cy); requestDraw(); return; }
+    if (tool === 'select' || tool === 'pan' || downMod || multiPick) { pickTap(d.cx, d.cy); requestDraw(); return; }
     startAction(d.cx, d.cy, d.sx, d.sy); const d2 = drag; drag = null; if (d2) finishDrag(d2); return;
   }
   finishDrag(d);
@@ -3286,18 +3296,29 @@ const SYS = [
   ['drops', 'Litter drops', 'Where Litter Pokémon living in houses and kits drop their materials: pink tiles take drops, red-edged ones are blocked. A selected home always shows its own.', '', () => showDrops, v => setShowDrops(v)],
   ['power', 'Power', 'Which items have power, and how transmitters link to generators, to each other and to their items. A selected one always shows its network.', '', () => showPower, v => setShowPower(v)]
 ];
+const SYS_NONE = {
+  areas: () => allHomes().length || plan.zones.length ? '' : 'No homes or zones yet, so there are no active areas to show',
+  reach: () => reachList().length ? '' : 'Nothing in this plan has a reach yet',
+  water: () => FIELDS && FIELDS.cells.size ? '' : 'No fields or crops in this plan yet',
+  signals: () => SIG && SIG.any ? '' : 'No switches or sensors in this plan yet',
+  drops: () => dropHomes().length ? '' : 'No Litter Pokémon live in a home yet',
+  power: () => POWER && POWER.any ? '' : 'No generators or powered items in this plan yet'
+};
 function sysSync() { const b = $('#zsys'), m = $('#sysmenu'); if (b) b.setAttribute('aria-pressed', SYS.some(x => x[4]()) ? 'true' : 'false'); if (m) for (const e of m.querySelectorAll('.mi')) { const x = SYS.find(q => q[0] === e.dataset.k); if (x) e.setAttribute('aria-checked', x[4]() ? 'true' : 'false'); } }
 function sysRender() {
   const m = $('#sysmenu'); m.textContent = '';
   m.append(h('div', { class: 'shd' }, 'Show on the map'));
-  for (const [k, name, ds, key, get, set] of SYS) m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemcheckbox', 'aria-checked': get() ? 'true' : 'false', 'data-k': k, 'data-tip': ds, onclick: () => set(!get()) }, h('span', { class: 'ck' }), h('span', null, h('span', { class: 'mt' }, name, key ? h('kbd', null, key) : ''), h('span', { class: 'md' }, ds))));
+  for (const [k, name, ds, key, get, set] of SYS) m.append(h('button', { class: 'mi', type: 'button', role: 'menuitemcheckbox', 'aria-checked': get() ? 'true' : 'false', 'data-k': k, 'data-tip': ds, onclick: () => { set(!get()); const why = get() && SYS_NONE[k](); if (why) toast(why, 3200, null, 'sysnone'); } }, h('span', { class: 'ck' }), h('span', null, h('span', { class: 'mt' }, name, key ? h('kbd', null, key) : ''), h('span', { class: 'md' }, ds))));
 }
 function sysOpen(open) { const m = $('#sysmenu'), b = $('#zsys'); if (open == null) open = m.hidden; if (open === !m.hidden) return; if (open) viewOpen(false); m.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { sysRender(); m.classList.remove('compact'); const room = b.getBoundingClientRect().bottom - $('#mapwrap').getBoundingClientRect().top - 12; if (m.offsetHeight > room) m.classList.add('compact'); const f = m.querySelector('.mi'); if (f) f.focus({ preventScroll: true }); } }
 function toggleAreas() { setShowAreas(!showAreas); toast(showAreas ? 'Active areas shown' : 'Active areas hidden'); }
 $('#zlayers').onclick = () => openLayers();
+$('#hdrPlan').onclick = () => openTab('plans');
+$('#hdrArea').onclick = () => openTab('plans');
+$('#saveChip').onclick = () => { openTab('plans'); setTimeout(() => { const c = $('#syncCard'); if (c) c.scrollIntoView({ block: 'nearest', behavior: calm() ? 'auto' : 'smooth' }); }, 80); };
 $('#zsys').onclick = () => sysOpen();
 addEventListener('pointerdown', e => { const m = $('#sysmenu'), v = $('#viewmenu'); if (m && !m.hidden && !m.parentNode.contains(e.target)) sysOpen(false); if (v && !v.hidden && !v.parentNode.contains(e.target)) viewOpen(false); }, true);
-$$('.tbtn[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+$$('.tbtn[data-tool]').forEach(b => b.onclick = () => pickTool(b.dataset.tool));
 $('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
 addEventListener('keydown', e => {
   if (setsOpen()) { if (e.key === 'Escape' && !$('#modal').classList.contains('open')) { e.preventDefault(); closeSettings(); } return; }
@@ -3319,7 +3340,7 @@ addEventListener('keydown', e => {
   if (ctl && kl === 'd' && G0) { e.preventDefault(); grpDup(G0); return; }
   if (e.key.startsWith('Arrow') && G0 && !ctl && !e.altKey) { e.preventDefault(); const st = e.shiftKey ? 5 : 1; grpRun(G0, { dx: e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy: e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0 }); return; }
   const map = { h: 'pan', b: 'place', r: 'rect', e: 'erase', v: 'select', z: 'zone', i: 'pick' };
-  if (map[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) setTool(map[e.key.toLowerCase()]);
+  if (map[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) pickTool(map[e.key.toLowerCase()]);
   if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey) toggleAreas();
   if (kl === 's' && !ctl && !e.altKey) sysOpen();
   if (e.key.toLowerCase() === 'l' && !e.ctrlKey && !e.metaKey) openLayers();
@@ -3710,7 +3731,7 @@ function renderOptbar() {
   const it = currentItem();
   if (tool === 'place' || tool === 'rect') {
     if (it) {
-      const p = h('span', { class: 'pill' }, swatchEl(it), h('b', null, it.n));
+      const p = h('span', { class: 'pill' }, h('button', { class: 'pillbtn', type: 'button', 'data-drag': 'item:' + it.n, 'data-tip': 'Change what you place, or drag it onto the map', 'aria-label': 'Change what you place: ' + it.n, onclick: openBuild }, swatchEl(it), h('b', null, it.n)));
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
       if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', 'data-tip': sizeGuessed(it) || heightGuessed(it) ? 'Guessed ' + (sizeGuessed(it) && heightGuessed(it) ? 'size and height' : sizeGuessed(it) ? 'size' : 'height') + ': change it if yours differs in game' : tall(it) ? 'Size in tiles, and the levels it takes up' : 'Size in tiles' }, (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? '?' : '') + (tall(it) && (heightOf(it) > 1 || heightGuessed(it)) ? ' · ' + heightOf(it) + ' high' + (heightGuessed(it) ? '?' : '') : ''), turnable(it) || ft[0] !== ft[1] ? ibtn('rotate', 'Turn (Q)', () => turnPlace(1), 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'))); }
@@ -3723,8 +3744,8 @@ function renderOptbar() {
         if (pourMode === 'pour' && pourPrev) { const P = pourPrev; ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'About ' + P.cells.length + ' tile' + (P.cells.length === 1 ? '' : 's') + (P.falls ? ', ' + P.falls + ' falling' : '') + (P.capped ? ' (stopped at 5,000)' : '')), tipBtn('Where it should reach. The game also depends on the order you dug and filled things, so the edge can be a tile off.' + (P.lavaWater.length ? ' It touches ' + (it.n === 'Lava' ? 'water' : 'lava') + ' at ' + P.lavaWater[0].join(', ') + ': Water Gun turns lava into black rock you can walk on.' : '')), h('button', { class: 'btn sm primary', onclick: pourCommit }, 'Pour'), h('button', { class: 'btn sm', onclick: pourCancel }, 'Cancel'))); }
       }
       if (leveled(it)) ob.append(levelPill(it));
-    } else ob.append(h('span', { class: 'pill' }, 'Pick an item'));
-    if (recent.length > 1) { const r = h('span', { class: 'pill' }, lblIcon('clock', 'Recently used')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
+    } else ob.append(h('span', { class: 'pill' }, h('button', { class: 'pillbtn', type: 'button', onclick: openBuild }, 'Pick an item')));
+    if (recent.length > 1) { const r = h('span', { class: 'pill' }, lblIcon('clock', 'Recently used')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'data-drag': 'item:' + n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
   } else if (tool === 'erase') {
     ob.append(h('span', { class: 'pill' }, segmented([['both', 'Both'], ['objects', 'Items'], ['ground', 'Terrain']], eraseMode, v => { eraseMode = v; renderOptbar(); }, 'Erase mode'), tipBtn('Both: whatever is on top first, item, rug or terrain block. Items leaves the terrain. Terrain takes the top terrain block. Hidden layers are never erased.')));
     ob.append(h('span', { class: 'pill' }, lblIcon('layers', 'Level to erase from'), levelSelect('Level to erase from'), tipBtn(layerZ != null ? 'Only what\'s on level ' + lvNum(layerZ) + ' is erased, and everything above it fades out so you can reach it. Choose On top to go back.' : 'On top: erase takes whatever is on top first. Choose a level to erase only from it, even under the ground.')));
@@ -3735,7 +3756,7 @@ function renderOptbar() {
     ob.append(h('span', { class: 'pill' }, tipBtn((multiPick ? 'Tap items to add them or take them away, or drag to add an area. ' : '') + 'Drag an item to move it. Drag from an empty square to select an area, then drag any of it to move it all. Tap a selected item or rug again to select what\'s under it. Pick several, or Shift with the mouse, adds items and areas to the selection.'), pickBtn()));
     ob.append(layerChip());
   } else if (tool === 'pick') ob.append(h('span', { class: 'pill' }, tipBtn('Tap an item on the map to pick it up as the thing to place.')));
-  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, tipBtn((multiPick ? 'Tap items to add them or take them away. ' : '') + 'Drag to move around the map; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside. Pick several lets you tap more items into the selection.'), pickBtn()));
+  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, tipBtn((multiPick ? 'Tap items to add them or take them away. ' : '') + 'Drag to move around the map, or drag the selected item to move it; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside. Pick several lets you tap more items into the selection.'), pickBtn()), layerChip());
   else if (tool === 'stamp' && stampHab) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap the map to place'), h('b', null, stampHab.n), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
   else if (tool === 'paste' && clip) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to paste ' + clip.w + '×' + clip.h), tipBtn('Where you tap is its top-left corner. Red means something is in the way. Q turns it and F flips it.'), ibtn('rotate', 'Turn (Q)', () => clipTurn('cw'), 'sm'), ibtn('fliph', 'Flip (F)', () => clipTurn('fx'), 'sm'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Done')));
   else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, moving.grp ? 'Tap where they should go' : 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
@@ -3769,15 +3790,24 @@ function tapSelect(x, y) {
   if (!stack.length) { selection = null; closeInspector(); return; }
   const now = selection ? stack.findIndex(q => q.obj ? selection.obj && selection.obj.id === q.obj.id : q.rug ? selection.rug && selection.rug.id === q.rug.id : q.flow ? selection.flow && selection.flow.id === q.flow.id : q.zone ? selection.zone === q.zone : selection.house === q.house.id) : -1;
   const p = stack[now < 0 ? 0 : stack[now].obj && !(stack[now + 1] && (stack[now + 1].obj || stack[now + 1].rug)) ? now : (now + 1) % stack.length];
-  if (p.obj) { selection = { obj: p.obj }; showObjInspector(p.obj); } else if (p.rug) showRugInspector(p.rug); else if (p.flow) showFlowInspector(p.flow); else if (p.zone) selectZone(p.zone); else selectHouse(p.house);
+  if (p.obj) { selection = { obj: p.obj }; showObjInspector(p.obj); keepClear(p.obj); } else if (p.rug) { showRugInspector(p.rug); keepClear(p.rug); } else if (p.flow) showFlowInspector(p.flow); else if (p.zone) selectZone(p.zone); else selectHouse(p.house);
+}
+function keepClear(ob) {
+  const ins = $('#inspector'); if (!ob || !ins.classList.contains('open') || ins.classList.contains('min')) return;
+  const mw = $('#mapwrap').getBoundingClientRect(), r = ins.getBoundingClientRect(), pad = 20, z = zOf(ob) + 0.5, s = cellSize();
+  const [cx, cy] = in3d() && view3d.project ? view3d.project(ob.x + ob.w / 2, z, ob.y + ob.h / 2) : [view.px + (ob.x + ob.w / 2) * s, view.py + (ob.y + ob.h / 2) * s], x = mw.left + cx, y = mw.top + cy;
+  if (x < r.left - pad || x > r.right + pad || y < r.top - pad || y > r.bottom + pad) return;
+  const dx = r.right + pad * 2 - x, dy = r.top - pad * 2 - y, okX = x + dx < mw.right - 56, okY = y + dy > mw.top + 56;
+  if (okX && (!okY || dx <= -dy)) mapView.panBy(dx, 0); else if (okY) mapView.panBy(0, dy); else return;
+  updateStatus();
 }
 function showRugInspector(r) {
   const it = ITEMS[r.i]; selection = { rug: r };
   const box = inspectorShell(it.n, swatchEl(it), 'Rug · ' + r.w + '×' + r.h + (zOf(r) !== rugLevel(plan, r.x, r.y, r.w, r.h) ? ' · level ' + lvNum(zOf(r)) : ''), 'Rugs lie flat: furniture stands on them. Drag it to move it. Tap again to select what\'s under it.');
   box.append(recipeChips(it));
   const acts = box.acts;
-  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n, 2400, null, 'placing'); }));
-  acts.append(ibtn('move', 'Move', () => { moving = r; setTool('move'); }), ibtn('multi', 'Pick several', pickMore));
+  acts.append(ibtn('copy', 'Place more', () => { closeInspector(); selectItem(it.n); toMap(); toast('Placing ' + it.n, 2400, null, 'placing'); }));
+  acts.append(ibtn('move', 'Move', () => startMove(r)), ibtn('multi', 'Pick several', pickMore));
   acts.append(ibtn('up', 'Up a level', () => shiftRug(r, 1), '', { disabled: zOf(r) >= ZMAX }), ibtn('down', 'Down a level', () => shiftRug(r, -1), '', { disabled: zOf(r) <= ZMIN }));
   if (r.w !== r.h) acts.append(ibtn('rotate', 'Rotate', () => { const b = rugBlocker(r, r.x, r.y, r.h, r.w); if (b) { toast(whyNot(b, r.h, r.w, it).replace('No room here', 'Can\'t turn it')); return; } delRug(r); const n = addRug(r.i, r.x, r.y, r.h, r.w, zOf(r)); commitTx('Rotate'); showRugInspector(n); }));
   acts.append(ibtn('info', 'About', () => showItemInfo(it)));
@@ -3840,8 +3870,8 @@ function showObjInspector(ob) {
   }
   const acts = box.acts;
   if (it.cap) { acts.append(ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'primary')); const hm = kitHome(ob); if (residentsOf(hm).length < hm.cap) acts.append(ibtn('useradd', 'Add resident', () => residentPicker(hm))); }
-  acts.append(ibtn('copy', 'Place more', () => { selectItem(it.n); toast('Placing ' + it.n, 2400, null, 'placing'); }));
-  acts.append(ibtn('move', 'Move', () => { moving = ob; setTool('move'); }), ibtn('multi', 'Pick several', pickMore));
+  acts.append(ibtn('copy', 'Place more', () => { closeInspector(); selectItem(it.n); toMap(); toast('Placing ' + it.n, 2400, null, 'placing'); }));
+  acts.append(ibtn('move', 'Move', () => startMove(ob)), ibtn('multi', 'Pick several', pickMore));
   if (it.c !== 'Kits') acts.append(ibtn('up', 'Up a level', () => shiftLevel(ob, 1), '', { disabled: z >= ZMAX }), ibtn('down', 'Down a level', () => shiftLevel(ob, -1), '', { disabled: z <= ZMIN }));
   if (turnable(it)) acts.append(ibtn('rotl', 'Turn left (Shift+Q)', () => turnObj(ob, -1)), ibtn('rotate', 'Turn right (Q)', () => turnObj(ob, 1)));
   acts.append(ibtn('resize', 'Resize', () => resizeObjDialog(ob)));
@@ -3949,8 +3979,8 @@ function itemSizeDialog(it) {
   }, 'Save size', () => { const all = placed ? $('#isAll').checked : false; let ex = ''; if (tall(it)) { const t = clamp(+$('#isT').value | 0, 1, HMAX); if (t !== heightOf(it) || heightGuessed(it)) ex = setItemHeight(it, t, all, true); } setItemSize(it, clamp(+$('#isW').value | 0, 1, 30), clamp(+$('#isH').value | 0, 1, 30), all, null, ex); }, false, 'Applies to every ' + it.n + ' in all your plans, on the map and inside kit houses.');
 }
 function grabAt(x, y) {
-  if (!plan || !inB(plan, x, y) || tool === 'pan') return null;
-  if (tool === 'select' && selection && selection.group && grpAt(selection.group, x, y)) return Object.assign({ grp: true }, grpFrame(selection.group));
+  if (!plan || !inB(plan, x, y)) return null;
+  if ((tool === 'select' || tool === 'pan') && selection && selection.group && grpAt(selection.group, x, y)) return Object.assign({ grp: true }, grpFrame(selection.group));
   const k = y * plan.w + x, pile = shownStack(k), mine = selection && selection.obj && pile.find(q => q.id === selection.obj.id);
   if (mine) return mine;
   if (selection && selection.rug && rugShown(selection.rug) && plan.rugs.has(selection.rug.id) && overlaps(selection.rug, x, y, 1, 1)) return selection.rug;
@@ -4216,7 +4246,7 @@ function grpDup(G) {
 function grpCopy(G) { const F = grpFrame(G); if (!F) return; clip = grpSnap(G, F); selection = null; closeInspector(); setTool('paste'); toast('Copied. Tap the map to paste'); }
 function clipTurn(op) { if (!clip) return; clip = snapTurn(clip, op); renderOptbar(); requestDraw(); }
 function pasteAt(x0, y0) { const P = snapPlan(clip, x0, y0, false); if (P.err) { toast(grpWhy(P, 'Paste')); return; } const r = snapApply(clip, P, false); commitTx('Paste'); if (r.miss) toast(r.miss + ' item' + (r.miss > 1 ? 's' : '') + ' didn\'t fit'); }
-function grpMoveTool(G) { const F = grpFrame(G); if (!F) return; moving = { grp: G, F, sn: grpSnap(G, F) }; setTool('move'); }
+function grpMoveTool(G) { const F = grpFrame(G); if (!F) return; startMove({ grp: G, F, sn: grpSnap(G, F) }); }
 const grpMoveOrigin = (m, x, y) => [x - Math.floor(m.sn.w / 2), y - Math.floor(m.sn.h / 2)];
 function grpMoveTo(x, y) { const m = moving, [ox, oy] = grpMoveOrigin(m, x, y), P = snapPlan(m.sn, ox, oy, true); if (P.err) { toast(grpWhy(P, 'Move')); return; } moving = null; setTool(S.tool); const g = grpPut(m.sn, P, true, 'Move'); if (g) grpSelect(g); }
 function grpShift(G, dz) {
@@ -4403,6 +4433,10 @@ function fillZoneMissing(z) {
 
 let activeTab = 'build';
 const VALID_TABS = ['build', 'layers', 'materials', 'habitats', 'pokemon', 'plans'];
+const phoneUI = () => innerWidth < 900;
+function toMap() { if (phoneUI() && sheetState !== 'peek') setSheet('peek'); }
+function openTab(t, stop = S.sheet) { showTab(t); if (phoneUI() && sheetState === 'peek') setSheet(stop); }
+function openBuild() { const it = currentItem(); if (it && !buildQuery && buildCat !== it.c) buildCat = it.c; openTab('build', 'half'); setTimeout(() => { const r = $('#tab-build .row[aria-pressed="true"]'); if (r) r.scrollIntoView({ block: 'nearest' }); }, 80); }
 function showTab(t, fromHash) {
   if (!VALID_TABS.includes(t)) t = 'build'; activeTab = t;
   $$('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'));
@@ -4477,7 +4511,7 @@ function setSheet(s) {
     tc = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: e.timeStamp, body, on: false };
   }, { passive: true });
   panel.addEventListener('touchmove', e => {
-    if (pkDrag) { if (e.cancelable) e.preventDefault(); tc = null; return; }
+    if (pkDrag || dd) { if (e.cancelable) e.preventDefault(); tc = null; return; }
     if (!tc) return; const t = e.touches[0];
     if (!tc.on) {
       const dx = t.clientX - tc.x, dy = t.clientY - tc.y;
@@ -4520,7 +4554,7 @@ function levelDialog() {
       h('div', { class: 'field' }, h('label', { for: 'lvGo' }, 'Level'), h('div', { class: 'lvgo' }, ibtn('minus', 'One down', () => step(-1)), inp, ibtn('plus', 'One up', () => step(1)))));
   }, 'Work on it', go);
 }
-function openLayers() { showTab('layers'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); }
+function openLayers() { openTab('layers', 'half'); }
 function renderLayers() {
   const root = $('#tab-layers'); root.textContent = ''; if (!plan) return;
   const st = levelStats(), levels = levelList(st);
@@ -4530,11 +4564,11 @@ function renderLayers() {
     h(pick ? 'button' : 'div', pick ? { class: 'row', type: 'button', 'aria-pressed': pick.on ? 'true' : 'false', onclick: pick.fn } : { class: 'row' }, h('span', { class: 'lvl' }, badge), h('span', { class: 'meta' }, h('div', { class: 'nm' }, name), h('div', { class: 'ds' }, ds))));
   root.append(h('h2', { class: 'hrow' }, 'Layers', tipBtn('Each level is a layer, as in a drawing app, and holds its terrain blocks as well as its items: every block takes one level. Terrain starts at level 0, so things standing on the ground are on level 1. Tap the eye to hide or show one: hidden layers aren\'t drawn and can\'t be tapped, but they still count for houses, habitats and comfort. Tap a level to work on it: Place and Fill put things on it, everything above it fades out, Erase only takes them from it, and Select picks them first. Levels go from ' + lvNum(ZMIN) + ' to ' + ZMAX + '.')));
   const list = h('div', { class: 'list' });
-  list.append(line(null, icon('layers'), 'On top', 'New things stack on what\'s there', { on: layerZ == null, fn: () => setLayerZ(null) }));
+  list.append(line(null, icon('layers'), 'On top', 'New things stack on what\'s there', { on: layerZ == null, fn: () => workOn(null) }));
   levels.forEach((z, j) => {
     const cnt = st.n.get(z) || 0, tc = st.t.get(z) || 0, kinds = new Map([...(st.kinds.get(z) || new Map()), ...(st.tk.get(z) || new Map())]), names = [...kinds.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([i]) => ITEMS[i].n), more = kinds.size - names.length;
     const ds = cnt || tc ? [cnt ? plural(cnt, 'item') : '', tc ? plural(tc, 'terrain block') : ''].filter(Boolean).join(', ') + ' · ' + names.join(', ') + (more > 0 ? ' +' + more : '') : 'Empty';
-    list.append(line(z, lvNum(z), 'Level ' + lvNum(z) + (z === 0 ? ' · ground' : z === 1 ? ' · ground floor' : ''), ds, { on: layerZ === z, fn: () => setLayerZ(layerZ === z ? null : z) }));
+    list.append(line(z, lvNum(z), 'Level ' + lvNum(z) + (z === 0 ? ' · ground' : z === 1 ? ' · ground floor' : ''), ds, { on: layerZ === z, fn: () => workOn(layerZ === z ? null : z) }));
     const next = levels[j + 1], gap = next == null ? 0 : z - next - 1;
     if (gap > 0) list.append(h('div', { class: 'lyrgap' }, gap === 1 ? 'Level ' + lvNum(z - 1) + ' · empty' : 'Levels ' + lvNum(next + 1) + ' to ' + lvNum(z - 1) + ' · empty'));
   });
@@ -4583,7 +4617,7 @@ function moreBuildRows(n = BUILD_STEP) {
   for (const it of R.arr.slice(R.shown, end)) {
     if (!q && (it.c === 'Nature' || it.c === 'Kits') && it.sub && it.sub !== R.lastSub) { frag.append(h('h4', { style: 'margin:12px 4px 4px' }, it.sub)); R.lastSub = it.sub; }
     const ds = it.m && it.m.length ? it.m.map(([m, n]) => n + ' ' + m).join(' · ') : (it.d || (it.c === 'Special' ? 'Found or received' : 'Gathered or planted'));
-    const row = h('button', { class: 'row', 'data-item': it.n, 'aria-pressed': it.n === curItem ? 'true' : 'false', onclick: () => { selectItem(it.n); if (innerWidth < 900) setSheet('peek'); toast(it.w > 1 || it.h > 1 ? 'Tap the map to place ' + it.n : 'Paint ' + it.n + ' on the map'); } },
+    const row = h('button', { class: 'row', 'data-item': it.n, 'data-drag': 'item:' + it.n, 'aria-pressed': it.n === curItem ? 'true' : 'false', onclick: () => { selectItem(it.n); toMap(); toast(it.w > 1 || it.h > 1 ? 'Tap the map to place ' + it.n : 'Paint ' + it.n + ' on the map'); } },
       swatchEl(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n, it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : '', it.w > 1 || it.h > 1 ? h('span', { class: 'note', style: 'margin-left:6px' }, it.w + '×' + it.h) : ''), h('div', { class: 'ds' }, (q ? CAT_META[it.c].label + ' · ' : '') + ds)));
     row.style.flex = '1'; row.style.minWidth = '0';
     frag.append(h('div', { style: 'display:flex;align-items:center;min-width:0' }, row, h('button', { class: 'info', 'aria-label': 'Details for ' + it.n, onclick: () => showItemInfo(it) }, icon('info'))));
@@ -4613,7 +4647,7 @@ function showItemInfo(it) {
     for (const t of howItWorks(it)) box.append(h('p', { class: 'note' }, t));
     const used = USED_IN.get(it.i);
     if (used && used.length) { box.append(h('h4', null, 'In habitats (' + used.length + ')')); const l = h('div', { class: 'mons' }); used.forEach((id, k) => { const hb = HAB_BY_ID.get(id); l.append(h('button', { onclick: () => { closeModal(); openHabitat(id); } }, hb.n), k < used.length - 1 ? ', ' : ''); }); box.append(l); }
-  }, 'Place it', () => { selectItem(it.n); if (innerWidth < 900) setSheet('peek'); });
+  }, 'Place it', () => { selectItem(it.n); toMap(); });
 }
 
 let rawMode = false;
@@ -4668,14 +4702,14 @@ function materialsText(t) { const lines = ['Pokopia plan: ' + plan.name + ' (' +
 async function copyText(s) { try { await navigator.clipboard.writeText(s); toast('Copied'); } catch (e) { modal('Copy this text', (b) => { const ta = h('textarea', { style: 'width:100%;height:240px;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--paper)', readonly: true }); ta.value = s; b.append(ta); setTimeout(() => ta.select(), 50); }); } }
 
 let habQuery = '', habReg = 'All', habOnlyNear = false, openHab = null;
-function openHabitat(id) { openHab = id; habQuery = ''; showTab('habitats'); if (innerWidth < 900 && sheetState === 'peek') setSheet('half'); setTimeout(() => { const el = $('#hab-' + id); if (el) el.scrollIntoView({ block: 'center' }); }, 60); }
+function openHabitat(id) { openHab = id; habQuery = ''; openTab('habitats', 'half'); setTimeout(() => { const el = $('#hab-' + id); if (el) el.scrollIntoView({ block: 'center' }); }, 60); }
 function habCard(hb, extra) {
-  const card = h('div', { class: 'card', id: 'hab-' + hb.id, style: openHab === hb.id ? 'border-color:var(--accent)' : '' });
+  const card = h('div', { class: 'card', id: 'hab-' + hb.id, 'data-drag': 'hab:' + hb.id, style: openHab === hb.id ? 'border-color:var(--accent)' : '' });
   card.append(h('div', { class: 'hd' }, h('span', { class: 'no' }, '#' + hb.id), h('span', { class: 'title' }, hb.n), hb.reg !== 'Main' ? h('span', { class: 'ep', style: 'margin-left:auto' }, hb.reg === 'Basin' ? 'BASIN' : 'EVENT') : ''));
   card.append(h('div', { class: 'reqs' }, hb.r.map(([tok, q]) => h('span', { class: 'req' }, h('b', null, q + '×'), tok))));
   card.append(h('div', { class: 'note', style: 'margin-top:4px' }, 'Attracts'), pkChips(hb.p, 26, openPokemon, (p) => PK_BY_NAME.has(p.n) ? h('span', { class: 'spec' }, p.s.join(' · ')) : null));
   if (hb.note) card.append(h('div', { class: 'note' }, hb.note));
-  card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => { stampHab = hb; setTool('stamp'); if (innerWidth < 900) setSheet('peek'); toast('Tap the map where ' + hb.n + ' should go'); } }, icon('stamp'), 'Stamp'), extra || ''));
+  card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: () => { stampHab = hb; setTool('stamp'); toMap(); toast('Tap the map where ' + hb.n + ' should go, or drag the card there'); } }, icon('stamp'), 'Stamp'), extra || ''));
   return card;
 }
 function renderHabitats() {
@@ -4683,7 +4717,7 @@ function renderHabitats() {
   root.append(h('h2', { class: 'hrow' }, 'Habitats', tipBtn('Zones check what you placed against the Habitat Dex. Stamp any habitat to lay out its items and a zone in one tap.')));
   root.append(h('h4', { class: 'hrow' }, 'Houses you built (' + autoHouses.length + ')', tipBtn('Build walls or fences all the way round a space (Fill → Outline makes this quick), put a door or gate in the wall, and add 3 kinds of furniture at the door\'s level. The planner finds it automatically.')));
   if (!autoHouses.length) root.append(h('p', { class: 'note' }, 'None yet'));
-  const showHs = (hs) => { mapView.centerOn(hs.x + hs.w / 2, hs.y + hs.h / 2); if (innerWidth < 900) setSheet('peek'); selectHouse(hs); };
+  const showHs = (hs) => { mapView.centerOn(hs.x + hs.w / 2, hs.y + hs.h / 2); toMap(); selectHouse(hs); };
   for (const hs of autoHouses) {
     const ct = areaContents(hs.area);
     if (hs.enclosure) { root.append(h('div', { class: 'card zone-none' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Enclosure at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip', style: 'margin-left:auto' }, hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : ''))), h('div', { class: 'acts' }, ibtn('map', 'Show on map', () => showHs(hs), 'sm'), ibtn('trash', 'Delete', () => confirmDeleteHouse(hs), 'sm danger', { style: 'margin-left:auto' })))); continue; }
@@ -4750,7 +4784,7 @@ function renderHabList() {
   if (!arr.length) { list.append(h('p', { class: 'empty' }, 'No habitats match.')); return; }
   fillLazy(list, arr, (hb) => habCard(hb), $('#tab-habitats'), 30, null, arr.findIndex(hb => hb.id === openHab) + 1);
 }
-function focusZone(z) { mapView.centerOn(z.x + z.w / 2, z.y + z.h / 2); if (innerWidth < 900) setSheet('peek'); selectZone(z); }
+function focusZone(z) { mapView.centerOn(z.x + z.w / 2, z.y + z.h / 2); toMap(); selectZone(z); }
 
 const PKF0 = () => ({ q: '', st: '', dex: [], ty: [], tyAll: false, sp: [], spAll: false, id: [], sz: [], fl: [], fv: [], fvAll: false, hb: '', sort: 'no', desc: false, view: 'cards', open: false });
 let PKF = PKF0(), openPk = null, pkHabAll = false;
@@ -4827,7 +4861,7 @@ function pkActive() {
 }
 function pkUnset(k, v) { PKF[k] = Array.isArray(PKF[k]) ? PKF[k].filter(x => x !== v) : ''; }
 function pkClear() { const keep = { sort: PKF.sort, desc: PKF.desc, view: PKF.view, open: PKF.open }; PKF = Object.assign(PKF0(), keep); const inp = $('#pkSearch'); if (inp) inp.value = ''; pkResults(); }
-function openPokemon(n) { openPk = n; PKF = Object.assign(PKF0(), { sort: PKF.sort, desc: PKF.desc, view: PKF.view, q: n }); showTab('pokemon'); }
+function openPokemon(n) { openPk = n; PKF = Object.assign(PKF0(), { sort: PKF.sort, desc: PKF.desc, view: PKF.view, q: n }); openTab('pokemon'); }
 const pkGrip = (p) => h('button', { class: 'pkgrip', type: 'button', 'aria-label': 'Move ' + p.n + ' into a home', 'data-tip': 'Drag onto a home, or tap to choose one', onclick: (e) => { e.stopPropagation(); pkHomeChooser(p); } }, icon('grip'));
 function renderPokemon() {
   const root = $('#tab-pokemon'), was = $('#pkList'), keep = { top: root.scrollTop, n: was ? was.children.length : 0 }; root.textContent = '';
@@ -4977,7 +5011,7 @@ let pkDrag = null, pkPend = null, pkQuiet = 0;
 function pkUnlisten() { removeEventListener('pointermove', pkMove, true); removeEventListener('pointerup', pkUp, true); removeEventListener('pointercancel', pkUp, true); }
 function pkAbort() { const P = pkPend; pkPend = null; if (P) clearTimeout(P.timer); if (!pkDrag) pkUnlisten(); }
 function pkDown(e) {
-  if (pkDrag || pkPend || !e.isPrimary || !plan) return;
+  if (pkDrag || pkPend || dd || ddPend || !e.isPrimary || !plan) return;
   const src = e.target.closest && e.target.closest('[data-pk]'); if (!src) return;
   const grip = e.target.closest('.pkgrip'), mouse = e.pointerType === 'mouse';
   if (mouse && e.button !== 0) return;
@@ -5057,9 +5091,83 @@ function drawPkDrop(c, s) {
   c.restore();
 }
 document.addEventListener('pointerdown', pkDown);
-document.addEventListener('click', e => { if (performance.now() < pkQuiet) { e.preventDefault(); e.stopPropagation(); } }, true);
-document.addEventListener('contextmenu', e => { if (pkDrag || pkPend) e.preventDefault(); }, true);
+document.addEventListener('click', e => { if (performance.now() < Math.max(pkQuiet, ddQuiet)) { pkQuiet = ddQuiet = 0; e.preventDefault(); e.stopPropagation(); } }, true);
+document.addEventListener('contextmenu', e => { if (pkDrag || pkPend || dd || ddPend) e.preventDefault(); }, true);
 addEventListener('keydown', e => { if (e.key === 'Escape' && pkDrag) { e.stopPropagation(); e.preventDefault(); pkEnd(false); } }, true);
+let dd = null, ddPend = null, ddQuiet = 0;
+function ddOff() { removeEventListener('pointermove', ddMove, true); removeEventListener('pointerup', ddUp, true); removeEventListener('pointercancel', ddUp, true); }
+function ddAbort() { const P = ddPend; ddPend = null; if (P) clearTimeout(P.timer); if (!dd) ddOff(); }
+function ddDown(e) {
+  if (dd || ddPend || pkDrag || pkPend || !e.isPrimary || !plan) return;
+  const src = e.target.closest && e.target.closest('[data-drag]'); if (!src) return;
+  const mouse = e.pointerType === 'mouse'; if (mouse && e.button !== 0) return;
+  if (src.contains(e.target.closest('.info:not([data-drag]), .tipi, input, select, textarea, a, .pkchip'))) return;
+  const v = src.dataset.drag, k = v.slice(0, v.indexOf(':')), n = v.slice(k.length + 1);
+  const it = k === 'item' ? BY_NAME.get(n) : null, hb = k === 'hab' ? HAB_BY_ID.get(n) || HAB_BY_ID.get(+n) : null; if (!it && !hb) return;
+  ddPend = { id: e.pointerId, src, it, hb, ied: !!(IED.ob && src.closest('#ied')), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, mouse, timer: 0, key: null, at: null };
+  if (!mouse) ddPend.timer = setTimeout(() => { if (ddPend) ddStart(); }, 380);
+  addEventListener('pointermove', ddMove, true); addEventListener('pointerup', ddUp, true); addEventListener('pointercancel', ddUp, true);
+}
+function ddMove(e) {
+  const P = dd || ddPend; if (!P || e.pointerId !== P.id) return;
+  P.x = e.clientX; P.y = e.clientY;
+  if (!dd) { const d = Math.hypot(P.x - P.x0, P.y - P.y0); if (!P.mouse) { if (d > 9) ddAbort(); return; } if (d >= 6) ddStart(); return; }
+  e.stopPropagation(); e.preventDefault(); ddTrack();
+}
+function ddUp(e) {
+  const P = dd || ddPend; if (!P || e.pointerId !== P.id) return;
+  if (!dd) { ddAbort(); return; }
+  e.stopPropagation(); if (e.type === 'pointerup') { P.x = e.clientX; P.y = e.clientY; ddTrack(); }
+  ddEnd(e.type === 'pointerup');
+}
+function ddStart() {
+  const P = ddPend; ddPend = null; clearTimeout(P.timer); if (!P.src.isConnected) { ddOff(); return; }
+  clearTimeout(TIP.press); TIP.press = 0; tipHide();
+  const ae = document.activeElement; if (ae && ae.matches && ae.matches('input, textarea, select')) ae.blur();
+  try { P.src.setPointerCapture(P.id); } catch (er) { }
+  dd = Object.assign(P, { was: { tool, item: curItem }, sheet: null, ghost: h('div', { class: 'pkghost', 'aria-hidden': 'true' }) });
+  document.body.append(dd.ghost); P.src.classList.add('pkdragsrc'); document.body.classList.add('ddrag');
+  try { const s = getSelection(); if (s) s.removeAllRanges(); } catch (er) { }
+  if (S.buzz && !P.mouse && navigator.vibrate) try { navigator.vibrate(12); } catch (er) { }
+  if (P.ied) iedPick(P.it);
+  else {
+    if (phoneUI() && sheetState !== 'peek') { dd.sheet = sheetState; setSheet('peek'); clearTimeout(shutTimer); $('#panel').classList.remove('shut'); }
+    $('#inspector').classList.remove('open');
+    if (P.hb) { stampHab = P.hb; if (tool !== 'stamp') setTool('stamp'); else renderOptbar(); } else { if (curItem !== P.it.n) selectItem(P.it.n, false); if (tool !== 'place') setTool('place'); }
+  }
+  ddTrack(true);
+}
+function ddAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (dd.ied) { const c = $('#iedCv'); if (!c || el !== c) return null; const r = c.getBoundingClientRect(), cx = Math.floor((x - r.left - IED.ox) / IED.cs), cy = Math.floor((y - r.top - IED.oy) / IED.cs), ki = kitInfo(IED.ob); return cx >= 0 && cy >= 0 && cx < ki.w && cy < ki.h ? [cx, cy] : null; }
+  if (el !== cv) return null; const r = cv.getBoundingClientRect(), sx = x - r.left, sy = y - r.top, [cx, cy] = mapView.pick(sx, sy); return inB(plan, cx, cy) ? [cx, cy, sx, sy] : null;
+}
+function ddTrack(force) {
+  const D = dd, at = ddAt(D.x, D.y), key = at ? at[0] + ',' + at[1] : '', g = D.ghost;
+  if (force || key !== D.key) {
+    D.key = key; D.at = at;
+    if (D.ied) { IED.hover = at; iedDraw(); } else { hover = at ? [at[0], at[1]] : null; updateStatus(); requestDraw(); }
+    g.textContent = ''; g.className = 'pkghost' + (at ? ' ok' : '');
+    g.append(D.it ? swatchEl(D.it, 'swatch big') : h('span', { class: 'gi' }, icon('stamp')), h('span', { class: 'gt' }, D.it ? D.it.n : D.hb.n, h('span', { class: 'to' }, at ? (D.ied ? 'Drop to place it here' : 'Drop at ' + at[0] + ', ' + at[1]) : D.ied ? 'Drop it in the room' : 'Drop it on the map')));
+  }
+  const w = g.offsetWidth, hh = g.offsetHeight, gx = D.mouse ? D.x + 14 : D.x - w / 2, gy = D.mouse ? D.y + 16 : D.y - hh - 46;
+  g.style.transform = 'translate(' + Math.round(clamp(gx, 6, innerWidth - w - 6)) + 'px,' + Math.round(clamp(gy, 6, innerHeight - hh - 6)) + 'px)';
+}
+function ddEnd(drop) {
+  const D = dd; if (!D) return; dd = null; ddQuiet = D.mouse ? performance.now() + 400 : 0; ddOff();
+  try { D.src.releasePointerCapture(D.id); } catch (er) { }
+  D.ghost.remove(); D.src.classList.remove('pkdragsrc'); document.body.classList.remove('ddrag');
+  const at = drop ? D.at : null;
+  if (D.ied) { IED.hover = null; if (at) { if (iedPut(at[0], at[1], D.it.i)) iedEnd(); else { const [w, hh] = iedPlaceSize(D.it.i); toast('No room for its ' + w + '×' + hh + ' size here'); } } iedFoot(); iedDraw(); return; }
+  hover = null;
+  if (!at) { if (D.it && D.was.item !== curItem) selectItem(D.was.item, false); setTool(D.was.tool === 'stamp' && !D.it ? S.tool : D.was.tool); if (D.sheet) setSheet(D.sheet); if (drop) toast('Drop it on the map'); requestDraw(); return; }
+  if (D.hb) stampHabitat(D.hb, at[0], at[1]);
+  else { startAction(at[0], at[1], at[2], at[3]); const d = drag; drag = null; if (d) finishDrag(d); }
+  requestDraw();
+}
+document.addEventListener('pointerdown', ddDown);
+document.addEventListener('touchmove', e => { if (dd && e.cancelable) e.preventDefault(); }, { passive: false });
+addEventListener('keydown', e => { if (e.key === 'Escape' && dd) { e.stopPropagation(); e.preventDefault(); ddEnd(false); } }, true);
 
 const WX_TIP = 'The weather in this town. In the game it only changes when a Pokémon uses a Rain Dance or Sunny Day spot, and then it stays. Rain puts out fires with no roof over them (a Burn Pokémon living nearby lights them again), and turns Smooth Rock off except inside kit houses. Sun changes nothing in the planner yet.';
 function setWeather(v) { if ((plan.wx || null) === v) return; plan.wx = v; markDirty(); evaluateAll(); requestDraw(); renderPanel(); refreshInspector(); toast(v === 'rain' ? 'Raining in this town' : v === 'sun' ? 'Sunny in this town' : 'Weather not set'); }
@@ -5116,6 +5224,7 @@ function renderPlans() {
     ['Pouring liquids', 'Pick a liquid, choose Pour, tap a tile to see where it flows, and tap again to pour: 25 tiles along a 1-wide channel, 10 in a 2-wide one, about 6 out on open ground, starting again below every drop. Erasing the source takes the whole flow away.'],
     ['Pokémon at work', 'Litter Pokémon drop their material around their home, Chop, Burn, Crush and Recycle Pokémon work from the nearest community box, and furnaces and mixers need a Burn or Crush Pokémon nearby. Homes and boxes say who does what.'],
     ['Game rules', 'Where guides disagree (sensor, sprinkler, Smooth Rock and generator reach), Settings → Game rules picks the reading the planner uses.'],
+    ['Drag and drop', 'Drag an item from Build, the recent items or the bar above the map onto the map to place it; a habitat card onto the map to stamp it; an item into the room in Decorate inside; a Pokémon onto a home; and a plan file onto the window to open it. On a phone, press and hold first. A selected item moves when you drag it, with any tool.'],
     ['Tooltips', 'Hover, long-press or tap ⓘ for the details behind any button or chip.'],
     ['Shortcuts', 'S show on the map, A active areas, L layers, Enter pour a previewed liquid, Esc cancel, Page Up/Down level, B place, R fill, E erase, V select, Z zone, I pick, H pan, Q turns the item (Shift+Q the other way), [ ] brush, Space+drag pan.']
   ].map(([lb, t]) => h('span', { class: 'req', 'data-tip': t }, lb))));
@@ -5132,7 +5241,7 @@ function newPlanDialog() {
     const tSel = h('select', { id: 'npFill' }, h('option', { value: '' }, 'Empty grid'), ITEMS.filter(i => i.c === 'Terrain').map(i => h('option', { value: i.n, selected: i.n === 'Ordinary soil' }, i.n)));
     box.append(h('div', { class: 'field' }, h('label', { for: 'npFill' }, 'Start with ground'), tSel));
     from.onchange = () => { const t = TOWNS.find(q => q[0] === from.value); for (const id of ['npW', 'npH', 'npFill', 'npArea']) $('#' + id).disabled = !!t; if (t) { $('#npArea').value = t[1]; $('#npW').value = t[2]; $('#npH').value = t[2]; $('#npName').value = t[1]; } };
-  }, 'Create', () => { if ($('#npFrom').value) { openTown($('#npFrom').value, $('#npName').value); return; } const w = clamp(+$('#npW').value | 0, 8, PMAX), hh = clamp(+$('#npH').value | 0, 8, PMAX); const p = newPlan({ name: $('#npName').value.trim() || 'New plan', area: $('#npArea').value, w, h: hh, fill: $('#npFill').value }); installPlan(p); persistNow(); toast('Created ' + p.name); });
+  }, 'Create', () => { if ($('#npFrom').value) { openTown($('#npFrom').value, $('#npName').value); return; } const w = clamp(+$('#npW').value | 0, 8, PMAX), hh = clamp(+$('#npH').value | 0, 8, PMAX); const p = newPlan({ name: $('#npName').value.trim() || 'New plan', area: $('#npArea').value, w, h: hh, fill: $('#npFill').value }); installPlan(p); persistNow(); toMap(); toast('Created ' + p.name); });
 }
 function resizePlanDialog() {
   modal('Resize plan', (box) => {
@@ -5146,7 +5255,7 @@ function resizePlanDialog() {
     for (const r of old.rugs.values()) if (r.x + r.w <= w && r.y + r.h <= hh) { const n = { ...r, id: p.nextId++ }; p.rugs.set(n.id, n); }
     p.res = (old.res || []).filter(r => r.x < w && r.y < hh); p.roofs = (old.roofs || []).filter(r => r.x < w && r.y < hh);
     p.zones = old.zones.filter(z => z.x < w && z.y < hh).map(z => ({ ...z, w: Math.min(z.w, w - z.x), h: Math.min(z.h, hh - z.y) }));
-    installPlan(p); markDirty(); toast('Resized to ' + w + ' × ' + hh);
+    installPlan(p); markDirty(); toMap(); toast('Resized to ' + w + ' × ' + hh);
   });
 }
 const TOWNS = [['withered-wasteland', 'Withered Wasteland', 240], ['bleak-beach', 'Bleak Beach', 272], ['rocky-ridges', 'Rocky Ridges', 272], ['sparkling-skylands', 'Sparkling Skylands', 352], ['palette-town', 'Palette Town', 384]];
@@ -5158,7 +5267,7 @@ async function openTown(file, name) {
   s.id = uid(); s.name = nm; s.updated = Date.now();
   let p; try { p = deserialize(s); } catch (e) { toast('That town could not be opened'); return; }
   for (const z of p.zones) z.id = uid();
-  if (dirty) persistNow(); installPlan(p); persistNow(); toast('New plan of ' + t[1] + ' · ' + p.w + '×' + p.h + ' tiles');
+  if (dirty) persistNow(); installPlan(p); persistNow(); toMap(); toast('New plan of ' + t[1] + ' · ' + p.w + '×' + p.h + ' tiles');
 }
 function townButtons() { return h('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;margin:0 0 8px' }, TOWNS.map(([f, n, w]) => h('button', { class: 'btn sm', 'data-tip': 'New plan of ' + n + ', ' + w + '×' + w + ' tiles', onclick: () => openTown(f) }, icon('map'), n))); }
 function duplicatePlan() { const s = serialize(plan); s.id = uid(); s.name = plan.name + ' (copy)'; s.updated = Date.now(); const p = deserialize(s); installPlan(p); persistNow(); toast('Duplicated'); }
@@ -5332,13 +5441,13 @@ async function persistNow(noSync) {
 function setSave(st, msg) {
   saveState = st; const chip = $('#saveChip'); chip.className = 'chip ' + (st === 'cloud' || st === 'synced' ? 'good' : st === 'bad' ? 'bad' : st === 'local' || st === 'syncing' ? '' : 'warn');
   chip.lastChild.textContent = { cloud: 'Saved', local: 'Saved', pending: 'Unsaved', saving: 'Saving…', bad: 'Not saved', synced: 'Synced', syncing: 'Syncing…' }[st] || st;
-  chip.title = msg || { cloud: 'Saved to your account', local: 'Saved on this device', pending: 'Unsaved changes', synced: 'Synced with your Google account' }[st] || '';
+  chip.dataset.tip = (msg || { cloud: 'Saved to your account', local: 'Saved on this device', pending: 'Unsaved changes', synced: 'Synced with your Google account' }[st] || 'Saving') + '. Tap for plans and sync.';
   if (msg && st === 'bad') toast(msg, 3500);
 }
 function storageNote() { return cloud ? ['Saved to your Claude account', tipBtn('Plans open on any device where you view this page.')] : syncOn() ? ['Saved here and synced', tipBtn('Plans are saved on this device and synced with your Google account. Export a file for an extra backup.')] : ['Saved in this browser only', tipBtn('Sign in above to sync, or export a file to keep a backup or move a plan to another device.')]; }
 function loadLocalPlans() { try { plansIndex = JSON.parse(LS.get(LSK + 'index') || '[]'); } catch (e) { plansIndex = []; } }
 function readLocalPlan(id) { try { const s = LS.get(LSK + 'plan:' + id); return s ? deserialize(JSON.parse(s)) : null; } catch (e) { return null; } }
-function openPlan(id) { if (dirty) persistNow(); const p = readLocalPlan(id) || (cloudCache.has(id) ? deserialize(cloudCache.get(id)) : null); if (!p) { toast('That plan could not be opened'); return; } installPlan(p); LS.set(LSK + 'current', id); }
+function openPlan(id) { if (dirty) persistNow(); const p = readLocalPlan(id) || (cloudCache.has(id) ? deserialize(cloudCache.get(id)) : null); if (!p) { toast('That plan could not be opened'); return; } installPlan(p); LS.set(LSK + 'current', id); toMap(); }
 function installPlan(p) {
   plan = p; mapView.loaded(); loadLayers(); undoStack.length = 0; redoStack.length = 0; selection = null; closeInspector(); if (decorMini) { decorMini = null; renderMini(); } firstEval = true; evaluateAll();
   if (!plansIndex.find(q => q.id === p.id)) { plansIndex.push(indexEntry(p)); saveIndex(); }
@@ -5654,11 +5763,14 @@ function rvSend() {
   acts.append(h('button', { class: 'btn', type: 'button', onclick: closeModal }, 'Cancel'), h('button', { class: 'btn' + (navigator.share ? '' : ' primary'), type: 'button', onclick: async () => { const s = rvText(pickList()); try { await navigator.clipboard.writeText(s); done('Copied'); } catch (e) { copyText(s); } } }, 'Copy'));
   if (navigator.share) acts.append(h('button', { class: 'btn primary', type: 'button', onclick: async () => { try { await navigator.share({ title: 'Pokopia item review', text: rvText(pickList()) }); done('Sent'); } catch (e) { if (e && e.name !== 'AbortError') toast('Sharing didn’t work. Try Copy instead.'); } } }, 'Share'));
 }
-function importJSON(e) {
-  const f = e.target.files && e.target.files[0]; if (!f) return; const rd = new FileReader();
-  rd.onload = () => { try { const s = JSON.parse(rd.result); if (!s.w || !s.h) throw new Error('not a plan'); if (plansIndex.find(p => p.id === s.id)) s.id = uid(); const p = deserialize(s); installPlan(p); persistNow(); toast('Imported ' + p.name); } catch (err) { toast('That file is not a Pokopia plan'); } };
-  rd.readAsText(f); e.target.value = '';
+function importFile(f) {
+  if (!f) return; const rd = new FileReader();
+  rd.onload = () => { try { const s = JSON.parse(rd.result); if (!s.w || !s.h) throw new Error('not a plan'); if (plansIndex.find(p => p.id === s.id)) s.id = uid(); const p = deserialize(s); if (dirty) persistNow(); installPlan(p); persistNow(); toMap(); toast('Imported ' + p.name); } catch (err) { toast('That file is not a Pokopia plan'); } };
+  rd.readAsText(f);
 }
+function importJSON(e) { importFile(e.target.files && e.target.files[0]); e.target.value = ''; }
+addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return; e.preventDefault(); if (!/\.json$/i.test(f.name) && f.type !== 'application/json') { toast('Drop a plan file (.json) to open it'); return; } importFile(f); });
 
 const FB_CDN = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const FB_CONFIG = { apiKey: 'AIzaSyALG2MwsGSaVaspLk8sv53gg3BhKjGMQjM', authDomain: 'my-gm-companion.firebaseapp.com', projectId: 'my-gm-companion' };
