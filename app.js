@@ -900,12 +900,13 @@ function envAdvice(ideal, E) {
   const sign = ENV_AX[ideal][1], unpow = [...E.off].filter(([n, e]) => { if (e.why !== 'no power') return false; const fx = envFx(BY_NAME.get(n)); return !!fx && (k === 't' ? envT(fx, E.ac) : fx[k]) * sign > 0; }).map(([n]) => n), powTxt = unpow.length ? ' ' + listNames(unpow) + (unpow.length > 1 ? ' have' : ' has') + ' no power.' : '';
   const unlit = [...E.off].filter(([, e]) => /not lit/.test(e.why)).map(([n]) => n), fire = E.burn.length ? 'lit by ' + E.burn[0] : 'once a Burn Pokémon lives nearby to light it', unlitTxt = unlit.length ? ' ' + listNames(unlit) + (unlit.length > 1 ? ' aren\'t' : ' isn\'t') + ' lit: a Burn Pokémon has to live nearby.' : '';
   const now = (sign, word) => top(sign) ? ' ' + word + ' it now: ' + top(sign) + '.' : '';
+  const hate = (w) => { const who = E.pks.filter(p => dislikesOf(p).some(d => d.w === w)).map(p => p.n); return who.length ? ' ' + listNames(who) + (who.length > 1 ? ' dislike ' : ' dislikes ') + w + ', so leave ' + (w === 'fire' ? 'the fires' : 'water') + ' out.' : ''; };
   switch (ideal) {
-    case 'Bright': return 'Needs ' + envNum(g) + ' more light: a lamp or streetlight (80), a campfire or fireplace (40, ' + fire + '), a candle (20)' + (E.built && E.roof ? ', or less roof' : '') + '.' + unlitTxt + powTxt + where;
+    case 'Bright': return 'Needs ' + envNum(g) + ' more light: a lamp or streetlight (80), a campfire or fireplace (40, ' + fire + '), a candle (20)' + (E.built && E.roof ? ', or less roof' : '') + '.' + hate('fire') + unlitTxt + powTxt + where;
     case 'Dark': { const lit = top(1), day = (E.built || E.hab) && E.day ? E.day.v : 0; return 'Too bright (' + envNum(A.v) + ', dark is ' + lim + ' or less): ' + [day > 0 ? 'more roof (daylight ' + envNum(day) + ')' : '', lit ? 'take out ' + lit : '', 'or a Beach parasol (−40)'].filter(Boolean).join(', ') + '.'; }
-    case 'Warm': return 'Needs ' + envNum(g) + ' more warmth: a fire (' + fire + '), a cooking stove, a Heat Rock or the air conditioner on hot (+60 each). Lamps don\'t warm.' + unlitTxt + powTxt + now(-1, 'Cooling') + where;
+    case 'Warm': return 'Needs ' + envNum(g) + ' more warmth: a fire (' + fire + '), a cooking stove, a Heat Rock or the air conditioner on hot (+60 each). Lamps don\'t warm.' + hate('fire') + unlitTxt + powTxt + now(-1, 'Cooling') + where;
     case 'Cool': return 'Needs ' + envNum(g) + ' less warmth: an Icy Rock, a fridge, cooler or fan, or the air conditioner on cold (−60 each).' + powTxt + now(1, 'Warming') + where;
-    case 'Humid': return 'Needs ' + envNum(g) + ' more humidity: a filled basin or bathtub, a humidifier or a Damp Rock (+100 each); a sink, shower' + (E.kind === 'block' ? ', toilet or water tile' : ' or toilet') + ' (+20).' + powTxt + now(-1, 'Drying') + where;
+    case 'Humid': return 'Needs ' + envNum(g) + ' more humidity: a filled basin or bathtub, a humidifier or a Damp Rock (+100 each); a sink, shower' + (E.kind === 'block' ? ', toilet or water tile' : ' or toilet') + ' (+20).' + hate('water') + powTxt + now(-1, 'Drying') + where;
     case 'Dry': return 'Too humid (' + envNum(A.v) + ', dry is ' + lim + ' or less): take out ' + (top(1) || 'what\'s wet') + ', or add a Smooth Rock (−100, ' + (plan.wx === 'rain' && E.kind !== 'kit' ? 'but it\'s off while it rains' : 'not in rain') + ').';
   }
   return '';
@@ -949,7 +950,9 @@ function envSection(home, noHead) {
   if (share.length) wrap.append(h('div', { class: 'note', 'data-tip': 'A kit house can suit both: light at exactly 40, or humidity from 40 to 60.' }, '✓ ' + share.join('; ') + ': can share'));
   return wrap;
 }
-function compat(p, others) { let shared = 0; for (const o of others) for (const f of p.fv || []) if ((o.fv || []).includes(f)) shared++; const clash = others.filter(o => envClash(o.ideal, p.ideal)).map(o => o.n), same = others.every(o => !o.ideal || o.ideal === p.ideal), sameEnv = !clash.length; return { shared, sameEnv, same, clash, score: shared + (same ? 3 : sameEnv ? 1 : 0) }; }
+function compat(p, others) { let shared = 0; for (const o of others) for (const f of p.fv || []) if ((o.fv || []).includes(f)) shared++; const clash = others.filter(o => envClash(o.ideal, p.ideal)).map(o => o.n), same = others.every(o => !o.ideal || o.ideal === p.ideal), sameEnv = !clash.length, fc = others.filter(o => favClash(p, o)).map(o => o.n); return { shared, sameEnv, same, clash, fc, score: shared + (same ? 3 : sameEnv ? 1 : 0) - 3 * fc.length }; }
+const FC_TXT = (names) => 'one dislikes what the other likes: ' + listNames(names);
+const favClash = (a, b) => dislikesOf(a).some(d => (b.fv || []).includes(d.f)) || dislikesOf(b).some(d => (a.fv || []).includes(d.f));
 function decorPlan(home, floor) {
   const res = residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean); const present = presentFavs(home, floor);
   const need = new Map(); for (const p of res) for (const f of p.fv || []) need.set(f, (need.get(f) || 0) + (present.has(f) ? 0.35 : 2));
@@ -959,15 +962,15 @@ function decorPlan(home, floor) {
   for (const it of ITEMS) {
     const fx = envFx(it); if ((!it.fv && !it.tg && !fx) || it.c === 'Terrain' || it.c === 'Kits') continue;
     const nature = it.c === 'Nature'; if (nature && (it.n === 'Molten rock' || !(fx && (fx.b || fx.t || Math.abs(fx.u) >= 10)))) continue;
-    let fav = 0; const hits = []; if (!nature) for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f); hits.push(f); }
+    let fav = 0; const hits = [], hate = res.filter(p => hatesIt(p, it)).map(p => p.n); if (!nature) for (const f of it.fv || []) if (need.has(f)) { fav += need.get(f) * (it.tg && it.tg !== 'Road' ? 1 : 0.5); hits.push(f); }
     const fill = !nature && !!(it.tg && lack.has(it.tg)), fits = needBig && isRest(it) ? (SIZE_RANK[restClass(...footOf(it))[0]] >= needR ? 1 : -1) : 0, base = (it.m && it.m.length ? 0.8 : 0) - (it.sub === 'Event item' ? 1.5 : 0) - (it.ep ? 0.3 : 0), size = needBig && fits > 0 ? fillW : 0;
     const eg = envGain(it, env);
-    all.push({ it, hits, fav, fill, fits, base, rank: needBig ? (fits > 0 ? 0 : 1) : 0, env: eg.g, envGood: eg.good, envBad: eg.bad, sc: fav + (fill ? fillW : 0) + base + size + 2 * eg.g });
+    all.push({ it, hits, hate, fav, fill, fits, base, rank: (needBig ? (fits > 0 ? 0 : 1) : 0) + (hate.length ? 2 : 0), env: eg.g, envGood: eg.good, envBad: eg.bad, sc: fav + (fill ? fillW : 0) + base + size + 2 * eg.g - 6 * hate.length });
   }
   const sugg = all.filter(x => x.fav > 0 || x.fill || x.env > 0).sort((a, b) => b.sc - a.sc || a.it.n.localeCompare(b.it.n));
   const byTag = (t, ok) => all.filter(x => x.it.tg === t && (!ok || ok(x.it))).sort((a, b) => a.rank - b.rank || (b.fav + b.base + b.env) - (a.fav + a.base + a.env) || a.it.n.localeCompare(b.it.n));
-  const envFor = (ideal, ok) => { const [k, dir] = ENV_AX[ideal]; return all.filter(x => { const fx = envFx(x.it); return fx && (k === 't' ? envT(fx, env.ac) : fx[k]) * dir > 0 && x.env > 0 && (!ok || ok(x.it)); }).sort((a, b) => b.env - a.env || (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n)); };
-  return { res, present, need, sugg, lack, byTag, big, needBig, needR, env, envN, envFor };
+  const envFor = (ideal, ok) => { const [k, dir] = ENV_AX[ideal]; return all.filter(x => { const fx = envFx(x.it); return fx && (k === 't' ? envT(fx, env.ac) : fx[k]) * dir > 0 && x.env > 0 && (!ok || ok(x.it)); }).sort((a, b) => a.hate.length - b.hate.length || b.env - a.env || (b.fav + b.base) - (a.fav + a.base) || a.it.n.localeCompare(b.it.n)); };
+  return { res, present, need, sugg, lack, byTag, big, needBig, needR, env, envN, envFor, cmf: new Map(homeComfort(home).map(c => [c.p.n, c])) };
 }
 function resChip(home, r, onChange) {
   const p = PK_BY_NAME.get(r.p); const f = r.f || 0, to = floorName(1 - f).toLowerCase();
@@ -1029,6 +1032,7 @@ function residentsSection(home) {
   else if (home.kind === 'kit') reqs.prepend(furnChip(kitFurniture(home.ob), false));
   if (cv.total) (split ? reqs.appendChild(h('div', { class: 'reqs' })) : reqs).append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, '♥ ' + cv.have + '/' + cv.total));
   wrap.append(reqs);
+  wrap.append(cmfBlock(homeComfort(home)));
   for (const el of workLines(home.key, home)) wrap.append(el);
   wrap.append(envSection(home));
   return wrap;
@@ -1043,7 +1047,7 @@ function pkRow(p, extra, onPick) {
 function residentPicker(home, floor) {
   const current = residentsOf(home).map(r => PK_BY_NAME.get(r.p)).filter(Boolean), mates = splitFloors(home) && floor != null ? residentsOf(home, floor).map(r => PK_BY_NAME.get(r.p)).filter(Boolean) : current; const att = planPokemon(); let q = '';
   if (home.floors > 1 && floor != null && !floorHasRoom(home, floor)) { toast(floorName(floor) + ' is full'); return; }
-  const it = home.kind === 'kit' ? ITEMS[home.ob.i] : null, E = envOf(floorOf(home, floor));
+  const it = home.kind === 'kit' ? ITEMS[home.ob.i] : null, E = envOf(floorOf(home, floor)), S = homeStuff(home, splitFloors(home) ? floor || 0 : null);
   modal('Add a resident' + (home.floors > 1 && floor != null ? ' · ' + floorName(floor).toLowerCase() : ''), (box) => {
     box.classList.add('wide');
     box.append(h('p', { class: 'sub' }, home.label + ' · ' + current.length + '/' + home.cap + (it && it.sm ? ' · S/M only' : '')));
@@ -1053,11 +1057,11 @@ function residentPicker(home, floor) {
       list.textContent = '';
       let cands = PK.filter(p => p.fv && p.fv.length && !current.includes(p)); const hidden = cands.filter(p => !fitsHome(p, home)).length; cands = cands.filter(p => fitsHome(p, home));
       if (q) cands = cands.filter(p => p.n.toLowerCase().includes(q) || (p.ideal || '').toLowerCase().includes(q) || (p.fv || []).some(f => FAVS[f].toLowerCase().includes(q)));
-      const scored = cands.map(p => { const hm = homeOfPokemon(p.n), k = envAxisOf(p.ideal); return { p, c: compat(p, mates), inPlan: att.has(p.n), hm, suits: !!k && !envGap(p.ideal, E.ax[k].v, E.kind) }; });
-      scored.sort((a, b) => (!!a.hm - !!b.hm) || (b.inPlan - a.inPlan) || (b.c.score + 2 * b.suits) - (a.c.score + 2 * a.suits) || a.p.n.localeCompare(b.p.n));
+      const scored = cands.map(p => { const hm = homeOfPokemon(p.n), k = envAxisOf(p.ideal); return { p, c: compat(p, mates), inPlan: att.has(p.n), hm, suits: !!k && !envGap(p.ideal, E.ax[k].v, E.kind), dis: disIn(p, S) }; });
+      scored.sort((a, b) => (!!a.hm - !!b.hm) || (!!a.dis.length - !!b.dis.length) || (b.inPlan - a.inPlan) || (b.c.score + 2 * b.suits) - (a.c.score + 2 * a.suits) || a.p.n.localeCompare(b.p.n));
       for (const sc of scored.slice(0, 60)) {
-        const bits = []; if (sc.inPlan) bits.push('In your habitats'); if (smallOnly(home) && sizeUnsure(sc.p)) bits.push('den untested'); if (sc.suits) bits.push('✓ ' + sc.p.ideal.toLowerCase() + ' here'); if (mates.length) bits.push(sc.c.shared + ' shared like' + (sc.c.shared === 1 ? '' : 's') + (!sc.c.sameEnv ? ' · ⚠ opposite of ' + listNames(sc.c.clash) : sc.c.same ? ' · same ideal' : '')); if (sc.hm) bits.push('now in ' + sc.hm.label);
-        list.append(pkRow(sc.p, bits.join(' · '), () => { assignResident(sc.p.n, home, floor); closeModal(); toast(sc.p.n + ' moved in'); afterResChange(home); }));
+        const bits = []; if (sc.inPlan) bits.push('In your habitats'); if (smallOnly(home) && sizeUnsure(sc.p)) bits.push('den untested'); if (sc.suits) bits.push('✓ ' + sc.p.ideal.toLowerCase() + ' here'); if (mates.length) bits.push(sc.c.shared + ' shared like' + (sc.c.shared === 1 ? '' : 's') + (!sc.c.sameEnv ? ' · ⚠ opposite of ' + listNames(sc.c.clash) : sc.c.same ? ' · same ideal' : '') + (sc.c.fc.length ? ' · ⚠ ' + FC_TXT(sc.c.fc) : '')); if (sc.hm) bits.push('now in ' + sc.hm.label); if (sc.dis.length) bits.push('⚠ dislikes ' + disShort(sc.dis) + ' here');
+        list.append(pkRow(sc.p, bits.join(' · '), () => { assignResident(sc.p.n, home, floor); closeModal(); const w = moveInWarn(sc.p, home, floor); toast(sc.p.n + ' moved in' + (w ? '.' + w : '')); afterResChange(home); }));
       }
       if (!scored.length) list.append(h('p', { class: 'empty' }, 'No Pokémon match.'));
       if (hidden) list.append(h('p', { class: 'note' }, hidden + ' too big for a den: hidden'));
@@ -1066,7 +1070,7 @@ function residentPicker(home, floor) {
   }, null, null, false, 'Pokémon from your finished habitats come first, then the best housemates: shared likes, and an ideal habitat that suits the home.');
 }
 const trioLabel = (t) => (TRIO.find(x => x[0] === t) || [])[1] || t;
-function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it); bits.push(fw + '×' + fh + (sizeGuessed(sg.it) ? '?' : '') + (sg.fits > 0 ? ', fits ' + listNames(dp.big) : sg.fits < 0 ? ', too small for ' + listNames(dp.big) : '')); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); if (sg.envGood.length || sg.envBad.length) { const fx = envFxText(sg.it, dp.env); if (sg.envGood.length) bits.push(fx + ' → ' + listNames(sg.envGood)); if (sg.envBad.length) bits.push('⚠ ' + (sg.envGood.length ? '' : fx + ': ') + 'bad for ' + sg.envBad.map(n => n + ' (' + PK_BY_NAME.get(n).ideal + ')').join(', ')); } return bits.join(' · ') + (who.length ? ' · pleases ' + who.join(', ') : ''); }
+function suggLine(dp, sg) { const who = dp.res.filter(p => (p.fv || []).some(f => sg.hits.includes(f))).map(p => p.n); const bits = []; if (sg.it.tg) bits.push(trioLabel(sg.it.tg) + (sg.fill ? ' (needed)' : '')); if (isRest(sg.it)) { const [fw, fh] = footOf(sg.it); bits.push(fw + '×' + fh + (sizeGuessed(sg.it) ? '?' : '') + (sg.fits > 0 ? ', fits ' + listNames(dp.big) : sg.fits < 0 ? ', too small for ' + listNames(dp.big) : '')); } for (const f of sg.hits) bits.push((dp.present.has(f) ? '✓ ' : '') + FAVS[f]); if (sg.hate.length) bits.push('⚠ ' + listNames(sg.hate) + (sg.hate.length > 1 ? ' dislike' : ' dislikes') + ' it'); if (sg.envGood.length || sg.envBad.length) { const fx = envFxText(sg.it, dp.env); if (sg.envGood.length) bits.push(fx + ' → ' + listNames(sg.envGood)); if (sg.envBad.length) bits.push('⚠ ' + (sg.envGood.length ? '' : fx + ': ') + 'bad for ' + sg.envBad.map(n => n + ' (' + PK_BY_NAME.get(n).ideal + ')').join(', ')); } return bits.join(' · ') + (who.length ? ' · pleases ' + who.join(', ') : ''); }
 const isEnvFilt = (f) => typeof f === 'string' && f.startsWith('env:'), isTagFilt = (f) => typeof f === 'string' && f.startsWith('tg:');
 function decorMinimize(home, it, filt) {
   decorMini = null; closeModal(); selectItem(it.n); closeInspector();
@@ -1093,7 +1097,7 @@ function decorModal(home, keep) {
   modal('Decorate ' + home.label, (box) => {
     box.classList.add('wide');
     for (const p of dp.res) box.append(h('div', { class: 'card withpic' }, pkPic(p, 56), h('div', { class: 'pkbody' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p, () => { closeModal(); afterResChange(home); decorModal(home); }), p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
-      h('div', null, (p.fv || []).map(f => h('span', { class: 'fav ' + (dp.present.has(f) ? 'have' : 'want'), 'data-tip': dp.present.has(f) ? 'Here: ' + dp.present.get(f).join(', ') : 'Missing' }, dp.present.has(f) ? '✓' : '', FAVS[f]))))));
+      h('div', null, (p.fv || []).map(f => h('span', { class: 'fav ' + (dp.present.has(f) ? 'have' : 'want'), 'data-tip': dp.present.has(f) ? 'Here: ' + dp.present.get(f).join(', ') : 'Missing' }, dp.present.has(f) ? '✓' : '', FAVS[f]))), cmfLine(dp.cmf.get(p.n)))));
     if (dp.res.some(p => p.ideal)) { box.append(h('h4', { class: 'hrow' }, 'Environment', tipBtn(envHelp(home)))); box.append(envSection(home, true)); }
     box.append(h('h4', null, 'Suggested'));
     const needF = [...dp.need].filter(([f]) => !dp.present.has(f)).sort((a, b) => b[1] - a[1]).map(([f]) => f);
@@ -1122,8 +1126,8 @@ function decorModal(home, keep) {
     render();
     if (dp.res.length < home.cap) {
       const att = planPokemon(); const cands = PK.filter(p => p.fv && p.fv.length && !dp.res.includes(p) && !homeOfPokemon(p.n)).map(p => ({ p, c: compat(p, dp.res), inPlan: att.has(p.n) }));
-      cands.sort((a, b) => (b.inPlan - a.inPlan) || (b.c.score - a.c.score)); const top = cands.filter(x => x.c.sameEnv).slice(0, 5);
-      if (top.length) { box.append(h('h4', { class: 'hrow' }, 'Good housemates', tipBtn('Pokémon who share their likes and whose ideal habitat doesn\'t clash. Tap one to move it in.'))); const l = h('div', { class: 'list' }); for (const x of top) l.append(pkRow(x.p, (x.inPlan ? 'In your habitats · ' : '') + x.c.shared + ' shared like' + (x.c.shared === 1 ? '' : 's'), () => { assignResident(x.p.n, home); closeModal(); toast(x.p.n + ' moved in'); afterResChange(home); })); box.append(l); }
+      cands.sort((a, b) => (b.inPlan - a.inPlan) || (b.c.score - a.c.score)); const S0 = homeStuff(home, null), top = cands.filter(x => x.c.sameEnv && !x.c.fc.length && !disIn(x.p, S0).length).slice(0, 5);
+      if (top.length) { box.append(h('h4', { class: 'hrow' }, 'Good housemates', tipBtn('Pokémon who share their likes, whose ideal habitat doesn\'t clash and who don\'t dislike anything here. Tap one to move it in.'))); const l = h('div', { class: 'list' }); for (const x of top) l.append(pkRow(x.p, (x.inPlan ? 'In your habitats · ' : '') + x.c.shared + ' shared like' + (x.c.shared === 1 ? '' : 's'), () => { assignResident(x.p.n, home); closeModal(); const w = moveInWarn(x.p, home); toast(x.p.n + ' moved in' + (w ? '.' + w : '')); afterResChange(home); })); box.append(l); }
     }
   }, null, null, false, home.kind === 'house' ? 'Ticks are favourite kinds already in the active area. Tap an item: this window folds away while you place it, then comes back.' : 'Kit interiors aren\'t on this map, so nothing is ticked here: use Decorate inside, or put these in the house in game.');
   if (keep && keep.scroll) requestAnimationFrame(() => { $('#modalBox').scrollTop = keep.scroll; });
@@ -1284,7 +1288,7 @@ function iedSide() {
     largeRestChip(home, f), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds inside: ' + cv.have + ' of ' + cv.total }, '♥ ' + cv.have + '/' + cv.total) : ''));
   if (!dp.res.length && !isTagFilt(IED.filt)) { el.append(h('p', { class: 'hint' }, 'Add residents for suggestions.')); return; }
   for (const p of dp.res) el.append(h('div', { class: 'card', style: 'margin:6px 0' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
-    h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', 'data-tip': 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv])))));
+    h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', 'data-tip': 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv]))), cmfLine(dp.cmf.get(p.n))));
   el.append(h('h4', { class: 'hrow', style: 'margin:12px 0 0' }, 'Environment', ki.fl > 1 ? h('span', { class: 'note' }, ki.kind === 'ow' ? 'ground floor' : split ? floorName(IED.floor).toLowerCase() + ' only' : 'both floors') : '', tipBtn(envHelp(home))), envBlock(fh));
   if (dp.envN.length) el.append(h('div', { class: 'reqs' }, dp.envN.map(n => h('button', { class: 'req', 'aria-pressed': IED.filt === 'env:' + n.ideal ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === 'env:' + n.ideal ? null : 'env:' + n.ideal; iedSide(); } }, 'Make it ' + n.ideal.toLowerCase()))));
   const missing = new Set(); for (const p of dp.res) for (const fv of p.fv || []) if (!dp.present.has(fv)) missing.add(fv); const tagF = isTagFilt(IED.filt) ? IED.filt.slice(3) : null, envF = isEnvFilt(IED.filt) ? IED.filt.slice(4) : null;
@@ -1339,7 +1343,7 @@ function iedAutoPlace() {
   const pick = [], E = dp.env, sim = { b: E.ax.b.v, t: E.ax.t.v, u: E.ax.u.v };
   const delta = (it, k) => { const fx = envFx(it); return !fx ? 0 : k === 't' ? envT(fx, E.ac) : fx[k]; };
   const spoils = (it) => dp.res.some(p => { const k = envAxisOf(p.ideal), d = k ? delta(it, k) : 0; return d && envGap(p.ideal, sim[k] + d, E.kind) > envGap(p.ideal, sim[k], E.kind); });
-  const ok = (it) => it.sub !== 'Event item' && !pick.includes(it) && !spoils(it);
+  const ok = (it) => it.sub !== 'Event item' && !pick.includes(it) && !spoils(it) && !dp.res.some(p => hatesIt(p, it));
   const take = (it, first) => { if (first) pick.unshift(it); else pick.push(it); for (const k of ['b', 't', 'u']) sim[k] += delta(it, k); };
   for (const sg of dp.sugg) { if (!want.size || pick.length >= 8) break; if (!ok(sg.it)) continue; if ((sg.it.fv || []).some(v => want.has(v))) { take(sg.it); for (const v of sg.it.fv || []) want.delete(v); } }
   if (dp.needBig) { const bed = dp.byTag('Relaxation').find(x => x.fits > 0 && ok(x.it)); if (bed) take(bed.it, true); }
@@ -1380,8 +1384,8 @@ function grpPoolList() {
   if (GRP.pool === 'all') return fromHab;
   return (plan.pool || []).map(n => PK_BY_NAME.get(n)).filter(Boolean);
 }
-function grpShared(a, b) { let n = 0; for (const f of a.fv || []) if ((b.fv || []).includes(f)) n++; return n + (a.fl && a.fl === b.fl ? 0.3 : 0); }
-function grpScore(g) { const seen = new Set(); let total = 0; for (const p of g) for (const f of p.fv || []) { seen.add(f); total++; } const fl = new Map(); for (const p of g) if (p.fl) fl.set(p.fl, (fl.get(p.fl) || 0) + 1); let b = 0; for (const n of fl.values()) b += (n - 1) * 0.3; return total - seen.size + b; }
+function grpShared(a, b) { let n = 0; for (const f of a.fv || []) if ((b.fv || []).includes(f)) n++; return n + (a.fl && a.fl === b.fl ? 0.3 : 0) - (favClash(a, b) ? 4 : 0); }
+function grpScore(g) { const seen = new Set(); let total = 0; for (const p of g) for (const f of p.fv || []) { seen.add(f); total++; } const fl = new Map(); for (const p of g) if (p.fl) fl.set(p.fl, (fl.get(p.fl) || 0) + 1); let b = 0; for (const n of fl.values()) b += (n - 1) * 0.3; for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) if (favClash(g[i], g[j])) b -= 4; return total - seen.size + b; }
 function grpFits(g, p) { return !GRP.env || !g.length || !p.ideal || g.every(q => !q.ideal || q.ideal === p.ideal); }
 function makeGroups(pool, size) {
   const left = [...pool].sort((a, b) => a.n.localeCompare(b.n)); const groups = [];
@@ -1497,6 +1501,87 @@ const RANK_FOOT = ['1×1', '2×1', '2×2'], RANK_WORD = ['small', 'medium', 'lar
 function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) return ''; const ok = !b.short.length; return h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': (ok ? 'The rest items are big enough for everyone.' : listNames(b.short) + (b.short.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[b.need] + ' rest item (' + RANK_FOOT[b.need] + ' or bigger).') + ' Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large.' + (b.guess ? ' Some sizes are guesses: tap a size to change it.' : '') }, (ok ? '✓ Rest size' : 'Rest ' + RANK_FOOT[b.need] + (b.guess ? '?' : ''))); }
 const TRIO_TIP = { Rest: 'A rest item (bed, seat…)', Toy: 'A toy', Decoration: 'A decoration' };
 function trioChips(home, floor) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓ ' : '') + lb)), largeRestChip(home, floor)); }
+const LEGENDS = new Set(['Kyogre', 'Raikou', 'Entei', 'Suicune', 'Volcanion', 'Articuno', 'Zapdos', 'Moltres', 'Lugia', 'Ho-Oh', 'Mewtwo', 'Mew', 'Phione', 'Manaphy', 'Jirachi']);
+const CMF = ['Iffy', 'Average', 'Nice', 'Great', 'Awesome'], CMF_PTS = [0, 1, 2, 5, 10], CMF_CLS = ['miss', '', '', 'ok', 'ok'], ENV_LV = [0, 3, 12, 26, 52, 77, 100, 120, 140, 160];
+const FOOD_FOR = { Sweet: 'Pecha Berries or beans', Spicy: 'fresh carrots', Bitter: 'Rawst Berries, potatoes or seaweed', Dry: 'Chesto Berries, wheat or cave mushrooms', Sour: 'Aspear Berries or tomatoes' };
+const flavourOf = (p) => p && p.fl ? p.fl.replace(/ flavou?rs?$/i, '') : '';
+const DISLIKES = [['Fire', 'Lots of water', 'water', 'Fire types dislike water'], ['Grass', 'Lots of fire', 'fire', 'Grass types dislike fire']];
+function dislikesOf(p) { const out = []; if (p) for (const [t, f, w, why] of DISLIKES) { const i = FAVS.indexOf(f); if (i >= 0 && p.t.includes(t) && !(p.fv || []).includes(i)) out.push({ f: i, w, why, wet: t === 'Fire' }); } return out; }
+const hatesIt = (p, it) => !!it && dislikesOf(p).some(d => (it.fv || []).includes(d.f));
+const WET = new Set(['Water', 'Ocean water', 'Muddy water', 'Hot-spring water', 'Waterfall']);
+let WET_IX = null;
+function wetTiles(a) {
+  if (!a || !a.rect) return 0; const wi = WET_IX || (WET_IX = new Set(ITEMS.filter(it => WET.has(it.n)).map(it => it.i + 1))), R = a.rect, zs = plan.tz, tt = plan.tt; let n = 0;
+  for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; for (let j = 0; j < zs.length; j++) if (wi.has(tt[j][k]) && inArea(a, x, y, zs[j])) { n++; break; } }
+  return n;
+}
+function homeStuff(home, floor) {
+  const obs = [];
+  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, floor)) obs.push({ it: pc.it, w: pc.w, h: pc.h }); const ki = kitInfo(home.ob); for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; const F = intFloor(home.ob, f); for (const v of [F.wp, F.fc]) if (v != null && ITEMS[v]) obs.push({ it: ITEMS[v], w: 1, h: 1 }); } return { obs, wet: 0 }; }
+  const a = home.kind === 'habitat' ? home.area : home.hs.area;
+  for (const ob of plan.objs.values()) if (objInArea(ob, a)) obs.push({ it: ITEMS[ob.i], w: ob.w, h: ob.h });
+  return { obs, wet: wetTiles(a) };
+}
+function comfortOf(p, home, floor, S, E) {
+  S = S || homeStuff(home, floor); E = E || envOf(home.kind === 'habitat' ? home : floorOf(home, floor));
+  const fv = new Set(p.fv || []), fav = (it) => (it.fv || []).find(f => fv.has(f)), need = SIZE_RANK[pkSize(p)], toys = new Map(), decs = new Map();
+  let rest = null, small = null;
+  for (const o of S.obs) {
+    const it = o.it, f = fav(it);
+    if (it.tg === 'Relaxation') { if (SIZE_RANK[restClass(o.w, o.h)[0]] < need) { small = small || it; continue; } if (!rest || (f != null && rest.f == null)) rest = { it, f }; }
+    else if (it.tg === 'Toy' || it.tg === 'Decoration') { const m = it.tg === 'Toy' ? toys : decs; if (!m.has(it.i)) m.set(it.i, { it, f, v: f != null ? 2 : 1 }); }
+  }
+  const top = (m) => [...m.values()].sort((a, b) => b.v - a.v).slice(0, 2), play = top(toys).concat(top(decs)).sort((a, b) => b.v - a.v).slice(0, 3);
+  const restV = rest ? (rest.f != null ? 2 : 1) : 0, playV = play.reduce((s, x) => s + x.v, 0), envOk = !!p.ideal && envMet(p, E), envV = envOk ? 2 : 0, foodV = p.fl ? 2 : 0;
+  const dis = disIn(p, S), pts = restV + playV + envV + foodV, rank = dis.length ? 0 : pts >= 9 ? 4 : pts >= 6 ? 3 : pts >= 4 ? 2 : 1;
+  return { p, home, rest, small: rest ? null : small, restV, play, playV, toyN: toys.size, decN: decs.size, envOk, envV, foodV, dis, pts, rank, score: CMF_PTS[rank] * (LEGENDS.has(p.n) ? 2 : 1) };
+}
+function disIn(p, S) { const dis = []; for (const d of dislikesOf(p)) { const what = [...new Set(S.obs.filter(o => (o.it.fv || []).includes(d.f)).map(o => o.it.n))]; if (d.wet && S.wet) what.push(S.wet + ' water tile' + (S.wet > 1 ? 's' : '')); if (what.length) dis.push({ why: d.why, w: d.w, what }); } return dis; }
+function homeComfort(home) {
+  const split = splitFloors(home), memo = new Map(), out = [];
+  for (const r of residentsOf(home)) { const p = PK_BY_NAME.get(r.p); if (!p) continue; const f = split ? (r.f || 0) : null; if (!memo.has(f)) memo.set(f, [homeStuff(home, f), envOf(floorOf(home, f))]); const [S, E] = memo.get(f); out.push(comfortOf(p, home, f, S, E)); }
+  return out;
+}
+const disText = (c) => c.dis.map(d => listNames(d.what.slice(0, 3)) + (d.what.length > 3 ? ' and more' : '') + ' (' + d.why + ')').join('; ');
+function cmfHint(c) {
+  const p = c.p, nf = (x) => x && x.f == null;
+  if (c.dis.length) return (c.home && c.home.kind === 'habitat' ? '⚠ Unhappy here: ' : '⚠ Won\'t move in, and stays unhappy: ') + disText(c);
+  if (!c.rest) return c.small ? 'Its ' + c.small.n.toLowerCase() + ' is too small: it needs a ' + RANK_WORD[SIZE_RANK[pkSize(p)]] + ' rest item' : 'Add a rest item, ideally one it likes';
+  if (!c.toyN || !c.decN) return 'Add a ' + (!c.toyN && !c.decN ? 'toy and a decoration' : !c.toyN ? 'toy' : 'decoration') + ', ideally ones it likes';
+  if (c.play.length < 3) return 'Add another toy or decoration';
+  if (p.ideal && !c.envOk) return 'Make it ' + p.ideal.toLowerCase();
+  if (c.rank === 4) return 'Can reach Awesome';
+  const hit = new Set([c.rest, ...c.play].filter(x => x && x.f != null).flatMap(x => (x.it.fv || []).filter(f => (p.fv || []).includes(f)))), miss = (p.fv || []).filter(f => !hit.has(f));
+  return nf(c.rest) || c.play.some(nf) ? 'Swap in a rest, toy or decoration it likes: ' + (miss.length ? miss : p.fv || []).slice(0, 3).map(f => FAVS[f]).join(', ') : 'All set';
+}
+function cmfTip(c) {
+  const p = c.p, nm = (x) => x.it.n + (x.f != null ? ' ♥ ' + FAVS[x.f] : ''), fl = flavourOf(p);
+  const b = ['Rest ' + c.restV + (c.rest ? ' (' + nm(c.rest) + ')' : c.small ? ' (' + c.small.n + ' is too small)' : ''),
+    'toys and decorations ' + c.playV + ' of 6' + (c.play.length ? ' (' + c.play.map(nm).join(', ') + ')' : ''),
+    (p.ideal ? p.ideal.toLowerCase() : 'ideal habitat') + ' ' + c.envV + (p.ideal && !c.envOk ? ' (not yet)' : ''),
+    (fl ? fl.toLowerCase() + ' food ' : 'food ') + c.foodV + (fl ? ' when you give it some (' + (FOOD_FOR[fl] || 'its flavour') + ')' : '')];
+  return 'Best it can reach here: ' + b.join(', ') + ' = ' + c.pts + '. ' + (c.dis.length ? 'It dislikes ' + disText(c) + (c.home && c.home.kind === 'habitat' ? ', so it stays Iffy. ' : ', so it would refuse to move in and stays Iffy. ') : '') + CMF_RULE;
+}
+const CMF_RULE = 'Scored the way one player\'s tests found it: 1 for a rest item it fits on, 2 if it\'s a favourite; 1 for each toy or decoration, 2 for a favourite, counting up to 3 different ones; 2 for its ideal habitat; 2 for food of its favourite flavour. 9 or more is Awesome, 6 to 8 Great, 4 or 5 Nice, less Average. Copies of the same item count once.';
+const CMF_HELP = 'The best comfort each one can reach with what\'s here. In the game it climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts at Iffy. Something it dislikes in range stops it moving in and keeps it Iffy: Grass types dislike fire, Fire types dislike water, as the guides report. ' + CMF_RULE;
+function cmfChip(c) { return h('span', { class: 'req ' + CMF_CLS[c.rank], 'data-tip': cmfTip(c) }, '≈ ' + CMF[c.rank], h('b', null, c.dis.length ? '⚠' : c.pts)); }
+function cmfLine(c) { return c ? h('div', { class: 'cmfl' }, cmfChip(c), h('span', { class: 'note', style: c.dis.length ? 'color:var(--bad)' : null }, cmfHint(c))) : ''; }
+function cmfRow(c, open) { return h('div', { class: 'cmf' }, pkFace(c.p, 24), h('div', { class: 'cmfb' }, h('div', { class: 'cmfh' }, open ? h('button', { class: 'lnk', type: 'button', onclick: () => open(c.p.n) }, c.p.n) : h('b', null, c.p.n), cmfChip(c)), h('div', { class: 'note', style: c.dis.length ? 'color:var(--bad)' : null }, cmfHint(c)))); }
+function cmfBlock(list, title, open, pre) { if (!list.length) return ''; return h('div', { class: 'cmfs' }, h('div', { class: 'hrow', style: 'margin-top:6px' }, h('b', null, title || 'Comfort'), h('span', { class: 'note' }, 'best case'), tipBtn((pre || '') + CMF_HELP)), list.map(c => cmfRow(c, open))); }
+function townComfort() {
+  const out = [], used = new Set();
+  for (const { hm } of allHomes()) for (const c of homeComfort(hm)) { out.push(c); used.add(c.p.n); }
+  for (const z of plan.zones) { const hh = habitatHome(z); if (!hh || !hh.ok) continue; let S = null, E = null, best = null; for (const p of hh.pks) { if (used.has(p.n) || homeOfPokemon(p.n)) continue; if (!S) { S = homeStuff(hh); E = envOf(hh); } const c = comfortOf(p, hh, null, S, E); if (!best || c.score > best.score) best = c; } if (best) { out.push(best); used.add(best.p.n); } }
+  const pts = out.reduce((s, c) => s + c.score, 0); let lv = 1; for (let i = 1; i < ENV_LV.length; i++) if (pts >= ENV_LV[i]) lv = i + 1;
+  const n = [0, 0, 0, 0, 0]; for (const c of out) n[c.rank]++;
+  return { list: out, pts, lv, n };
+}
+const disShort = (dis) => dis.map(d => listNames(d.what.slice(0, 2)) + (d.what.length > 2 ? ' and more' : '')).join(', ');
+function envLvTip(tc) {
+  const got = CMF.map((nm, i) => tc.n[i] ? tc.n[i] + ' ' + nm : '').filter(Boolean).reverse().join(', '), next = ENV_LV[tc.lv];
+  return (tc.list.length ? 'Best case for this plan: ' + got + ' = ' + tc.pts + ' points, so level ' + tc.lv + (next != null ? ' (level ' + (tc.lv + 1) + ' at ' + next + ')' : '') + '. ' : 'Nobody lives here yet. ') + 'Each resident\'s comfort gives points: Awesome 10, Great 5, Nice 2, Average 1, Iffy or no home 0, and twice that for legendary and mythical Pokémon. Levels 2 to 10 need 3, 12, 26, 52, 77, 100, 120, 140 and 160. Each finished habitat counts the best of its Pokémon with no house yet. From players\' tests; when points fall, the game keeps the old level for a while.';
+}
+function moveInWarn(p, home, floor) { if (!p || !home) return ''; const S = homeStuff(home, splitFloors(home) ? floor || 0 : null), dis = disIn(p, S); return dis.length ? ' ⚠ In the game it would refuse: ' + disText({ dis }) + '.' : ''; }
 const CBOX = 'Community box', BOX_R = 4;
 const isBox = (it) => it && it.n === CBOX;
 function growRect(R, n) { const x0 = Math.max(0, R.x - n), y0 = Math.max(0, R.y - n), x1 = Math.min(plan.w - 1, R.x + R.w - 1 + n), y1 = Math.min(plan.h - 1, R.y + R.h - 1 + n); return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; }
@@ -4366,7 +4451,7 @@ function selectZone(z) {
       box.append(rows(r.tr));
       if (!r.allowed) box.append(h('div', { class: 'note', style: 'color:var(--warn)', 'data-tip': 'This habitat is limited to another area' }, '⚠ Only in ' + (r.target.note || r.target.reg)));
     }
-    if (r.ok) { const free = r.best.hb.p.filter(n => !homeOfPokemon(n)); if (free.length) box.append(h('div', { class: 'note', style: 'margin-top:6px', 'data-tip': 'They live here until you give them a house' }, 'Living here'), pkChips(free, 22, openPokemon)); }
+    if (r.ok) { const free = r.best.hb.p.filter(n => !homeOfPokemon(n)), hh = free.length ? habitatHome(z) : null; if (hh) { const S = homeStuff(hh), E = envOf(hh); box.append(cmfBlock(free.map(n => PK_BY_NAME.get(n)).filter(Boolean).map(p => comfortOf(p, hh, null, S, E)), 'Living here', openPokemon, 'They live here until you give them a house, one in the habitat at a time. ')); } }
     if (r.ok) box.append(h('div', null, h('span', { class: 'chip good' }, h('span', { class: 'dot' }), r.best.hb.n), ' ', h('div', { class: 'note', style: 'margin-top:6px' }, 'Attracts'), pkChips(r.best.hb.p, 22, openPokemon)), boxLine('zone:' + z.id));
     else if (!r.target && r.near) { box.append(h('div', { class: 'note' }, 'Closest: ' + r.near.hb.n)); box.append(rows(r.near.r)); }
     if (r.matches.length > 1) box.append(h('div', { class: 'note hrow' }, 'Also fits: ' + r.matches.slice(1, 5).map(m => m.hb.n).join(', '), tipBtn('The game forms one habitat per cluster.')));
@@ -4871,7 +4956,8 @@ function renderPokemon() {
   root.append(h('div', { class: 'tiles' },
     h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Can appear'), h('div', { class: 'v' }, att.size)),
     h('div', { class: 'tile', 'data-tip': 'Places to live in kit homes and houses you built' }, h('div', { class: 'k' }, 'Beds'), h('div', { class: 'v' }, hc.cap)),
-    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Housed'), h('div', { class: 'v' }, pc.home.size))));
+    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Housed'), h('div', { class: 'v' }, pc.home.size)),
+    (() => { const tc = townComfort(); return h('div', { class: 'tile', 'data-tip': envLvTip(tc) }, h('div', { class: 'k' }, 'Env. level'), h('div', { class: 'v' }, tc.list.length ? '≈' + tc.lv : '–', tc.list.length ? h('small', null, ' ' + tc.pts + ' pts') : '')); })()));
   root.append(h('div', { class: 'card', style: 'margin-top:10px;border-left:4px solid var(--accent)' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Group into houses'), tipBtn('Find who should share a home: Pokémon that like the same things need fewer decorations.')),
     h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: housemateGroups }, icon('ball'), 'Plan housemates'))));
   const cov = new Map(); for (const n of att.keys()) { const p = PK_BY_NAME.get(n); if (p) for (const s of p.s) cov.set(s, (cov.get(s) || 0) + 1); }
@@ -4954,6 +5040,7 @@ function pkCardEl(p, pc) {
       h('div', { class: 'hd' }, pkGrip(p), h('span', { class: 'no' }, pkNo(p)), h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p, () => renderPanel()), pc.att.has(p.n) ? h('span', { class: 'chip good', style: 'margin-left:auto' }, 'In plan') : ''),
       h('div', null, h('span', { class: 'note' }, p.t.join(' / ') + (p.hw ? ' · ' + p.hw[0] + ' m, ' + p.hw[1] + ' kg' : '') + ' · '), p.s.map(s => h('span', { class: 'spec' }, s))),
       p.fv && p.fv.length ? h('div', { class: 'note', style: 'margin-top:4px' }, 'Likes: ' + p.fv.map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')) : '',
+      dislikesOf(p).length ? h('div', { class: 'note', style: 'margin-top:2px', 'data-tip': 'It won\'t move into a home with this in range, and it lowers its comfort. From the guides; nothing else is known to be disliked.' }, 'Dislikes: ' + dislikesOf(p).map(d => d.w + ' (' + d.why.toLowerCase() + ')').join(' · ')) : '',
       hm ? h('div', { class: 'note' }, '⌂ Lives in ' + hm.label) : '', habs));
 }
 function pkPicBtn(p, d) { return h('button', { class: 'pkpbtn', type: 'button', 'aria-label': 'Adjust ' + p.n + '\'s portrait', 'data-tip': 'Adjust the portrait: the circle used where space is short', onclick: (e) => { e.stopPropagation(); pkFrameEditor(p); } }, pkPic(p, d), h('span', { class: 'pfedit', 'aria-hidden': 'true' }, icon('resize'))); }
@@ -4973,13 +5060,14 @@ function pkCanTake(p, hm) {
   if (l.length >= hm.cap) return { ok: false, code: 'full', why: 'full' };
   return { ok: true, code: '', why: '' };
 }
+const pkDisAt = (p, hm) => disIn(p, homeStuff(hm, splitFloors(hm) ? (floorHasRoom(hm, 0) ? 0 : 1) : null));
 function pkMoveIn(p, hm) {
   const c = pkCanTake(p, hm);
   if (!c.ok) { toast(c.code === 'full' ? hm.label + ' is full' : c.code === 'big' ? p.n + ' is too big for a den' : p.n + ' lives there already'); return false; }
   const from = homeOfPokemon(p.n), r = { p: p.n, x: hm.ax, y: hm.ay, k: hm.kind === 'kit' ? 'k' : 'h' }; if (hm.floors > 1 && !floorHasRoom(hm, 0)) r.f = 1;
   setRes((plan.res || []).filter(q => q.p !== p.n).concat([r])); commitTx(p.n + ' moved in');
   pkAfterMove();
-  undoToast(p.n + (from ? ' moved to ' : ' moved into ') + hm.label, 4200);
+  const w = moveInWarn(p, hm, r.f || 0); undoToast(p.n + (from ? ' moved to ' : ' moved into ') + hm.label + (w ? '.' + w : ''), w ? 7000 : 4200);
   return true;
 }
 function pkAfterMove() { if ($('#inspector').classList.contains('open') && selection && selection.obj && plan.objs.has(selection.obj.id) && ITEMS[selection.obj.i].cap) showObjInspector(selection.obj); }
@@ -4989,13 +5077,14 @@ function pkHomeChooser(p, done) {
     box.classList.add('wide');
     box.append(h('div', { class: 'pkhead' }, pkPic(p, 64), h('div', null, h('b', null, p.n), h('div', { class: 'note' }, cur ? 'Lives in ' + cur.label : 'No home yet'))));
     if (!homes.length) { box.append(h('p', { class: 'empty' }, 'No homes yet. Place a kit house from Build, or build a house: walls all round, a door and 3 kinds of furniture inside.')); return; }
-    const rows = homes.map(({ hm, used }) => { const names = residentsOf(hm).map(r => r.p), others = names.map(n => PK_BY_NAME.get(n)).filter(q => q && q.n !== p.n); return { hm, used, names, c: pkCanTake(p, hm), others, cp: compat(p, others) }; });
-    rows.sort((a, b) => (b.c.ok - a.c.ok) || (b.cp.score - a.cp.score) || a.hm.label.localeCompare(b.hm.label));
+    const rows = homes.map(({ hm, used }) => { const names = residentsOf(hm).map(r => r.p), others = names.map(n => PK_BY_NAME.get(n)).filter(q => q && q.n !== p.n); return { hm, used, names, c: pkCanTake(p, hm), others, cp: compat(p, others), dis: pkDisAt(p, hm) }; });
+    rows.sort((a, b) => (b.c.ok - a.c.ok) || (!!a.dis.length - !!b.dis.length) || (b.cp.score - a.cp.score) || a.hm.label.localeCompare(b.hm.label));
     const l = h('div', { class: 'list' });
     for (const x of rows) {
       const bits = [x.used + '/' + x.hm.cap + (x.names.length ? '' : ', empty')];
-      if (x.others.length) bits.push(x.cp.shared + ' shared like' + (x.cp.shared === 1 ? '' : 's') + (!x.cp.sameEnv ? ' · ⚠ opposite of ' + listNames(x.cp.clash) : x.cp.same ? ' · same ideal' : ''));
+      if (x.others.length) bits.push(x.cp.shared + ' shared like' + (x.cp.shared === 1 ? '' : 's') + (!x.cp.sameEnv ? ' · ⚠ opposite of ' + listNames(x.cp.clash) : x.cp.same ? ' · same ideal' : '') + (x.cp.fc.length ? ' · ⚠ ' + FC_TXT(x.cp.fc) : ''));
       if (!x.c.ok) bits.push(x.c.code === 'same' ? 'lives here now' : x.c.why);
+      if (x.dis.length && x.c.code !== 'same') bits.push('⚠ dislikes ' + disShort(x.dis) + ' here');
       if (x.c.code === 'full' && fitsHome(p, x.hm)) {
         const sw = h('div', { class: 'reqs', style: 'margin-top:4px' }, x.names.map(n => { const q = PK_BY_NAME.get(n), fits = !cur || !q || fitsHome(q, cur); return h('button', { class: 'btn sm', type: 'button', disabled: !fits, 'data-tip': fits ? (cur ? n + ' moves to ' + cur.label : n + ' moves out to make room') : n + ' is too big for ' + cur.label, onclick: () => { closeModal(); const lb = cur ? p.n + ' and ' + n + ' swapped homes' : p.n + ' moved into ' + x.hm.label + ' instead of ' + n; resSwap(p.n, n, lb); pkAfterMove(); undoToast(lb, 4200); if (done) done(); } }, pkFace(q || n, 20), (cur ? 'Swap with ' : 'Instead of ') + n); }));
         l.append(h('div', { class: 'row', style: 'align-items:flex-start;cursor:default;flex-direction:column' }, h('span', { class: 'meta' }, h('div', { class: 'nm' }, x.hm.label), h('div', { class: 'ds', style: 'white-space:normal' }, bits.join(' · ') + ': pick who ' + (cur ? 'swaps with ' + p.n : 'makes room'))), sw));
@@ -5005,7 +5094,7 @@ function pkHomeChooser(p, done) {
     }
     box.append(l);
     if (cur) box.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', type: 'button', onclick: () => { closeModal(); moveOut([p.n]); commitTx(p.n + ' moved out'); undoToast(p.n + ' moved out of ' + cur.label, 4200); } }, 'Move out')));
-  }, null, null, false, 'Homes with room come first, then the best housemates: shared likes and an ideal habitat that doesn\'t clash. A full home lists who lives there: pick one to swap with. You can also drag ' + p.n + ' from the list onto a home on the map.');
+  }, null, null, false, 'Homes with room come first, then homes with nothing it dislikes, then the best housemates: shared likes and an ideal habitat that doesn\'t clash. A full home lists who lives there: pick one to swap with. You can also drag ' + p.n + ' from the list onto a home on the map.');
 }
 let pkDrag = null, pkPend = null, pkQuiet = 0;
 function pkUnlisten() { removeEventListener('pointermove', pkMove, true); removeEventListener('pointerup', pkUp, true); removeEventListener('pointercancel', pkUp, true); }
@@ -5050,7 +5139,7 @@ function pkTray() {
   const D = pkDrag, t = h('div', { class: 'droptray', id: 'droptray' });
   t.append(h('div', { class: 'thd' }, D.homes.length ? 'Drop ' + D.p.n + ' on a home: here or on the map' : 'No homes yet: place a kit house, or build a house with walls, a door and 3 kinds of furniture'));
   const chips = h('div', { class: 'dropchips' });
-  for (const hm of D.homes) { const c = pkCanTake(D.p, hm), l = residentsOf(hm).map(r => r.p); chips.append(h('div', { class: 'dropchip' + (c.ok ? '' : ' no'), 'data-home': hm.key }, hm.label, h('small', null, l.length + '/' + hm.cap + (c.ok ? '' : ' · ' + c.why)), l.length ? pkFaces(l, 20, 6) : '')); }
+  for (const hm of D.homes) { const c = pkCanTake(D.p, hm), l = residentsOf(hm).map(r => r.p), dz = c.ok ? pkDisAt(D.p, hm) : []; chips.append(h('div', { class: 'dropchip' + (c.ok ? '' : ' no'), 'data-home': hm.key }, hm.label, h('small', null, l.length + '/' + hm.cap + (c.ok ? (dz.length ? ' · ⚠ dislikes ' + disShort(dz) : '') : ' · ' + c.why)), l.length ? pkFaces(l, 20, 6) : '')); }
   if (D.homes.length) t.append(chips);
   $('#mapwrap').append(t);
 }
@@ -5063,10 +5152,10 @@ function pkTrack(force) {
   for (const el of [$('.app'), $('.main')]) if (el && el.scrollTop) el.scrollTop = 0;
   const D = pkDrag, hm = pkHitHome(D.x, D.y), g = D.ghost;
   if (force || (hm ? hm.key : '') !== (D.hm ? D.hm.key : '')) {
-    D.hm = hm; D.chk = hm ? pkCanTake(D.p, hm) : null; requestDraw();
+    D.hm = hm; D.chk = hm ? pkCanTake(D.p, hm) : null; D.dis = hm && D.chk.ok ? pkDisAt(D.p, hm) : []; requestDraw();
     for (const b of $$('.dropchip')) b.classList.toggle('on', !!hm && b.dataset.home === hm.key);
     g.textContent = ''; g.className = 'pkghost' + (hm ? (D.chk.ok ? ' ok' : ' no') : '');
-    g.append(pkFace(D.p, 34), h('span', { class: 'gt' }, D.p.n, h('span', { class: 'to' }, !hm ? 'Drop on a home' : D.chk.ok ? '→ ' + hm.label + ' (' + residentsOf(hm).length + '/' + hm.cap + ')' : hm.label + ': ' + D.chk.why)));
+    g.append(pkFace(D.p, 34), h('span', { class: 'gt' }, D.p.n, h('span', { class: 'to' }, !hm ? 'Drop on a home' : D.chk.ok ? '→ ' + hm.label + ' (' + residentsOf(hm).length + '/' + hm.cap + ')' + (D.dis.length ? ' · ⚠ dislikes ' + disShort(D.dis) : '') : hm.label + ': ' + D.chk.why)));
   }
   const w = g.offsetWidth, hh = g.offsetHeight;
   const gx = D.mouse ? D.x + 14 : D.x - w / 2, gy = D.mouse ? D.y + 16 : D.y - hh - 46;
@@ -5211,7 +5300,7 @@ function renderPlans() {
     ['Houses you build', 'Found automatically: any space closed in by walls or fences, with a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Fill → Outline lays walls fast.'],
     ['Moving Pokémon in', 'In the Pokémon tab, drag a Pokémon by its dots onto a home: a kit house or a house you built on the map, or one in the tray that opens. On a phone the panel slides down while you drag; long-press a card to drag it too, and with a mouse drag the whole card. Tap the dots instead to choose a home from a list. Undo puts it back.'],
     ['Pokédex search', 'Filters narrow by status, Pokédex, type, specialty, ideal habitat, size, flavour, likes and habitat; each number says how many that choice would show. In the search box every word must match, and type:, spec:, likes:, ideal:, flavour:, hab:, home:, size: and no: look in one place only. "Quotes" keep a phrase together and a - in front leaves those out.'],
-    ['Residents', 'Tap a house or kit house to choose who lives there. Decorate lists their favourite kinds of things, ticks what\'s already there and suggests items, including ones that bring light, warmth or humidity to what they like.'],
+    ['Residents', 'Tap a house or kit house to choose who lives there. Comfort shows the best each one can reach there and what to add next: a rest item it fits on, toys and decorations, its ideal habitat and its favourite food, with favourites counting double. Decorate lists their favourite kinds of things, ticks what\'s already there and suggests items, including ones that bring light, warmth or humidity to what they like. Grass types dislike fire and Fire types dislike water: they won\'t move in near it.'],
     ['Portraits', 'Every Pokémon shows its picture from the game: the full picture where there is room, a round portrait of its face where space is short, and only portraits on the map. Portraits are framed automatically; to fix one, tap the picture on its Pokédex card, drag the circle onto the face and zoom. Yours syncs.'],
     ['Pokémon sizes', 'Large ones were tested by players (too big for dens); small or medium with a ? is a guess from height and weight. Tap a size to change it; yours syncs. Each Pokémon needs a rest item at least its size: 1×1 small, 2×1 medium, 2×2 large.'],
     ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls. Doors, gates and fences can be more than one level high: set it with Resize, so a door 2 high fills a wall 2 high.'],

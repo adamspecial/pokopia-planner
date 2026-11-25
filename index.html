@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-25T08:36';
+<script>const APP_BUILD = '2026-11-25T22:18';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -236,6 +236,16 @@ table.mats input{width:62px;text-align:right;border:1px solid var(--line);border
 .left0{color:var(--good);font-weight:700}
 .leftn{color:var(--ink);font-weight:700}
 .reqs{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}
+.cmfs{margin:4px 0 2px}
+.cmf{display:flex;align-items:flex-start;gap:7px;margin:6px 0;font-size:12.5px;min-width:0}
+.cmf .pkf{flex:none;margin-top:1px}
+.cmfb{flex:1;min-width:0}
+.cmfh{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px}
+.cmfh .lnk{font-weight:700}
+.cmf .note{overflow-wrap:anywhere;margin-top:1px}
+.cmf .req b{margin-left:2px}
+.cmfl{display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px;margin-top:6px}
+.cmfl .note{flex:1 1 150px;min-width:0;overflow-wrap:anywhere}
 .req{display:inline-flex;align-items:center;gap:4px;font-size:12px;border-radius:7px;padding:2px 7px;background:var(--paper);border:1px solid var(--line)}
 button.req.kind{font:inherit;font-size:12px;color:var(--ink);cursor:pointer;padding:2px 7px 2px 3px}button.req.kind:hover{border-color:var(--accent)}button.req.kind .swatch{width:20px;height:20px;border-radius:5px}
 .req b{font-variant-numeric:tabular-nums}

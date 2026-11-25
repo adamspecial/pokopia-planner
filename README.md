@@ -181,6 +181,29 @@ In a home's panel, and in Decorate inside, each resident has two buttons:
 
 Large Pokémon take up 2×2 tiles, so a house you built needs a door 2 wide for them and paths 2 tiles wide inside. Steps and rugs count as path. When a large one lives there, the house's Residents section warns if the door is too narrow, or if it can't reach a large rest item. It also warns if a large Gather Pokémon can't reach a Community box, or a large Burn Pokémon can't reach a smelting furnace.
 
+## Comfort
+
+A home's panel, Decorate and Decorate inside show each resident's **Comfort**: the best it can reach in that home, and what to add next. A habitat's panel shows it for the Pokémon living there. The score follows one player's in-game tests ([ぽこあポケモン 環境レベルを検証する](https://note.com/bottical/n/nee0a7bbcf440) on note.com), with the order of what matters from [ぽこポケ学会](https://kyu49.github.io/Pokopia/house/):
+
+| In range | Points |
+|---|---|
+| A rest item it fits on | 1, or 2 if it's one of its favourite kinds |
+| Toys and decorations | 1 each, or 2 for a favourite, counting up to 3 different ones and at most 2 of either |
+| Its ideal habitat (Bright, Dark, Warm, Cool, Humid or Dry) | 2 |
+| Food of its favourite flavour | 2, once you give it some |
+
+9 or more is **Awesome**, 6 to 8 **Great**, 4 or 5 **Nice** and less **Average**. Something it dislikes in range makes it **Iffy**.
+
+- **Favourites count through the rest item, toys and decorations.** A favourite bed or toy scores twice what any other does, and copies of one item count once. The ♥ chip still counts every favourite kind in range, tables and walls included.
+- **Rest items must fit.** A small Pokémon fits on anything, a medium one needs 2×1 or bigger and a large one 2×2.
+- **What's in range** is the same as for favourites: a built house's active area, a kit house's interior (each floor on its own in the two-floor kits that take 2 per floor) or a habitat's dotted area.
+- **Food** can't be planned, so it's counted as given. The tip names the raw foods of its flavour: sweet Pecha Berries or beans, spicy fresh carrots, bitter Rawst Berries, potatoes or seaweed, dry Chesto Berries, wheat or cave mushrooms, sour Aspear Berries or tomatoes. No Pokémon likes plain food.
+- **It's a ceiling.** In the game comfort climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts at Iffy.
+
+**Dislikes.** Grass types dislike fire and Fire types dislike water, unless it's one of their favourites (Volcanion likes water). Fire is any item of the Lots of fire kind, such as a campfire, cooking stove or candle. Water is any item of the Lots of water kind, such as a sink, bathtub or fountain, and for Fire types also water tiles in a house's or habitat's area. A Pokémon won't move into a home with something it dislikes in range, and it stays unhappy there. The planner still lets you move it in, so you can plan around it, and says what it dislikes in the resident list, the home chooser, the label while you drag it and its Pokédex card. Decorate marks those items ⚠ and moves them down the list, Auto-place leaves them out, and housemate suggestions keep apart Pokémon where one dislikes what the other likes. These are the dislikes the guides report (Game8, GameWith, 攻略大百科); the game may have more.
+
+**Environment level.** The **Env. level** tile on the Pokémon tab adds up the plan's comfort: Awesome 10 points, Great 5, Nice 2, Average 1, Iffy or no home 0, and twice that for legendary and mythical Pokémon. Levels 2 to 10 need 3, 12, 26, 52, 77, 100, 120, 140 and 160 points. Each finished habitat counts the best of its Pokémon that has no house yet. The points come from two players' tests, and when points fall the game keeps the old level for a while.
+
 ## Pictures
 
 Furniture, storage, shelves, lamps and appliances show on the map, and in kit rooms, as top-down symbols of their kind (a bed with its pillows, a sofa with its cushions, a stove with its burners), in the colour of their pictures. Decorations, dolls, fossils, plants, kits and other one-off items show as their own pictures. Building pieces are drawn from above and joined to the pieces next to them, so homes read as floor plans: walls, blocks, cube hedges and pillars as solid walls, fences as rails with posts, doors as a door in the wall and windows as glass. Their colours come from their pictures. Floors and terrain cover the ground as flat, top-down tiles made from their pictures. A rug is one item with a size, like furniture: a tap places one whole rug, drawn once across its footprint, with the floor kept under it and furniture standing on it. Rug sizes are guesses until you set them with **Change**, which can also resize the rugs already placed. When you zoom far out, squares shrink to the tile's colour, and an item keeps its drawn shape until its picture has loaded.
@@ -386,7 +409,7 @@ Fires count only when lit, and a Burn Pokémon lights them when its home is with
 
 **Weather.** Set the town's weather under **Weather** in the Plans tab: not set, rain or sun. In the game it only changes when a Pokémon uses a Rain Dance or Sunny Day spot, and then it stays. Rain turns Smooth Rocks off except inside kit houses, and can put out fires with no roof over them, though a Burn Pokémon living nearby lights them again. Rain itself adds no humidity. The air conditioner counts as set to hot or cold, whichever the residents want. Slowpoke's Yawn score is something else: it covers the whole town area, not one home.
 
-**Decorate** and **Decorate inside** use all of this. Each resident's ideal gets a **Make it …** list of items that help. Suggestions that would spoil someone's ideal are marked ⚠ and drop down the list; for example, a lamp is marked if a resident wants it dark. Auto-place adds what's missing and leaves those out. The resident picker shows who already suits the home as it is.
+**Decorate** and **Decorate inside** use all of this. Each resident's ideal gets a **Make it …** list of items that help. Suggestions that would spoil someone's ideal are marked ⚠ and drop down the list; for example, a lamp is marked if a resident wants it dark. Auto-place adds what's missing and leaves those out, along with anything a resident dislikes (see [Comfort](#comfort)). The resident picker shows who already suits the home as it is.
 
 ## Sync between devices
 
