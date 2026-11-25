@@ -100,6 +100,7 @@ function toast(msg, ms = 2400, act, key = msg) {
   });
   void t.offsetWidth; t.classList.add('on'); toastTime(t, ms);
 }
+const toastDrop = (key) => { for (const t of $('#toasts').children) if (t._key === key) toastOff(t); };
 const undoToast = (msg, ms = 6000) => toast(msg, ms, { label: 'Undo', fn: () => undo() }, 'undo');
 const LS = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -253,9 +254,7 @@ function topTerr(k, p = plan) { const zs = p.tz, tt = p.tt; for (let j = zs.leng
 const surfAt = (k, p = plan) => { const t = topTerr(k, p); return t == null ? 0 : terrAt(p, k, t); };
 const standZ = (k, p = plan) => { const t = topTerr(k, p); return t == null ? 1 : t + 1; };
 function standOver(x, y, w, h) { let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inB(plan, xx, yy)) z = Math.max(z, standZ(yy * plan.w + xx)); return z === -Infinity ? 1 : z; }
-function terrCount(p = plan) { let n = 0; for (const T of p.tt) for (let k = 0; k < T.length; k++) if (T[k]) n++; return n; }
 function stackAt(k, p = plan) { const out = []; let last = 0; for (const L of p.ls) { const q = L[k]; if (q && q !== last) out.push(p.objs.get(q)); last = q; } return out; }
-const topAt = (k) => { const s = stackAt(k); return s.length ? s[s.length - 1] : null; };
 const objAtLv = (k, z) => { const o = occAt(plan, k, z); return o ? plan.objs.get(o) : null; };
 let layerZ = null, layerReplace = false, hidden = new Set();
 const lvShown = (key) => !hidden.has(key), obShown = (ob) => !!ob && !hidden.has(zOf(ob));
@@ -542,7 +541,7 @@ const splitFloors = (home) => !!home && home.kind === 'kit' && home.floors > 1 &
 const floorOf = (home, f) => splitFloors(home) && f != null ? { ...home, floor: f, label: home.label + ' · ' + floorName(f).toLowerCase() } : home;
 function kitFloorsToFurnish(ob) { const hm = kitHome(ob); if (!splitFloors(hm)) return [0]; const fs = [0, 1].filter(f => residentsOf(hm, f).length); return fs.length ? fs : [0]; }
 const kitReady = (ob) => kitFloorsToFurnish(ob).every(f => kitFurniture(ob, f) >= 3);
-const furnChip = (n, split) => h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': split ? 'Furniture on this floor: each floor is its own home, so it needs 3 different kinds before anyone moves in there' : 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, (n >= 3 ? '✓' : '✗') + 'required (' + n + '/3)');
+const furnChip = (n, split) => h('span', { class: 'req ' + (n >= 3 ? 'ok' : 'miss'), 'data-tip': split ? 'Furniture on this floor: each floor is its own home, so it needs 3 different kinds before anyone moves in there' : 'Furniture on the floor with the door: a kit house needs 3 different kinds there before anyone moves in' }, icon('sofa'), n + '/3');
 const floorName = (f) => f ? 'Upstairs' : 'Ground floor';
 const SIZE_NAME = { s: 'Small', m: 'Medium', l: 'Large' }, SIZE_RANK = { s: 0, m: 1, l: 2 };
 const pkSize = (p) => (p && (userSizes['pk:' + p.n] || p.ps)) || 'm';
@@ -750,7 +749,7 @@ const PGN = { n: 'while liquid turns its wheel', r: 'while it has fuel' };
 const SIG_IN = { get l() { return 'When anything changes in the ' + (S.gSensor > 1 ? S.gSensor + ' tiles' : 'tile') + ' in front of it, it switches'; }, l2: ' what\'s beside it, behind it and above and below it', f: 'Opens every door within 2 tiles (5×5×5) when Ditto or a walking Pokémon steps on it (floating ones don\'t press it), and closes them soon after', w: 'Switches everything within 3 tiles (7×7×7) on or off', c: 'Switches everything within 3 tiles (7×7×7) on or off with a key card' };
 const diaN = (r) => 2 * r * r + 2 * r + 1;
 const REACH_TXT = { get Sprinkler() { return 'Waters fields within ' + S.gSprinkler + ' tiles (' + diaN(S.gSprinkler) + ' tiles) while there\'s water at its own height in that reach. Still works buried.'; }, get 'Smooth rock'() { return 'Dries the top block within ' + S.gRock + ' tiles, from a level above it to 2 below, except in rain or by a running sprinkler.'; }, 'Bubble machine': 'Blows bubbles over the 3×3 around it, which underwater crops need.' };
-const isPowerGen = (it) => !!it && !!it.pg, isTransmitter = (it) => !!it && !!it.pt, isPowered = (it) => !!it && it.pd != null;
+const isPowered = (it) => !!it && it.pd != null;
 const signalTarget = (it) => !!it && (!!it.so || it.pt === 'ws' || inWall(it) || isPowered(it) && it.c !== 'Kits');
 function howItWorks(it) {
   const out = [];
@@ -1021,14 +1020,13 @@ function residentsSection(home) {
   wrap.append(h('div', { class: 'hrow' }, h('b', null, 'Residents'), h('span', { class: 'note' }, list.length + '/' + home.cap + (home.pf ? ' · ' + home.pf + '/floor' : '')), home.floors > 1 && list.length ? tipBtn('1F / 2F is the floor each one sleeps on: tap it to swap.') : ''));
   const chips = h('div', { class: 'reqs' });
   for (const r of list) chips.append(resChip(home, r, refresh));
-  if (!list.length) chips.append(h('span', { class: 'note' }, 'Nobody yet'));
-  wrap.append(chips);
+  if (list.length) wrap.append(chips);
   if (home.kind === 'house') for (const t of bigWayNotes(home.hs, pks)) wrap.append(h('div', { class: 'note', style: 'color:var(--bad)', 'data-tip': 'Large Pokémon take 2×2 tiles: they need a door 2 wide and paths 2 tiles wide to reach what they use.' }, '⚠ ' + t));
   if (smallOnly(home)) { const big = pks.filter(tooBig); if (big.length) wrap.append(h('div', { class: 'note', style: 'color:var(--bad)', 'data-tip': 'Dens and the Poké Ball house take medium Pokémon or smaller: move ' + (big.length > 1 ? 'them' : 'it') + ' to a hut or bigger.' }, '⚠ Too big for a den: ' + listNames(big.map(p => p.n)))); }
   const split = splitFloors(home), reqs = split ? h('div') : trioChips(home), cv = favCoverage(home);
   if (split) { const need = kitFloorsToFurnish(home.ob); for (const f of [0, 1]) { const row = trioChips(floorOf(home, f), f); row.prepend(h('b', { class: 'note' }, floorName(f)), need.includes(f) ? furnChip(kitFurniture(home.ob, f), true) : ''); reqs.append(row); } }
   else if (home.kind === 'kit') reqs.prepend(furnChip(kitFurniture(home.ob), false));
-  if (cv.total) (split ? reqs.appendChild(h('div', { class: 'reqs' })) : reqs).append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')'));
+  if (cv.total) (split ? reqs.appendChild(h('div', { class: 'reqs' })) : reqs).append(h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds ' + (home.kind === 'kit' ? 'inside' : 'in the active area') + ': ' + cv.have + ' of ' + cv.total }, '♥ ' + cv.have + '/' + cv.total));
   wrap.append(reqs);
   for (const el of workLines(home.key, home)) wrap.append(el);
   wrap.append(envSection(home));
@@ -1135,7 +1133,7 @@ const decorOK = (it) => indoorOK(it) && !isWall(it) && !isDoor(it) && it.c !== '
 function iedHome() { return kitHome(IED.ob); }
 function interiorEditor(ob) {
   if (!ob || !plan.objs.has(ob.id) || !ITEMS[ob.i].cap) return;
-  closeModal(); if (IED.ob && IED.ob !== ob) iedClose();
+  closeModal(); toastDrop('undo'); if (IED.ob && IED.ob !== ob) iedClose();
   Object.assign(IED, { ob, floor: 0, picked: null, hover: null, sel: null, filt: null, drag: null });
   if (IED.tool !== 'erase' && IED.tool !== 'move') IED.tool = 'place';
   if (!indoorOK(IED.item)) { const dp = decorPlan(iedHome(), 0); const s0 = dp.sugg.find(x => decorOK(x.it)); IED.item = s0 ? s0.it : (BY_NAME.get('Wooden bed') || ITEMS.find(decorOK)); }
@@ -1281,8 +1279,8 @@ function iedSide() {
   if (ki.fl > 1) { const other = residentsOf(home, 1 - IED.floor); if (other.length) el.append(h('div', { class: 'note hrow' }, (2 - IED.floor) + 'F:', other.map(r => pkTag(r.p, 20)))); }
   const split = splitFloors(home), fh = floorOf(home, f), n = kitFurniture(ob, split ? IED.floor : 0), dp = iedSuggest(home, f), cv = favCoverage(home);
   el.append(h('div', { class: 'reqs' }, furnChip(n, split),
-    comfortTrio(fh).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', 'data-tip': TRIO_TIP[lb] + (ok ? ' is here.' : ' isn\'t here yet.') + ' Tap to list them. Pokémon are most comfortable with a rest, a toy and a decoration item nearby.', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, (ok ? '✓' : '·') + lb)),
-    largeRestChip(home, f), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds inside: ' + cv.have + ' of ' + cv.total }, (cv.have === cv.total ? '✓' : '·') + 'favourite (' + cv.have + '/' + cv.total + ')') : ''));
+    comfortTrio(fh).map(([lb, ok, t]) => h('button', { class: 'req ' + (ok ? 'ok' : ''), 'aria-pressed': IED.filt === 'tg:' + t ? 'true' : 'false', 'data-tip': TRIO_TIP[lb] + (ok ? ' is here.' : ' isn\'t here yet.') + ' Tap to list them. Pokémon are most comfortable with a rest, a toy and a decoration item nearby.', onclick: () => { IED.filt = IED.filt === 'tg:' + t ? null : 'tg:' + t; iedSide(); } }, (ok ? '✓ ' : '') + lb)),
+    largeRestChip(home, f), cv.total ? h('span', { class: 'req ' + (cv.have === cv.total ? 'ok' : ''), 'data-tip': 'The residents\' favourite kinds inside: ' + cv.have + ' of ' + cv.total }, '♥ ' + cv.have + '/' + cv.total) : ''));
   if (!dp.res.length && !isTagFilt(IED.filt)) { el.append(h('p', { class: 'hint' }, 'Add residents for suggestions.')); return; }
   for (const p of dp.res) el.append(h('div', { class: 'card', style: 'margin:6px 0' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', p.fl ? h('span', { class: 'note', style: 'margin-left:auto' }, 'Likes ' + p.fl.toLowerCase()) : ''),
     h('div', null, (p.fv || []).map(fv => dp.present.has(fv) ? h('span', { class: 'fav have', 'data-tip': 'Here: ' + dp.present.get(fv).join(', ') }, '✓', FAVS[fv]) : h('button', { class: 'fav want', 'aria-pressed': IED.filt === fv ? 'true' : 'false', onclick: () => { IED.filt = IED.filt === fv ? null : fv; iedSide(); } }, FAVS[fv])))));
@@ -1495,9 +1493,9 @@ function restFit(home, floor) {
   return { pks, short: short.map(p => p.n), need, guess: short.some(pkSizeGuess) };
 }
 const RANK_FOOT = ['1×1', '2×1', '2×2'], RANK_WORD = ['small', 'medium', 'large'];
-function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) return ''; const ok = !b.short.length; return h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': (ok ? 'The rest items are big enough for everyone.' : listNames(b.short) + (b.short.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[b.need] + ' rest item (' + RANK_FOOT[b.need] + ' or bigger).') + ' Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large.' + (b.guess ? ' Some sizes are guesses: tap a size to change it.' : '') }, (ok ? '✓Rest size' : '·Rest ' + RANK_FOOT[b.need] + (b.guess ? '?' : ''))); }
+function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) return ''; const ok = !b.short.length; return h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': (ok ? 'The rest items are big enough for everyone.' : listNames(b.short) + (b.short.length > 1 ? ' need' : ' needs') + ' a ' + RANK_WORD[b.need] + ' rest item (' + RANK_FOOT[b.need] + ' or bigger).') + ' Rest items come in sizes by footprint: 1×1 small, 2×1 medium, 2×2 large.' + (b.guess ? ' Some sizes are guesses: tap a size to change it.' : '') }, (ok ? '✓ Rest size' : 'Rest ' + RANK_FOOT[b.need] + (b.guess ? '?' : ''))); }
 const TRIO_TIP = { Rest: 'A rest item (bed, seat…)', Toy: 'A toy', Decoration: 'A decoration' };
-function trioChips(home, floor) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓' : '·') + lb)), largeRestChip(home, floor)); }
+function trioChips(home, floor) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓ ' : '') + lb)), largeRestChip(home, floor)); }
 const CBOX = 'Community box', BOX_R = 4;
 const isBox = (it) => it && it.n === CBOX;
 function growRect(R, n) { const x0 = Math.max(0, R.x - n), y0 = Math.max(0, R.y - n), x1 = Math.min(plan.w - 1, R.x + R.w - 1 + n), y1 = Math.min(plan.h - 1, R.y + R.h - 1 + n); return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; }
@@ -2187,8 +2185,9 @@ async function enter3d(quiet) {
   mapView = v; ui3d(); if (quiet) v.fit(); requestDraw(); updateStatus();
 }
 function leave3d() {
-  if (!in3d()) return; const c = view3d.leave(), s = view.cs * c.zoom; view.zoom = c.zoom; view.px = W / 2 - c.cx * s; view.py = H / 2 - c.cy * s;
-  mapView = map2d; ui3d(); requestDraw(); updateStatus();
+  if (!in3d()) return; const c = view3d.leave(); mapView = map2d; ui3d();
+  if (c) { const s = view.cs * c.zoom; view.zoom = c.zoom; view.px = W / 2 - c.cx * s; view.py = H / 2 - c.cy * s; }
+  const s = cellSize(); if (!c || view.px > W || view.py > H || view.px + plan.w * s < 0 || view.py + plan.h * s < 0) map2d.fit(); else { requestDraw(); updateStatus(); }
 }
 let gl2 = null;
 const gl2ok = () => gl2 != null ? gl2 : (gl2 = (() => { try { const c = document.createElement('canvas'), g = c.getContext('webgl2'); if (!g) return false; const x = g.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); return true; } catch (e) { return false; } })());
@@ -2281,7 +2280,7 @@ function mapOverlay3d(o) {
 function mapLabels3d(o) {
   if (!plan) return;
   const c = o.c, s = o.s, small = s < 14; let ix = null; const rix = () => ix || (ix = residentsIndex());
-  const pill = (label, px, py, col, maxW) => { const fh = small ? 14 : 18; c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const tw = c.measureText(label).width + (small ? 10 : 14), bw = maxW ? Math.min(tw, maxW) : tw; c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore(); };
+  const pill = (label, px, py, col, maxW) => { const fh = small ? 14 : 18, pad = small ? 10 : 14; c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; const t = maxW ? fitLabel(c, label, maxW - pad) : label, bw = c.measureText(t).width + pad; c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.fillText(t, px + pad / 2, py - fh / 2 - 2); };
   const faces = (list, x, y) => { const d = Math.round(clamp(s * 0.95, 16, 30)); drawFaces(c, list, x, y - d * 0.62, d); };
   { const pt = (x, y, z) => { const b = o.flatRect(x + 0.5, y + 0.5, 0, 0, z + 0.8); return [b.x0, b.y0]; }, nets = powerShown(), recs = sigShown(); if (nets) drawPowerLines(c, POWER, pt, nets, s, showPower); if (recs) drawSignalLines(c, pt, recs, s); }
   if (s >= 8) for (const ob of plan.objs.values()) {
@@ -2317,6 +2316,13 @@ function mapLabels3d(o) {
 function tilt3d(dir = 1) { if (!in3d()) return; LS.set(LSK + '3dtilt', String(view3d.tilt(dir))); tiltUi(); }
 function turn3d(dir) { if (in3d()) view3d.turn(dir); }
 
+function fitLabel(c, t, w) {
+  if (c.measureText(t).width <= w) return t;
+  const tick = / ✓$/.test(t) ? ' ✓' : '', base = tick ? t.slice(0, -2) : t;
+  let lo = 0, hi = base.length;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (c.measureText(base.slice(0, m).trimEnd() + '…' + tick).width <= w) lo = m; else hi = m - 1; }
+  return lo >= 2 ? base.slice(0, lo).trimEnd() + '…' + tick : tick ? '✓' : base.slice(0, 1) + '…';
+}
 function roundRect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 function drawItem(c, it, x, y, s, wcells = 1, hcells = 1, label = true, pic = null) {
   const w = s * wcells, hh = s * hcells, cx = x + w / 2, cy = y + hh / 2, col = it.look ? it.look.a : it.col, alt = it.look && it.look.b;
@@ -2837,7 +2843,6 @@ function rugAt(x, y, all) { let best = null; for (const r of plan.rugs.values())
 function addRug(i, x, y, w, h, z = 1) { beginTx(); const r = { id: plan.nextId++, rug: 1, i, x, y, w, h }; if (z) r.z = z; plan.rugs.set(r.id, r); touchOb(r); tx.add.push(r); return r; }
 function rugLevel(p, x, y, w, h) { let z = -Infinity; for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (inB(p, xx, yy)) z = Math.max(z, standZ(yy * p.w + xx, p)); return z === -Infinity ? 1 : z; }
 function delRug(r) { if (!plan.rugs.has(r.id)) return; beginTx(); plan.rugs.delete(r.id); touchOb(r); const ai = tx.add.indexOf(r); if (ai >= 0) tx.add.splice(ai, 1); else tx.del.push(r); }
-const clearRug = delRug;
 function placeRug(it, x, y) {
   const ft = footOf(it), w = rotated ? ft[1] : ft[0], hh = rotated ? ft[0] : ft[1];
   if (x + w > plan.w || y + hh > plan.h) { toast(it.n + ' is ' + w + '×' + hh + ' and doesn\'t fit here.'); return; }
@@ -2937,7 +2942,7 @@ function draw(t, c = ctx) {
     for (let y = y0; y <= y1; y++) { const py = Math.round(view.py + y * s) + 0.5; c.moveTo(view.px + x0 * s, py); c.lineTo(view.px + x1 * s, py); }
     c.stroke();
   }
-  if (S.grid !== 'off') { c.strokeStyle = theme['map-chunk']; c.lineWidth = 1; c.beginPath();
+  if (S.grid !== 'off' && s >= 2) { c.strokeStyle = theme['map-chunk']; c.lineWidth = 1; c.beginPath();
   for (let x = Math.ceil(x0 / 8) * 8; x <= x1; x += 8) { const px = Math.round(view.px + x * s) + 0.5; c.moveTo(px, view.py + y0 * s); c.lineTo(px, view.py + y1 * s); }
   for (let y = Math.ceil(y0 / 8) * 8; y <= y1; y += 8) { const py = Math.round(view.py + y * s) + 0.5; c.moveTo(view.px + x0 * s, py); c.lineTo(view.px + x1 * s, py); }
   c.stroke(); }
@@ -2976,9 +2981,8 @@ function draw(t, c = ctx) {
     c.setLineDash(r && r.ok ? [] : [6, 4]); c.lineWidth = selection && selection.zone === z ? 3 : 2; c.strokeStyle = col; c.strokeRect(px + 1, py + 1, z.w * s - 2, z.h * s - 2); c.setLineDash([]);
     if (s >= 7 && S.labels) {
       const small = s < 14, fh = small ? 14 : 18, label = small && r && r.ok && z.kind !== 'label' ? (z.kind === 'house' ? 'House ✓' : r.best.hb.n + ' ✓') : zoneLabel(z, r);
-      c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; const tw = c.measureText(label).width + (small ? 10 : 14);
-      const bw = Math.min(tw, small ? Math.max(z.w * s + 16, 30) : Math.max(z.w * s, 40) + 120);
-      c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.save(); c.beginPath(); c.rect(px, py - fh - 2, bw - 3, fh); c.clip(); c.fillText(label, px + (small ? 5 : 7), py - fh / 2 - 2); c.restore();
+      c.font = `700 ${small ? 10 : 12}px ${BODY_FONT}`; const pad = small ? 10 : 14, t = fitLabel(c, label, (small ? Math.max(z.w * s + 16, 30) : Math.max(z.w * s, 40) + 120) - pad), bw = c.measureText(t).width + pad;
+      c.fillStyle = col; roundRect(c, px, py - fh - 2, bw, fh, small ? 4 : 6); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, px + pad / 2, py - fh / 2 - 2);
     }
   }
   drawFields(c, s);
@@ -3082,7 +3086,7 @@ function zoneLabel(z, r) {
   if (!r) return z.name || 'Zone';
   if (z.kind === 'label') return z.name || 'Label';
   if (z.kind === 'house') return (z.name || 'House') + (r.ok ? ' · habitable' : ' · not yet a house');
-  if (r.ok) return (z.target ? '' : '') + r.best.hb.n + ' ✓';
+  if (r.ok) return r.best.hb.n + ' ✓';
   if (r.target) return r.target.n + ' · ' + r.tr.met + '/' + r.tr.total;
   if (r.near) return (z.name || 'Zone') + ' · closest: ' + r.near.hb.n;
   return z.name || 'Habitat zone';
@@ -3671,7 +3675,13 @@ const picMB = () => Math.max(1, Math.round((PICS.bytes || Object.keys(PICS.pics)
 function picUI() {
   for (const el of $$('.picline')) { el.textContent = picText(); if (!picFill.running && (picFill.waiting || (picFill.total && picFill.done < picFill.total && navigator.onLine) || (!S.offline && !picFill.total))) el.append(' ', h('button', { class: 'btn sm', onclick: () => fillPictures(true) }, picFill.waiting || !picFill.total ? 'Save now' : S.offline ? 'Retry' : 'Save the rest')); }
 }
-function swatchEl(it, cls = 'swatch') { const s = h('span', { class: cls }); const u = picURL(it); s.style.backgroundImage = (u ? `url("${u}"), ` : '') + `url(${swatchURL(it)})`; return s; }
+function swatchEl(it, cls = 'swatch') {
+  const u = picURL(it); if (!u) { const s = h('span', { class: cls }); s.style.backgroundImage = `url(${swatchURL(it)})`; return s; }
+  const im = h('img', { class: cls, alt: '', loading: 'lazy', decoding: 'async', src: u });
+  im.style.backgroundColor = it.L === 'g' ? it.col : (it.c === 'Nature' ? '#d6dfcf' : '#e8ebe5');
+  im.onerror = () => { im.onerror = null; im.src = swatchURL(it); };
+  return im;
+}
 function picEl(it, cls = 'pic') {
   const u = picURL(it), im = h('img', { class: cls, alt: '', loading: 'lazy', decoding: 'async', src: u || swatchURL(it) });
   if (u) im.onerror = () => { im.onerror = null; im.src = swatchURL(it); };
@@ -3704,9 +3714,9 @@ function renderOptbar() {
       p.append(h('button', { class: 'info', 'aria-label': 'About ' + it.n, onclick: () => showItemInfo(it) }, icon('info')));
       ob.append(p);
       if (!painted(it)) { const ft = footOf(it); ob.append(h('span', { class: 'pill', 'data-tip': sizeGuessed(it) || heightGuessed(it) ? 'Guessed ' + (sizeGuessed(it) && heightGuessed(it) ? 'size and height' : sizeGuessed(it) ? 'size' : 'height') + ': change it if yours differs in game' : tall(it) ? 'Size in tiles, and the levels it takes up' : 'Size in tiles' }, (rotated ? ft[1] : ft[0]) + '×' + (rotated ? ft[0] : ft[1]) + (sizeGuessed(it) ? '?' : '') + (tall(it) && (heightOf(it) > 1 || heightGuessed(it)) ? ' · ' + heightOf(it) + ' high' + (heightGuessed(it) ? '?' : '') : ''), turnable(it) || ft[0] !== ft[1] ? ibtn('rotate', 'Turn (Q)', () => turnPlace(1), 'sm') : '', ibtn('resize', 'Change its size', () => itemSizeDialog(it), 'sm'))); }
-      if ((it.L !== 'g' && multi(it)) || isRug(it)) { }
-      else if (tool === 'rect') ob.append(h('span', { class: 'pill' }, segmented([['solid', 'Solid'], ['outline', 'Outline']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode'), tipBtn('Drag a rectangle. Outline fills only its edge: quick walls.')));
-      else if (tool === 'place' && !(pourMode === 'pour' && canPour(it))) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
+      const brushy = !((it.L !== 'g' && multi(it)) || isRug(it));
+      if (brushy && tool === 'rect') ob.append(h('span', { class: 'pill' }, segmented([['solid', 'Solid'], ['outline', 'Outline']], fillMode, v => { fillMode = v; renderOptbar(); }, 'Fill mode'), tipBtn('Drag a rectangle. Outline fills only its edge: quick walls.')));
+      else if (brushy && tool === 'place' && !(pourMode === 'pour' && canPour(it))) ob.append(h('span', { class: 'pill' }, lblIcon('brush', 'Brush size ([ and ])'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
       if (tool === 'place' && canPour(it)) {
         ob.append(h('span', { class: 'pill' }, segmented([['paint', 'Paint'], ['pour', 'Pour']], pourMode, v => { pourMode = v; pourPrev = null; renderOptbar(); requestDraw(); }, 'Paint or pour'), tipBtn('Paint puts ' + it.n.toLowerCase() + ' exactly where you tap, to copy what\'s in your game. Pour drops a source on the tile you tap and lets it flow as in the game: ' + (it.n === 'Lava' ? '12 tiles along a 1-wide channel, 6 at low level' : '25 tiles along a 1-wide channel, 12 at low level, 10 in a 2-wide one') + ', a smaller circle on open ground, falling over edges and starting again below. Tap a tile to see where it goes, then tap it again or press Pour.')));
         if (pourMode === 'pour') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, it.n === 'Lava' ? 'Lava level' : 'Water level'), segmented([[false, 'Normal'], [true, 'Low']], pourLow, v => { pourLow = v; if (pourPrev) pourPrev = computeFlow(pourPrev.x, pourPrev.y, pourPrev.z, pourPrev.i, v); renderOptbar(); requestDraw(); }, 'Liquid level')));
@@ -3714,31 +3724,32 @@ function renderOptbar() {
       }
       if (leveled(it)) ob.append(levelPill(it));
     } else ob.append(h('span', { class: 'pill' }, 'Pick an item'));
-    if (recent.length > 1) { const r = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Recent')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
+    if (recent.length > 1) { const r = h('span', { class: 'pill' }, lblIcon('clock', 'Recently used')); for (const n of recent.slice(0, 6)) { const ri = BY_NAME.get(n); if (ri && n !== curItem) { const b = h('button', { class: 'info', 'data-tip': n, 'aria-label': 'Use ' + n, onclick: () => selectItem(n) }, swatchEl(ri)); r.append(b); } } ob.append(r); }
   } else if (tool === 'erase') {
     ob.append(h('span', { class: 'pill' }, segmented([['both', 'Both'], ['objects', 'Items'], ['ground', 'Terrain']], eraseMode, v => { eraseMode = v; renderOptbar(); }, 'Erase mode'), tipBtn('Both: whatever is on top first, item, rug or terrain block. Items leaves the terrain. Terrain takes the top terrain block. Hidden layers are never erased.')));
-    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), levelSelect('Level to erase from'), tipBtn(layerZ != null ? 'Only what\'s on level ' + lvNum(layerZ) + ' is erased, and everything above it fades out so you can reach it. Choose On top to go back.' : 'On top: erase takes whatever is on top first. Choose a level to erase only from it, even under the ground.')));
-    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Brush'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
+    ob.append(h('span', { class: 'pill' }, lblIcon('layers', 'Level to erase from'), levelSelect('Level to erase from'), tipBtn(layerZ != null ? 'Only what\'s on level ' + lvNum(layerZ) + ' is erased, and everything above it fades out so you can reach it. Choose On top to go back.' : 'On top: erase takes whatever is on top first. Choose a level to erase only from it, even under the ground.')));
+    ob.append(h('span', { class: 'pill' }, lblIcon('brush', 'Brush size ([ and ])'), segmented([[1, '1'], [2, '2'], [3, '3'], [5, '5']], brush, v => { brush = v; renderOptbar(); }, 'Brush size')));
   } else if (tool === 'zone') {
     ob.append(h('span', { class: 'pill' }, segmented([['habitat', 'Habitat'], ['label', 'Label']], zoneKind, v => { zoneKind = v; renderOptbar(); }, 'Zone type'), tipBtn('Drag to draw a zone. Houses you build from walls are found automatically: no zone needed.')));
   } else if (tool === 'select') {
-    ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, multiPick ? 'Tap to add or take away · drag to add an area' : 'Tap to inspect · drag to move'), tipBtn('Drag an item to move it. Drag from an empty square to select an area, then drag any of it to move it all. Tap a selected item or rug again to select what\'s under it. Pick several, or Shift with the mouse, adds items and areas to the selection.'), pickBtn()));
+    ob.append(h('span', { class: 'pill' }, tipBtn((multiPick ? 'Tap items to add them or take them away, or drag to add an area. ' : '') + 'Drag an item to move it. Drag from an empty square to select an area, then drag any of it to move it all. Tap a selected item or rug again to select what\'s under it. Pick several, or Shift with the mouse, adds items and areas to the selection.'), pickBtn()));
     ob.append(layerChip());
-  } else if (tool === 'pick') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap an item to reuse it')));
-  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, multiPick ? 'Tap to add or take away' : 'Drag to pan · tap to inspect'), tipBtn('Drag to move around the map; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside. Pick several lets you tap more items into the selection.'), pickBtn()));
+  } else if (tool === 'pick') ob.append(h('span', { class: 'pill' }, tipBtn('Tap an item on the map to pick it up as the thing to place.')));
+  else if (tool === 'pan') ob.append(h('span', { class: 'pill' }, tipBtn((multiPick ? 'Tap items to add them or take them away. ' : '') + 'Drag to move around the map; pinch, the mouse wheel or + and − zoom. Tap anything to see its details, and tap again to reach what\'s under it. Double-click a house to decorate inside. Pick several lets you tap more items into the selection.'), pickBtn()));
   else if (tool === 'stamp' && stampHab) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap the map to place'), h('b', null, stampHab.n), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
   else if (tool === 'paste' && clip) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Tap to paste ' + clip.w + '×' + clip.h), tipBtn('Where you tap is its top-left corner. Red means something is in the way. Q turns it and F flips it.'), ibtn('rotate', 'Turn (Q)', () => clipTurn('cw'), 'sm'), ibtn('fliph', 'Flip (F)', () => clipTurn('fx'), 'sm'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Done')));
   else if (tool === 'move' && moving) ob.append(h('span', { class: 'pill' }, h('span', { class: 'lbl' }, moving.grp ? 'Tap where they should go' : 'Tap where ' + ITEMS[moving.i].n + ' should go'), h('button', { class: 'btn sm', onclick: () => setTool(S.tool) }, 'Cancel')));
 }
 
-function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Working on'), h('b', null, 'Level ' + lvNum(layerZ)), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
+function layerChip() { if (layerZ == null) return ''; return h('span', { class: 'pill' }, lblIcon('layers', 'Working on this level'), h('b', null, 'Level ' + lvNum(layerZ)), ibtn('close', 'Back to on top', () => setLayerZ(null), 'sm')); }
+const lblIcon = (id, tip) => h('span', { class: 'lbl lbi', role: 'img', 'aria-label': tip, 'data-tip': tip }, icon(id));
 function levelSelect(label) {
   const sel = h('select', { class: 'lvsel', 'aria-label': label }, h('option', { value: '' }, 'On top'), levelList(levelStats()).map(z => h('option', { value: String(z) }, 'Level ' + lvNum(z) + (hidden.has(z) ? ' (hidden)' : ''))), h('option', { value: '*' }, 'Other level…'));
   sel.value = layerZ == null ? '' : String(layerZ); sel.onchange = () => { if (sel.value === '*') { sel.value = layerZ == null ? '' : String(layerZ); levelDialog(); return; } setLayerZ(sel.value === '' ? null : +sel.value); };
   return sel;
 }
 function levelPill(it) {
-  const p = h('span', { class: 'pill' }, h('span', { class: 'lbl' }, 'Level'), levelSelect('Level to place on'));
+  const p = h('span', { class: 'pill' }, lblIcon('layers', 'Level to place on'), levelSelect('Level to place on'));
   const pouring = pourMode === 'pour' && canPour(it) && tool === 'place';
   if (layerZ == null && isTerr(it) && !pouring) p.append(segmented([['stack', 'Stack'], ['paint', 'Paint']], terrMode, v => { terrMode = v; renderOptbar(); requestDraw(); }, 'Stack a new block on top, or paint over the top block'));
   if (layerZ != null && !pouring) p.append(segmented([[false, 'Keep'], [true, 'Replace']], layerReplace, v => { layerReplace = v; renderOptbar(); requestDraw(); if (activeTab === 'layers') renderPanel(); }, 'Items already on level ' + lvNum(layerZ)));
@@ -4296,9 +4307,9 @@ function selectHouse(hs) {
   const box = inspectorShell('House you built', null, hs.w + '×' + hs.h + ' inside · ' + hs.interior + ' tiles', 'Found automatically: walls or fences all round, a door or gate, 2×2 to 9×10 inside and 3 kinds of furniture at the door\'s level. Walls can be 1 block high; make them 3 or more to walk inside.');
   { const hm = houseHome(hs), n = residentsOf(hm).length; if (n < hm.cap) box.acts.append(ibtn('useradd', 'Add resident', () => residentPicker(hm), 'primary')); if (n) box.acts.append(ibtn('sofa', 'Decorate for them', () => decorModal(hm))); }
   box.acts.append(ibtn('select', 'Select all of it', () => { const cur = houseById.get(hs.id); if (cur) grpSelect(houseGroup(cur)); }), ibtn('trash', 'Delete house', () => confirmDeleteHouse(hs), 'danger'));
-  const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓' : '✗') + t);
+  const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓ ' : '✗ ') + t);
   box.append(h('div', { class: 'reqs' }, hs.ok ? h('span', { class: 'chip good', 'data-tip': 'Up to 4 Pokémon can live here' }, h('span', { class: 'dot' }), 'Habitable') : h('span', { class: 'chip warn', 'data-tip': 'Not a home yet: ' + houseIssues(hs).join(', ') }, h('span', { class: 'dot' }), 'Not a home yet'),
-    ck(true, 'Walls', 'Closed in by walls or fences'), ck(hs.clearDoors > 0, 'Door', !hs.doors.size ? 'Add a door or gate in the wall' : hs.clearDoors ? 'A door or gate, with the way in clear' : 'Clear the block just outside the door'), ck(hs.sizeOk, 'Size', 'Inside must be 2×2 to 9×10'), ck(hs.furn >= 3, 'required (' + hs.furn + '/3)', 'Kinds of furniture inside, standing at the door\'s level: a house needs 3. Things higher up, on the walls or just outside still count for comfort.')));
+    ck(true, 'Walls', 'Closed in by walls or fences'), ck(hs.clearDoors > 0, 'Door', !hs.doors.size ? 'Add a door or gate in the wall' : hs.clearDoors ? 'A door or gate, with the way in clear' : 'Clear the block just outside the door'), ck(hs.sizeOk, 'Size', 'Inside must be 2×2 to 9×10'), ck(hs.furn >= 3, 'Furniture ' + Math.min(hs.furn, 3) + '/3', 'Kinds of furniture inside, standing at the door\'s level: a house needs 3. Things higher up, on the walls or just outside still count for comfort.')));
   const ct = areaContents(hs.area), inside = floorItems(hs);
   box.append(h('div', { class: 'note hrow', style: 'margin-top:6px' }, icon('area'), 'Area ' + hs.area.rect.w + '×' + hs.area.rect.h + ' · ' + ct.n + ' item' + (ct.n === 1 ? '' : 's') + ' (' + inside + ' inside)', tipBtn(areaSummary(hs.area) + (ct.n ? ' In it: ' + [...ct.out].map(([c, n]) => n + ' ' + c).join(', ') + '.' : ''))));
   if (hs.kitHomes.length) box.append(h('div', { class: 'section' }, h('div', { class: 'hrow' }, h('b', null, 'Kit homes inside'), tipBtn('Homes of their own: they don\'t count as this house\'s furniture.')), kitHomesList(hs)));
@@ -4332,8 +4343,8 @@ function selectZone(z) {
     const hh = habitatHome(z); if (hh && hh.pks.some(p => p.ideal)) box.append(envSection(hh));
     if (r.ok) for (const el of workLines('zone:' + z.id, { kind: 'habitat' })) box.append(el);
   } else if (z.kind === 'house') {
-    const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓' : '✗') + t);
-    box.append(h('div', { class: 'reqs' }, ck(r.sizeOk, 'Size', 'Inside 2×2 to 9×10'), ck(r.walls > 0, 'Walls', 'Walls or fences'), ck(r.door, 'Door', 'A door or gate'), ck(r.furn >= 3, 'required (' + r.furn + '/3)', 'Furniture pieces: a house needs 3')));
+    const ck = (ok, t, tip) => h('span', { class: 'req ' + (ok ? 'ok' : 'miss'), 'data-tip': tip }, (ok ? '✓ ' : '✗ ') + t);
+    box.append(h('div', { class: 'reqs' }, ck(r.sizeOk, 'Size', 'Inside 2×2 to 9×10'), ck(r.walls > 0, 'Walls', 'Walls or fences'), ck(r.door, 'Door', 'A door or gate'), ck(r.furn >= 3, 'Furniture ' + Math.min(r.furn, 3) + '/3', 'Furniture pieces: a house needs 3')));
   }
   if (r.area) { const ct = areaContents(r.area); box.append(h('div', { class: 'note hrow', style: 'margin-top:6px' }, icon('area'), 'Area ' + r.area.rect.w + '×' + r.area.rect.h + ' · ' + ct.n + ' other item' + (ct.n === 1 ? '' : 's'), tipBtn(areaSummary(r.area) + ' Favourite things placed in it raise comfort; anything outside has no effect.' + (ct.n ? ' In it: ' + [...ct.out].map(([c, n]) => n + ' ' + c).join(', ') + '.' : '')))); }
   if (z.kind === 'habitat' && (z.target || (r.near && !r.ok))) box.acts.append(ibtn('stamp', 'Add the missing items', () => fillZoneMissing(z), 'primary'));
@@ -4517,8 +4528,7 @@ function renderLayers() {
   const eye = (key) => { const off = hidden.has(key), t = (off ? 'Show ' : 'Hide ') + lvName(key).toLowerCase(); return h('button', { class: 'eye', type: 'button', 'aria-pressed': off ? 'false' : 'true', 'aria-label': t, 'data-tip': t, onclick: () => setHidden(key, !off) }, icon(off ? 'eyeoff' : 'eye')); };
   const line = (key, badge, name, ds, pick) => h('div', { class: 'lyr' + (key != null && hidden.has(key) ? ' off' : '') }, key != null ? eye(key) : h('span', { class: 'gap' }),
     h(pick ? 'button' : 'div', pick ? { class: 'row', type: 'button', 'aria-pressed': pick.on ? 'true' : 'false', onclick: pick.fn } : { class: 'row' }, h('span', { class: 'lvl' }, badge), h('span', { class: 'meta' }, h('div', { class: 'nm' }, name), h('div', { class: 'ds' }, ds))));
-  root.append(h('h2', { class: 'hrow' }, 'Layers', tipBtn('Each level is a layer, as in a drawing app, and holds its terrain blocks as well as its items: every block takes one level. Terrain starts at level 0, so things standing on the ground are on level 1. Tap the eye to hide or show one: hidden layers aren\'t drawn and can\'t be tapped, but they still count for houses, habitats and comfort. Tap a level to work on it: Place and Fill put things on it, everything above it fades out, Erase only takes them from it, and Select picks them first.')));
-  root.append(h('p', { class: 'sub' }, (layerZ == null ? 'New items stack on top of what\'s there.' : 'Working on level ' + lvNum(layerZ) + (hidden.has(layerZ) ? ', which is hidden' : '') + '.') + ' Levels go from ' + lvNum(ZMIN) + ' to ' + ZMAX + '. Terrain starts at 0, so the ground floor is level 1.'));
+  root.append(h('h2', { class: 'hrow' }, 'Layers', tipBtn('Each level is a layer, as in a drawing app, and holds its terrain blocks as well as its items: every block takes one level. Terrain starts at level 0, so things standing on the ground are on level 1. Tap the eye to hide or show one: hidden layers aren\'t drawn and can\'t be tapped, but they still count for houses, habitats and comfort. Tap a level to work on it: Place and Fill put things on it, everything above it fades out, Erase only takes them from it, and Select picks them first. Levels go from ' + lvNum(ZMIN) + ' to ' + ZMAX + '.')));
   const list = h('div', { class: 'list' });
   list.append(line(null, icon('layers'), 'On top', 'New things stack on what\'s there', { on: layerZ == null, fn: () => setLayerZ(null) }));
   levels.forEach((z, j) => {
@@ -4557,13 +4567,6 @@ function renderBuild(keepFocus) {
 }
 const BUILD_STEP = 24, BUILD_MAX = 400;
 let buildRows = { key: null, arr: [], shown: 0, lastSub: null }, buildTimer = 0, buildObs = null;
-function listSwatch(it) {
-  const u = picURL(it); if (!u) return swatchEl(it);
-  const im = h('img', { class: 'swatch', alt: '', loading: 'lazy', decoding: 'async', src: u });
-  im.style.backgroundColor = it.L === 'g' ? it.col : (it.c === 'Nature' ? '#d6dfcf' : '#e8ebe5');
-  im.onerror = () => { im.onerror = null; im.src = swatchURL(it); };
-  return im;
-}
 function renderBuildList() {
   const list = $('#buildList'), q = buildQuery, key = q ? 'q:' + q : 'c:' + buildCat;
   const keep = buildRows.key === key ? buildRows.shown : 0;
@@ -4581,7 +4584,7 @@ function moreBuildRows(n = BUILD_STEP) {
     if (!q && (it.c === 'Nature' || it.c === 'Kits') && it.sub && it.sub !== R.lastSub) { frag.append(h('h4', { style: 'margin:12px 4px 4px' }, it.sub)); R.lastSub = it.sub; }
     const ds = it.m && it.m.length ? it.m.map(([m, n]) => n + ' ' + m).join(' · ') : (it.d || (it.c === 'Special' ? 'Found or received' : 'Gathered or planted'));
     const row = h('button', { class: 'row', 'data-item': it.n, 'aria-pressed': it.n === curItem ? 'true' : 'false', onclick: () => { selectItem(it.n); if (innerWidth < 900) setSheet('peek'); toast(it.w > 1 || it.h > 1 ? 'Tap the map to place ' + it.n : 'Paint ' + it.n + ' on the map'); } },
-      listSwatch(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n, it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : '', it.w > 1 || it.h > 1 ? h('span', { class: 'note', style: 'margin-left:6px' }, it.w + '×' + it.h) : ''), h('div', { class: 'ds' }, (q ? CAT_META[it.c].label + ' · ' : '') + ds)));
+      swatchEl(it), h('span', { class: 'meta' }, h('div', { class: 'nm' }, it.n, it.ep ? h('span', { class: 'ep', style: 'margin-left:6px' }, 'EP') : '', it.w > 1 || it.h > 1 ? h('span', { class: 'note', style: 'margin-left:6px' }, it.w + '×' + it.h) : ''), h('div', { class: 'ds' }, (q ? CAT_META[it.c].label + ' · ' : '') + ds)));
     row.style.flex = '1'; row.style.minWidth = '0';
     frag.append(h('div', { style: 'display:flex;align-items:center;min-width:0' }, row, h('button', { class: 'info', 'aria-label': 'Details for ' + it.n, onclick: () => showItemInfo(it) }, icon('info'))));
   }
@@ -4620,10 +4623,10 @@ function renderMaterials() {
   const zs = plan.zones.filter(z => z.kind === 'habitat'); const done = zs.filter(z => zoneStatus.get(z.id) && zoneStatus.get(z.id).ok).length;
   root.append(h('h2', { class: 'hrow' }, 'Materials', tipBtn('Everything this plan needs, totalled from each recipe. Enter what you have to see what\'s left to gather.')));
   root.append(h('div', { class: 'tiles' },
-    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Crafted pieces'), h('div', { class: 'v' }, fmt(t.crafted))),
-    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Gathered / planted'), h('div', { class: 'v' }, fmt(t.natural))),
-    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Material types'), h('div', { class: 'v' }, t.need.size)),
-    h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Habitats complete'), h('div', { class: 'v' }, done, h('small', null, ' / ' + zs.length)))));
+    h('div', { class: 'tile', 'data-tip': 'Crafted pieces in this plan' }, h('div', { class: 'k' }, 'Crafted'), h('div', { class: 'v' }, fmt(t.crafted))),
+    h('div', { class: 'tile', 'data-tip': 'Things gathered, planted or found' }, h('div', { class: 'k' }, 'Gathered'), h('div', { class: 'v' }, fmt(t.natural))),
+    h('div', { class: 'tile', 'data-tip': 'Different materials the recipes use' }, h('div', { class: 'k' }, 'Materials'), h('div', { class: 'v' }, t.need.size)),
+    h('div', { class: 'tile', 'data-tip': 'Habitat zones that have formed a habitat' }, h('div', { class: 'k' }, 'Habitats'), h('div', { class: 'v' }, done, h('small', null, ' / ' + zs.length)))));
   const tg = h('label', { class: 'toggle', style: 'margin:8px 0 4px' }, h('input', { type: 'checkbox', id: 'rawT', checked: rawMode, onchange: (e) => { rawMode = e.target.checked; renderMaterials(); } }), 'Raw materials', tipBtn('Breaks processed materials down to raw: 1 Small log → 5 Lumber; 1 ore → 1 ingot; 1 Squishy clay → 2 Brick; 1 Wastepaper → 2 Paper. Concrete and Tinkagear count 1 : 1 (an estimate).'));
   root.append(tg);
   if (!t.need.size) root.append(h('p', { class: 'empty' }, 'Nothing crafted yet'));
@@ -4635,7 +4638,7 @@ function renderMaterials() {
       const inp = h('input', { type: 'number', min: 0, value: have || '', 'aria-label': 'Have ' + m, inputmode: 'numeric' });
       inp.onchange = () => { plan.inv[m] = Math.max(0, +inp.value || 0); markDirty(); renderMaterials(); };
       const meta = MAT_BY_NAME.get(m);
-      tb.append(h('tr', null, h('td', null, h('div', { style: 'font-weight:700' }, m), meta ? h('div', { class: 'note' }, meta.k === 'processed' ? 'Processed · ' + meta.p : meta.g) : ''), h('td', null, fmt(Math.ceil(q))), h('td', null, inp), h('td', { class: left ? 'leftn' : 'left0' }, left ? fmt(left) : '✓')));
+      tb.append(h('tr', null, h('td', null, h('span', meta ? { style: 'font-weight:700', 'data-tip': meta.k === 'processed' ? 'Processed · ' + meta.p : meta.g } : { style: 'font-weight:700' }, m)), h('td', null, fmt(Math.ceil(q))), h('td', null, inp), h('td', { class: left ? 'leftn' : 'left0' }, left ? fmt(left) : '✓')));
     }
     root.append(h('table', { class: 'mats' }, h('thead', null, h('tr', null, h('th', null, 'Material'), h('th', null, 'Need'), h('th', null, 'Have'), h('th', null, 'Left'))), tb));
     root.append(h('div', { style: 'margin-top:10px;display:flex;gap:8px;flex-wrap:wrap' }, h('button', { class: 'btn sm', onclick: () => copyText(materialsText(t)) }, icon('copy'), 'Copy list'), h('button', { class: 'btn sm', onclick: () => { plan.inv = {}; markDirty(); renderMaterials(); } }, 'Reset "have"')));
@@ -4686,7 +4689,7 @@ function renderHabitats() {
     if (hs.enclosure) { root.append(h('div', { class: 'card zone-none' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Enclosure at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip', style: 'margin-left:auto' }, hs.kitHomes.length + ' kit home' + (hs.kitHomes.length > 1 ? 's' : ''))), h('div', { class: 'acts' }, ibtn('map', 'Show on map', () => showHs(hs), 'sm'), ibtn('trash', 'Delete', () => confirmDeleteHouse(hs), 'sm danger', { style: 'margin-left:auto' })))); continue; }
     root.append(h('div', { class: 'card ' + (hs.ok ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'House at ' + hs.x + ', ' + hs.y), h('span', { class: 'chip ' + (hs.ok ? 'good' : 'warn'), style: 'margin-left:auto' }, h('span', { class: 'dot' }), hs.ok ? 'Habitable' : 'Unfinished')),
       h('div', { class: 'note' }, (hs.ok ? 'Up to 4' : houseIssues(hs).join(' · ')) + ' · ' + floorItems(hs) + ' inside · ' + ct.n + ' in the area'),
-      (() => { const l = residentsOf(houseHome(hs)); return l.length ? pkChips(l.map(r => r.p), 22, openPokemon) : h('div', { class: 'mons', style: 'margin-top:4px' }, 'Nobody yet'); })(),
+      (() => { const l = residentsOf(houseHome(hs)); return l.length ? pkChips(l.map(r => r.p), 22, openPokemon) : ''; })(),
       h('div', { class: 'acts' }, ibtn('map', 'Show on map', () => showHs(hs), 'sm'), ibtn('trash', 'Delete', () => confirmDeleteHouse(hs), 'sm danger', { style: 'margin-left:auto' }))));
   }
   const kitObs = [...plan.objs.values()].filter(ob => ITEMS[ob.i].cap);
@@ -4695,9 +4698,9 @@ function renderHabitats() {
     root.append(h('h4', { class: 'hrow' }, 'Kit homes (' + kitObs.length + ')', h('span', { class: 'req' + (pv > 40 ? ' miss' : ''), style: 'font-weight:600', 'data-tip': 'Prefab homes: ' + pv + ' of the 40 allowed in one area (1 for a one-Pokémon home, 2 for bigger ones). Kits built from blocks don\'t count.' }, 'Prefab ' + pv + '/40')));
     for (const ob of kitObs) {
       const it = ITEMS[ob.i], hm = kitHome(ob), l = residentsOf(hm), n = splitFloors(hm) ? kitFloorsToFurnish(ob).map(f => (f ? '2F ' : '1F ') + kitFurniture(ob, f) + '/3').join(', ') : kitFurniture(ob) + '/3', cv = favCoverage(hm), host = houseAt(ob.x, ob.y);
-      root.append(h('div', { class: 'card ' + (kitReady(ob) ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, swatchEl(it), h('span', { class: 'title' }, it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y), h('span', { class: 'note', style: 'margin-left:auto' }, l.length + '/' + it.cap)),
-        h('div', { class: 'note' }, 'required (' + n + ')' + (cv.total ? ' · favourite (' + cv.have + '/' + cv.total + ')' : '') + (hm.floors > 1 ? ' · 2 floors' : '') + (host ? ' · in ' + (host.enclosure ? 'an enclosure' : 'a house') : '')),
-        l.length ? pkChips(l.map(r => r.p), 22, openPokemon, hm.floors > 1 ? (p) => h('span', { class: 'note' }, (l.find(r => r.p === p.n) || {}).f ? '2F' : '1F') : null) : h('div', { class: 'mons', style: 'margin-top:4px' }, 'Nobody yet'),
+      root.append(h('div', { class: 'card ' + (kitReady(ob) ? 'zone-ok' : 'zone-part') }, h('div', { class: 'hd' }, swatchEl(it), h('span', { class: 'title' }, it.n.replace(/ kit$/, '') + ' at ' + ob.x + ', ' + ob.y), h('span', { class: 'note', style: 'margin-left:auto', 'data-tip': 'Residents: ' + l.length + ' of ' + it.cap }, l.length + '/' + it.cap)),
+        h('div', { class: 'reqs' }, h('span', { class: 'req ' + (kitReady(ob) ? 'ok' : 'miss'), 'data-tip': 'Kinds of furniture inside, out of the 3 it needs' + (hm.floors > 1 ? ' on each floor' : '') }, icon('sofa'), n), cv.total ? h('span', { class: 'req', 'data-tip': 'Favourite things its residents like, in reach' }, '♥ ' + cv.have + '/' + cv.total) : '', hm.floors > 1 ? h('span', { class: 'req' }, '2 floors') : '', host ? h('span', { class: 'req' }, 'In ' + (host.enclosure ? 'an enclosure' : 'a house')) : ''),
+        l.length ? pkChips(l.map(r => r.p), 22, openPokemon, hm.floors > 1 ? (p) => h('span', { class: 'note' }, (l.find(r => r.p === p.n) || {}).f ? '2F' : '1F') : null) : '',
         h('div', { class: 'acts' }, ibtn('sofa', 'Decorate inside', () => interiorEditor(ob), 'sm primary'), ibtn('map', 'Show on map', () => { mapView.centerOn(ob.x + ob.w / 2, ob.y + ob.h / 2); if (innerWidth < 900) setSheet('peek'); selection = { obj: ob }; showObjInspector(ob); }, 'sm'), ibtn('trash', 'Delete', () => deleteObjNow(ob), 'sm danger', { style: 'margin-left:auto' }))));
     }
   }
@@ -5072,16 +5075,16 @@ function renderPlans() {
     h('div', { class: 'field' }, h('label', { class: 'hrow' }, 'Weather', tipBtn(WX_TIP)), wxSeg),
     h('p', { class: 'note' }, plan.w + '×' + plan.h + ' tiles · ' + plan.objs.size + ' items · ' + plan.zones.length + ' zones'),
     h('div', { class: 'acts' }, ibtn('resize', 'Resize plan', resizePlanDialog, 'sm'), ibtn('copy', 'Duplicate', duplicatePlan, 'sm'), ibtn('trash', 'Delete plan', () => deletePlanDialog(plan.id), 'sm danger'))));
-  root.append(h('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;margin:2px 0 8px' }, h('button', { class: 'btn sm primary', onclick: newPlanDialog }, icon('plus'), 'New plan'),
-    downloads ? h('button', { class: 'btn sm', 'data-tip': 'Save as image', onclick: exportPNG }, icon('down'), 'Image') : '',
-    downloads ? h('button', { class: 'btn sm', 'data-tip': 'Export plan file', onclick: exportJSON }, icon('down'), 'Export') : h('button', { class: 'btn sm', onclick: () => copyText(JSON.stringify(serialize(plan))) }, icon('copy'), 'Copy plan data'),
-    h('label', { class: 'btn sm', for: 'importFile', 'data-tip': 'Import plan file' }, icon('up'), 'Import'), h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON })));
-  root.append(h('h4', { class: 'hrow' }, 'Game towns', tipBtn(TOWN_TIP)));
-  root.append(h('div', { class: 'card' }, h('p', { class: 'note', style: 'margin:0 0 6px' }, 'Start a new plan from a town as the game lays it out.'), townButtons()));
+  const file = h('input', { id: 'importFile', type: 'file', accept: '.json,application/json', style: 'display:none', onchange: importJSON });
+  root.append(h('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:2px 0 8px' }, h('button', { class: 'btn sm primary', onclick: newPlanDialog }, icon('plus'), 'New plan'),
+    downloads ? ibtn('image', 'Save as image', exportPNG, 'sm') : '',
+    downloads ? ibtn('down', 'Export plan file', exportJSON, 'sm') : ibtn('copy', 'Copy plan data', () => copyText(JSON.stringify(serialize(plan))), 'sm'),
+    ibtn('up', 'Import plan file', () => file.click(), 'sm'), file));
+  root.append(h('h4', { class: 'hrow' }, 'Game towns', tipBtn(TOWN_TIP)), townButtons());
   root.append(syncCard());
   root.append(h('p', { class: 'note hrow', style: 'margin:4px 0' }, ...storageNote()));
   root.append(h('p', { class: 'note picline', style: 'margin:4px 0' })); picUI();
-  root.append(h('p', { class: 'note', style: 'margin:4px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, 'Version ' + appVersion(), h('button', { class: 'btn sm', onclick: updateNow }, 'Check for updates'), h('button', { class: 'btn sm', onclick: () => openSettings() }, icon('gear'), 'Settings')));
+  root.append(h('p', { class: 'note', style: 'margin:4px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap' }, 'Version ' + appVersion(), ibtn('rotate', 'Check for updates', updateNow, 'sm')));
   root.append(h('h4', null, 'All plans (' + plansIndex.length + ')'));
   { const cp = syncCopies(); if (cp.length) root.append(h('div', { class: 'card' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, cp.length + ' sync ' + (cp.length === 1 ? 'copy' : 'copies')), tipBtn('When a plan changed in two places before they synced, the older version was set aside as a copy named “from another device” or “from this device”. The plan under its own name has the newest version.'), h('button', { class: 'btn sm', style: 'margin-left:auto', onclick: tidyCopiesDialog }, icon('trash'), 'Remove copies')))); }
   for (const p of [...plansIndex].sort((a, b) => b.updated - a.updated)) {
@@ -5157,7 +5160,7 @@ async function openTown(file, name) {
   for (const z of p.zones) z.id = uid();
   if (dirty) persistNow(); installPlan(p); persistNow(); toast('New plan of ' + t[1] + ' · ' + p.w + '×' + p.h + ' tiles');
 }
-function townButtons() { return h('div', { class: 'acts' }, TOWNS.map(([f, n, w]) => h('button', { class: 'btn sm', 'data-tip': 'New plan of ' + n + ', ' + w + '×' + w + ' tiles', onclick: () => openTown(f) }, icon('map'), n))); }
+function townButtons() { return h('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;margin:0 0 8px' }, TOWNS.map(([f, n, w]) => h('button', { class: 'btn sm', 'data-tip': 'New plan of ' + n + ', ' + w + '×' + w + ' tiles', onclick: () => openTown(f) }, icon('map'), n))); }
 function duplicatePlan() { const s = serialize(plan); s.id = uid(); s.name = plan.name + ' (copy)'; s.updated = Date.now(); const p = deserialize(s); installPlan(p); persistNow(); toast('Duplicated'); }
 function deletePlanDialog(id) {
   const meta = plansIndex.find(p => p.id === id); if (!meta) return;
@@ -5222,8 +5225,8 @@ function renderSettings() {
     const paint = () => b.setAttribute('aria-checked', val() ? 'true' : 'false');
     b.onclick = () => { if (set) set(!val()); else setPref(k, !val()); paint(); }; paint(); return b;
   };
-  const row = (title, note, ...ctl) => h('div', { class: 'srow' }, h('div', { class: 'stxt' }, h('b', null, title), typeof note === 'string' ? h('span', { class: 'note' }, note) : note || ''), ctl.length ? h('div', { class: 'sctl' }, ...ctl) : '');
-  const sec = (id, ...rows) => { const [, t, ic] = SET_SECS.find(q => q[0] === id); scroll.append(h('section', { class: 'ssec', id: 'sets-' + id, 'aria-labelledby': 'setsH-' + id }, h('h3', { id: 'setsH-' + id }, icon(ic), t), ...rows)); nav.append(h('button', { type: 'button', 'data-sec': id, onclick: () => setsJump(id) }, icon(ic), t)); };
+  const row = (title, note, ...ctl) => h('div', { class: 'srow' }, h('div', { class: 'stxt' }, typeof note === 'string' ? h('b', { class: 'hrow' }, title, tipBtn(note)) : h('b', null, title), typeof note === 'string' ? '' : note || ''), ctl.length ? h('div', { class: 'sctl' }, ...ctl) : '');
+  const sec = (id, ...rows) => { const [, t, ic] = SET_SECS.find(q => q[0] === id), tip = typeof rows[0] === 'string' ? rows.shift() : ''; scroll.append(h('section', { class: 'ssec', id: 'sets-' + id, 'aria-labelledby': 'setsH-' + id }, h('h3', { id: 'setsH-' + id }, icon(ic), t, tipBtn(tip)), ...rows)); nav.append(h('button', { type: 'button', 'data-sec': id, onclick: () => setsJump(id) }, icon(ic), t)); };
   const sws = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Accent colour' });
   const paintSw = () => { for (const b of sws.children) b.setAttribute('aria-pressed', b.dataset.v === S.accent ? 'true' : 'false'); };
   for (const [v, [n, c]] of Object.entries(ACCENT_NAMES)) sws.append(h('button', { type: 'button', 'data-v': v, 'aria-label': n, 'data-tip': n, style: '--c:' + c, onclick: () => { setPref('accent', v); paintSw(); } }));
@@ -5261,7 +5264,7 @@ function renderSettings() {
     row('Save pictures for offline use', h('span', null, h('span', { class: 'note picline' }), h('span', { id: 'setsPicN', class: 'acts', style: 'margin-top:6px' })), sw('offline', 'Save pictures for offline use')));
   const segN = (k, opts, label) => { const g = h('span', { class: 'seg', role: 'group', 'aria-label': label }), paint = () => { for (const b of g.children) b.setAttribute('aria-pressed', b.dataset.v === String(S[k]) ? 'true' : 'false'); }; for (const [v, t] of opts) g.append(h('button', { type: 'button', 'data-v': String(v), onclick: () => { setPref(k, v); paint(); } }, t)); paint(); return g; };
   sec('rules',
-    h('p', { class: 'note', style: 'margin:0 0 8px' }, 'Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.'),
+    'Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.',
     row('Laser sensor reach', 'How many tiles in front of a laser sensor it watches. 2 per GameWith and 攻略大百科; 1 per ぽこポケ学会\'s diagram.', segN('gSensor', [[2, '2 tiles'], [1, '1 tile']], 'Laser sensor reach')),
     row('Sprinkler reach', 'How far a sprinkler waters, counted along each axis and added up. 5 per GameWith, 攻略大百科 and Serebii (61 tiles); ぽこポケ学会 points to 4 (41 tiles), and Game8 says one tile less.', segN('gSprinkler', [[5, '5 tiles'], [4, '4 tiles']], 'Sprinkler reach')),
     row('Smooth Rock reach', 'How far a Smooth Rock dries the ground. 4 per ぽこポケ学会 (41 tiles, 1 level up and 2 down); GameWith gives 6.', segN('gRock', [[4, '4 tiles'], [6, '6 tiles']], 'Smooth Rock reach')),
@@ -5298,7 +5301,6 @@ function resetSettingsDialog() {
 }
 $('#setBtn').onclick = () => openSettings();
 
-let modalOk = null;
 function modal(title, build, okLabel, onOk, danger, tip) {
   const m = $('#modal'), box = $('#modalBox'); box.textContent = ''; box.className = 'box';
   box.append(h('div', { class: 'insp-head' }, h('h2', { style: 'margin:0' }, title, tip ? ' ' : '', tipBtn(tip)), h('button', { class: 'close', 'aria-label': 'Close', 'data-tip': 'Close', onclick: closeModal }, icon('close'))));
@@ -5851,7 +5853,7 @@ function syncCard() {
   } else if (waiting) {
     card.append(note(syncErr || (navigator.onLine ? 'Connecting to Google…' : 'Offline: syncs when you\'re back'), !!syncErr));
   } else {
-    card.append(note(syncOn() || (sync && sync.uid) ? 'Signed out on this device' : 'Same plans on all your devices'));
+    if (syncOn() || (sync && sync.uid)) card.append(note('Signed out on this device'));
     if (syncErr) card.append(note(syncErr, true));
     card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: syncSignIn }, syncMsg || 'Sign in with Google')));
     if (navigator.onLine) loadFirebase().catch(() => { });

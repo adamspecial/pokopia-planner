@@ -153,7 +153,7 @@ void main() {
   const atlas = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.texStorage2D(gl.TEXTURE_2D, 4, gl.RGBA8, 1024, 1024);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, 3);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  const SC = document.createElement('canvas'); SC.width = SC.height = 64; const scx = SC.getContext('2d');
+  const SC = document.createElement('canvas'); SC.width = SC.height = 64; const scx = SC.getContext('2d', { willReadFrequently: true });
   const SLOT = new Map(), SLOTS = []; let symSig = '', atlasDirty = false;
   function paintSlot(n) {
     const e = SLOTS[n], it = ITEMS[e.i], sd = dpr; scx.setTransform(1, 0, 0, 1, 0, 0); scx.clearRect(0, 0, 64, 64); scx.save(); scx.translate(4, 4); scx.scale(1 / e.w, 1 / e.h); dpr = 1;
@@ -1277,7 +1277,7 @@ void main() {
     touched,
     loaded() { stop(true); CUT = null; if (SLOTS.length > 200) { SLOTS.length = 0; SLOT.clear(); } markAll(); requestDraw(); },
     enter(cx, cy, zoom, mode) { Object.assign(cam, { tx: cx, ty: TY, tz: cy, zoom: clamp(zoom, zMin(), ZMX), yaw: 0, pitch: pitchOf(mode) }); markAll(); requestDraw(); },
-    leave() { stop(true); return { cx: cam.tx, cy: cam.tz, zoom: cam.zoom }; },
+    leave() { stop(true); const g = level(cam) ? null : ground(cam, W / 2, H / 2); return g ? { cx: g[0], cy: g[1], zoom: cam.zoom } : null; },
     turn(dir) { stop(true); const fr = copy(cam); glideTo({ ...fr, yaw: snapYaw(fr.yaw) - 45 * dir }, 260); },
     view(m) { m = clamp(m | 0, 0, 3); stop(true); const fr = copy(cam); glideTo({ ...fr, ty: TY, yaw: snapYaw(fr.yaw), pitch: pitchOf(m) }, 300); return m; },
     tilt(dir = 1) { return this.view((modeOf(goalPitch()) + 4 + dir) % 4); },

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-24T14:11';
+<script>const APP_BUILD = '2026-11-25T00:17';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -88,6 +88,7 @@ button{cursor:pointer}
 .optbar > *{pointer-events:auto}
 .pill{display:inline-flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 5px 3px 9px;font-size:12.5px;box-shadow:0 2px 8px rgba(0,0,0,.08);max-width:100%}
 .pill .lbl{color:var(--muted)}
+.pill .lbi{display:grid;place-items:center}.pill .lbi svg{width:16px;height:16px;display:block}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
 .seg button{border:0;background:none;padding:3px 9px;font-size:12.5px}
 .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink);font-weight:700}
@@ -98,10 +99,9 @@ button{cursor:pointer}
 .status{position:absolute;left:6px;bottom:6px;display:flex;gap:5px;align-items:center;font-size:12px;color:var(--muted);pointer-events:none;flex-wrap:wrap}
 .status .chip{pointer-events:none}
 .zoomctl{position:absolute;right:6px;bottom:6px;display:flex;flex-direction:column;gap:5px}
-.iconbtn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.iconbtn{position:relative;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .iconbtn svg{width:19px;height:19px}
 .iconbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.iconbtn{position:relative}
 .sysw{position:relative;display:block}
 .sysmenu{position:absolute;right:46px;bottom:0;width:min(290px,calc(100vw - 70px));background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:6px;z-index:8}
 .sysmenu[hidden]{display:none}
@@ -136,8 +136,6 @@ button{cursor:pointer}
 .lyrgap{font-size:12px;color:var(--muted);padding:3px 0 3px 22px;border-left:2px dotted var(--line);margin-left:61px}
 .lvgo{display:flex;gap:6px;align-items:center}
 .lvgo input{flex:1;text-align:center;font-weight:700;font-size:16px}
-.arealine{display:flex;gap:7px;align-items:flex-start;margin-top:6px;padding:6px 9px;border-radius:9px;background:color-mix(in srgb,var(--ink) 5%,transparent);font-size:12.5px}
-.arealine svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--accent)}
 
 .inspector{position:absolute;left:6px;bottom:40px;width:min(370px,calc(100% - 58px));background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.16);display:none;flex-direction:column;max-height:calc(100% - 96px);overflow:hidden;transform-origin:left bottom}
 .inspector.open{display:flex;animation:pop .22s var(--ease)}
@@ -149,7 +147,9 @@ button{cursor:pointer}
 .minidlg .mt b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .minidlg .mt small{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .insp-top{flex:none;padding:10px 12px 8px}
-.insp-acts{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.insp-acts{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.insp-acts .ibtn{width:34px;height:34px;border-radius:9px}
+.insp-acts .ibtn.danger{margin-left:auto}
 .insp-acts:empty{display:none}
 .insp-acts .btn.sm{padding:6px 10px;font-size:12.5px}
 .insp-body{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 12px 12px;border-top:1px solid var(--line)}
@@ -234,6 +234,7 @@ table.mats input{width:62px;text-align:right;border:1px solid var(--line);border
 .req{display:inline-flex;align-items:center;gap:4px;font-size:12px;border-radius:7px;padding:2px 7px;background:var(--paper);border:1px solid var(--line)}
 button.req.kind{font:inherit;font-size:12px;color:var(--ink);cursor:pointer;padding:2px 7px 2px 3px}button.req.kind:hover{border-color:var(--accent)}button.req.kind .swatch{width:20px;height:20px;border-radius:5px}
 .req b{font-variant-numeric:tabular-nums}
+.req>svg{width:14px;height:14px;flex:none}
 .req.ok{border-color:color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--paper))}
 .req.miss{border-color:color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
 .card{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:0 0 6px;background:var(--panel)}
@@ -304,7 +305,6 @@ button.pkchip:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line)
 .pfside{display:flex;flex-direction:column;gap:10px;flex:1;min-width:180px}
 .pfside input[type=range]{width:100%}
 .pfprev{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.pkghost{display:flex;align-items:center;gap:8px;padding-left:6px}
 .pkghost .gt{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .dropchip .pkfs{margin-top:3px}
 .pkgrip{flex:none;display:grid;place-items:center;width:30px;height:32px;margin:-5px -2px -5px -5px;border:0;border-radius:8px;background:none;color:var(--muted);cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
@@ -320,7 +320,7 @@ button.pkchip:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line)
 .pkname .meta{min-width:0;flex:1}
 .pkrows .row:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .pkdragsrc{opacity:.4}
-.pkghost{position:fixed;left:0;top:0;z-index:60;pointer-events:none;background:var(--ink);color:var(--paper);border-radius:12px;padding:6px 12px;font-weight:800;font-size:13.5px;line-height:1.3;box-shadow:0 10px 28px rgba(0,0,0,.3);white-space:nowrap;max-width:min(320px,calc(100vw - 12px));overflow:hidden;text-overflow:ellipsis;transition:background-color .12s}
+.pkghost{display:flex;align-items:center;gap:8px;position:fixed;left:0;top:0;z-index:60;pointer-events:none;background:var(--ink);color:var(--paper);border-radius:12px;padding:6px 12px;font-weight:800;font-size:13.5px;line-height:1.3;box-shadow:0 10px 28px rgba(0,0,0,.3);white-space:nowrap;max-width:min(320px,calc(100vw - 12px));overflow:hidden;text-overflow:ellipsis;transition:background-color .12s}
 .pkghost .to{display:block;font-size:12px;font-weight:600;opacity:.9;overflow:hidden;text-overflow:ellipsis}
 .pkghost.ok{background:var(--good);color:#fff}
 .pkghost.no{background:var(--bad);color:#fff}
@@ -391,11 +391,12 @@ a{color:var(--accent)}
 .sscroll{position:relative;overflow:auto;padding:4px 20px 28px;overscroll-behavior:contain}
 .ssec{padding-top:12px}
 .ssec>h3{font-family:var(--font-display);font-weight:800;font-size:16.5px;margin:6px 0 0;display:flex;align-items:center;gap:8px}
-.ssec>h3 svg{width:18px;height:18px;color:var(--accent)}
-.srow{display:flex;align-items:center;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.ssec>h3>svg{width:18px;height:18px;color:var(--accent)}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:8px 18px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line)}
 .ssec .srow:last-child{border-bottom:0}
-.stxt{flex:1 1 250px;min-width:0}
+.stxt{flex:1 1 160px;min-width:0}
 .stxt b{display:block;font-size:14px}
+.stxt b.hrow{display:flex}
 .stxt .note{display:block;margin-top:2px;font-size:12.5px}
 .sctl{flex:0 1 auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
 .sets .seg{flex-wrap:wrap;border-radius:12px}
@@ -410,7 +411,7 @@ a{color:var(--accent)}
 .sets details{padding:12px 0 4px}
 .sets details summary{font-family:var(--font-body);font-weight:700;font-size:14px}
 .keys{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;font-size:13px;margin:10px 0 0;align-items:baseline}
-kbd{font-family:inherit;font-size:12px;font-weight:700;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:0 6px;background:var(--paper);white-space:nowrap}
+kbd{font-family:inherit;font-size:12px;font-weight:700;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--paper);white-space:nowrap}
 @media (max-width: 899px){
   .sets{padding:0}
   .sets .win{width:100%;height:100%;border-radius:0}
@@ -432,7 +433,6 @@ kbd{font-family:inherit;font-size:12px;font-weight:700;border:1px solid var(--li
 .modal .box{background:var(--panel);border-radius:16px;padding:14px 16px;width:min(420px,100%);max-height:85vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.3)}
 .modal .box .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 .hint{border:1px dashed color-mix(in srgb,var(--accent) 50%,var(--line));background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:10px;padding:7px 10px;font-size:12.5px;margin:4px 0 8px}
-kbd{font-family:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--paper)}
 .srcs li{margin:0 0 3px;font-size:12.5px}
 details{border-top:1px solid var(--line);padding:8px 0 0;margin-top:10px}
 details summary{cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:14px;list-style-position:inside}
@@ -686,6 +686,8 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
     <symbol id="i-shrink" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></g></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M19.11 9.95L21.41 10.09L21.41 13.91L19.11 14.05L18.47 15.58L20 17.3L17.3 20L15.58 18.47L14.05 19.11L13.91 21.41L10.09 21.41L9.95 19.11L8.42 18.47L6.7 20L4 17.3L5.53 15.58L4.89 14.05L2.59 13.91L2.59 10.09L4.89 9.95L5.53 8.42L4 6.7L6.7 4L8.42 5.53L9.95 4.89L10.09 2.59L13.91 2.59L14.05 4.89L15.58 5.53L17.3 4L20 6.7L18.47 8.42z"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m4 18 5.5-5 4 3.5 2.5-2 4 3.5"/></symbol>
     <symbol id="i-filter" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M4 6.5h16M7 12h10M10 17.5h4"/></symbol>
   </defs>
 </svg>
