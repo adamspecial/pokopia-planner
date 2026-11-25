@@ -4,7 +4,7 @@ Plan habitats, houses, residents and decorations for Pokémon Pokopia.
 
 Open it at **https://adamspecial.github.io/pokopia-planner/** and, on a phone or tablet, use the browser menu → **Install app** / **Add to home screen**. It opens full screen and works offline, item pictures included.
 
-The screen keeps to a few words. Most buttons are icons: hover over one, or long-press it on a phone, to see its name. Tap ⓘ, or a chip, to see the details behind it.
+The screen keeps to a few words. Most buttons are icons: hover over one, or long-press it on a phone, to see its name. Explanations live behind ⓘ: tap it, or a chip, to see the details. The bar above the map shows each tool's options as icons (brush size, level, recently used items), with the tool's how-to behind its ⓘ.
 
 Notices appear at the bottom of the screen and stack: a new one slides in underneath and pushes the others up, so none hides another. Up to four show at once. Notices with a button, such as **Undo** or **Open it** for a new version, stay longest and are the last to make room, and pointing at one with the mouse keeps it open.
 
@@ -21,7 +21,7 @@ The towns are made by `tools/towns.py` from the game's town maps as published on
 
 ## Settings
 
-The ⚙ button at the top right opens Settings; Plans has a Settings button too. Changes apply at once and are saved on this device only, so a phone and a PC can each be set up their own way. On a phone, Back closes Settings.
+The ⚙ button at the top right opens Settings. Each setting's ⓘ explains what it does. Changes apply at once and are saved on this device only, so a phone and a PC can each be set up their own way. On a phone, Back closes Settings.
 
 - **Appearance**: light, dark or system theme; an accent colour (purple, blue, teal, pink or orange); animations on, off or as the device sets them.
 - **Map**: the 3D view (on unless you turn it off), grid lines (all, every 8 tiles, none), height shading on the flat map, pictures or simple shapes, portraits on homes, labels on zones and houses, every home's active area, and the info chips at the bottom.
@@ -112,7 +112,7 @@ Every tool works in 3D, the same way as on the flat map:
 
 While you pan, zoom or turn, the 3D view draws at a lower resolution to stay smooth, and sharpens as soon as you stop.
 
-**Save picture** (the Image button in Plans) saves the plan as you see it in 3D, turned and tilted the same way, with zones, labels and portraits. Selections and previews are left out.
+**Save picture** (the picture button next to New plan in Plans) saves the plan as you see it in 3D, turned and tilted the same way, with zones, labels and portraits. Selections and previews are left out.
 
 **The flat map.** Turn off **3D view** in Settings → Map to use the flat map instead, with height shading and level numbers. Its Save picture is the flat plan. The planner also uses the flat map on its own when the browser doesn't have WebGL 2 (Chrome and Edge do), or when the browser stops the 3D view. A notice then offers **Try 3D again**. Each device remembers which view the 3D map was in.
 
