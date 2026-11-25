@@ -19,6 +19,27 @@ Plans → **Game towns** has the five story towns: Withered Wasteland, Bleak Bea
 
 The towns are made by `tools/towns.py` from the game's town maps as published on Serebii.
 
+## Getting around
+
+Everything is one tap or click away, and choosing something takes you where you can use it:
+
+- **Tools.** Picking a tool puts the map in front of you: on a phone the panel slides down. On a PC, Place and Fill bring up the Build list and Zone brings up Habitats, so what you need is beside the map.
+- **What you're placing.** Tap its name in the bar above the map to open the Build list at it.
+- **The header.** Tap the plan's name or area to open Plans, and the save chip for Plans and sync.
+- **Levels.** Tapping a level in Layers to work on it shows the map, shows the level if it was hidden, and the bar above the map says which level you're on.
+- **Selecting.** When you tap an item, the map shifts if its details would cover it, so you can still see and drag it. Move tucks the details away while you choose where it goes, and brings them back when you're done or press Esc.
+- **Opening a plan.** Opening, creating, importing or resizing a plan, or opening a game town, shows the map.
+- **Show on the map.** Turning on something there's none of yet, such as Power with no generators, says so.
+
+## Drag and drop
+
+- **Items.** Drag any item from the Build list, from the recent items in the bar above the map, or the one you're placing, and drop it on the map to place it there. The outline shows where it will land. With a mouse just drag; on a phone, press and hold for a moment, then drag, and the panel slides out of the way. Drop it anywhere else to cancel.
+- **Habitats.** Drag a habitat card from the Habitat Dex onto the map to stamp it there.
+- **Decorate inside.** Drag an item from the list into the room.
+- **Moving.** Drag a selected item, or a selected group, to move it, with any tool.
+- **Pokémon.** Drag a Pokémon onto a home to move it in (see Pokémon and homes).
+- **Plan files.** Drop a plan file (.json) anywhere on the window to open it as a new plan.
+
 ## Settings
 
 The ⚙ button at the top right opens Settings. Each setting's ⓘ explains what it does. Changes apply at once and are saved on this device only, so a phone and a PC can each be set up their own way. On a phone, Back closes Settings.
@@ -36,7 +57,7 @@ The ⚙ button at the top right opens Settings. Each setting's ⓘ explains what
 
 The planner opens on **Pan**: drag to move around the map, pinch or use the mouse wheel to zoom, and tap anything to see its details. Tap it again to reach what's under it, and double-click a house to decorate inside. To open on Select instead, change **Default tool** in Settings.
 
-To move things, pick **Select** (V). Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool except Pan, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. An item that rests on a block keeps resting on whatever is highest where you drop it; one floating in mid-air keeps its level. Dragging from an empty square selects an area, as below.
+To move things, pick **Select** (V). Tap any square of an item to select it, and drag it to move it: a dashed outline shows where it will go, and it moves when you let go. Squares that turn red hold small items it would replace. With any other tool, Pan included, dragging the item you have selected moves it too. If the spot under your finger can't hold the item as it is, the outline shifts it or turns it so that it still covers that square, whenever that fits. Doors and windows turn to follow the wall. Kit homes take their residents with them. Rugs work the same way; tap a selected rug again to select the house or zone under it. An item that rests on a block keeps resting on whatever is highest where you drop it; one floating in mid-air keeps its level. Dragging from an empty square selects an area, as below.
 
 **Which way items face.** Items have a front. Press Q while placing to turn what you're placing a quarter turn (Shift+Q the other way), or select an item and use **Turn left** and **Turn right** (or Q). Long items swap their width and length as they turn. Until you turn them, steps rise toward the block or wall next to them, and ladders, posters, wallpaper, shelves, beds, sofas and other things that stand against a wall put their back to it. Otherwise items face down the map. The flat map turns furniture and steps to match, and steps show an arrow pointing up them.
 

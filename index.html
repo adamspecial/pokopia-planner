@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-25T00:17';
+<script>const APP_BUILD = '2026-11-25T08:36';
 { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = 'app.js?v=' + encodeURIComponent(APP_BUILD); document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -58,7 +58,9 @@ button{cursor:pointer}
 .top .fsbtn{width:34px;height:34px;border-radius:10px;box-shadow:none;flex:none}
 .top .fsbtn[hidden]{display:none}
 .planpick{display:flex;align-items:center;gap:6px;min-width:0;flex:1;justify-content:flex-end}
-.planname{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
+.planname{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw;border:0;background:none;padding:3px 6px;border-radius:8px;min-width:0}
+.planname:hover,button.chip:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+button.chip{cursor:pointer}
 .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:2px 9px;font-size:12px;white-space:nowrap;transition:color .2s,border-color .2s}
 .chip.good{border-color:color-mix(in srgb,var(--good) 40%,var(--line));color:var(--good)}
 .chip.warn{border-color:color-mix(in srgb,var(--warn) 40%,var(--line));color:var(--warn)}
@@ -88,6 +90,9 @@ button{cursor:pointer}
 .optbar > *{pointer-events:auto}
 .pill{display:inline-flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 5px 3px 9px;font-size:12.5px;box-shadow:0 2px 8px rgba(0,0,0,.08);max-width:100%}
 .pill .lbl{color:var(--muted)}
+.pillbtn{border:0;background:none;padding:0;display:inline-flex;align-items:center;gap:5px;min-width:0;border-radius:6px;font-weight:700}
+.pillbtn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pillbtn:hover b{text-decoration:underline;text-underline-offset:2px}
 .pill .lbi{display:grid;place-items:center}.pill .lbi svg{width:16px;height:16px;display:block}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
 .seg button{border:0;background:none;padding:3px 9px;font-size:12.5px}
@@ -98,7 +103,7 @@ button{cursor:pointer}
 .status[hidden]{display:none}
 .status{position:absolute;left:6px;bottom:6px;display:flex;gap:5px;align-items:center;font-size:12px;color:var(--muted);pointer-events:none;flex-wrap:wrap}
 .status .chip{pointer-events:none}
-.zoomctl{position:absolute;right:6px;bottom:6px;display:flex;flex-direction:column;gap:5px}
+.zoomctl{position:absolute;right:6px;bottom:6px;display:flex;flex-direction:column;gap:5px;z-index:8}
 .iconbtn{position:relative;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .iconbtn svg{width:19px;height:19px}
 .iconbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -324,7 +329,9 @@ button.pkchip:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line)
 .pkghost .to{display:block;font-size:12px;font-weight:600;opacity:.9;overflow:hidden;text-overflow:ellipsis}
 .pkghost.ok{background:var(--good);color:#fff}
 .pkghost.no{background:var(--bad);color:#fff}
-body.pkdragging,body.pkdragging *{cursor:grabbing !important}
+body.pkdragging,body.pkdragging *,body.ddrag,body.ddrag *{cursor:grabbing !important}
+[data-drag]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pkghost .gi{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:color-mix(in srgb,var(--paper) 22%,transparent)}.pkghost .gi svg{width:20px;height:20px}
 body.pkdragging .section[data-home]{outline:2px dashed var(--accent);outline-offset:3px;border-radius:8px}
 .droptray{position:absolute;left:8px;right:8px;bottom:8px;z-index:9;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.2);padding:7px 9px 8px;max-height:44%;overflow:hidden;animation:pop .2s var(--ease)}
 .droptray .thd{font-size:12.5px;font-weight:700;color:var(--muted);margin:0 0 6px}
@@ -699,9 +706,9 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
       <h1>Pokopia <span>Area Planner</span></h1>
     </div>
     <div class="planpick">
-      <span class="planname" id="hdrPlan">Loading…</span>
-      <span class="chip hide-sm" id="hdrArea">—</span>
-      <span class="chip" id="saveChip" role="status"><span class="dot"></span><span>Starting</span></span>
+      <button class="planname" id="hdrPlan" type="button" data-tip="Plans">Loading…</button>
+      <button class="chip hide-sm" id="hdrArea" type="button" data-tip="Area and weather">—</button>
+      <button class="chip" id="saveChip" type="button" role="status"><span class="dot"></span><span>Starting</span></button>
       <button class="iconbtn fsbtn" id="fsBtn" data-tip="Full screen" aria-label="Full screen" hidden><svg><use href="#i-expand"/></svg></button>
       <button class="iconbtn fsbtn" id="setBtn" data-tip="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
     </div>
