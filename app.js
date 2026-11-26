@@ -5868,7 +5868,187 @@ if (sync && !sync.uid) sync = null;
 let fb = null, fbLoading = null, fbUser = undefined, unsubs = [], remote = null, remotePending = new Set(), remoteSizes = null, remoteReview = null;
 let syncErr = '', syncMsg = '', syncTimer = null; const inflight = new Map();
 function saveSync() { if (sync) LS.set(LSK + 'sync', JSON.stringify(sync)); else LS.del(LSK + 'sync'); }
-const syncOn = () => !!(sync && sync.on);
+const GD_CLIENT = '', GD_SCOPE = 'https://www.googleapis.com/auth/drive.appdata', GD_API = 'https://www.googleapis.com/drive/v3/', GD_UP = 'https://www.googleapis.com/upload/drive/v3/', GD_GIS = 'https://accounts.google.com/gsi/client';
+const useDrive = !!GD_CLIENT;
+let gd = { tok: '', exp: 0 }, gdUser = undefined, gdTc = null, gdWait = null, gisLoading = null, gdPollT = null, gdExpT = null, gdLater = null, gdBusy = false, gdAgain = false, gdGen = 0, gdNag = 0, gdQn = 0;
+const gdMirror = new Map(), gdCache = new Map(), gdQ = [];
+const syncMoved = () => useDrive && !!(sync && sync.on && sync.via !== 'drive');
+const syncUser = () => useDrive ? gdUser : fbUser;
+const gdE = (code, why) => Object.assign(new Error(code), { code, why: why || '' });
+const gisReady = () => !!(window.google && google.accounts && google.accounts.oauth2);
+function loadGis() {
+  if (gisReady()) return Promise.resolve();
+  if (!gisLoading) gisLoading = new Promise((ok, no) => {
+    const s = document.createElement('script'); s.src = GD_GIS; s.async = true;
+    s.onload = () => { if (gisReady()) ok(); else { gisLoading = null; no(gdE('gd/load')); } };
+    s.onerror = () => { s.remove(); gisLoading = null; no(gdE('gd/load')); };
+    document.head.append(s);
+  });
+  return gisLoading;
+}
+function gdLoadTok() { try { const t = JSON.parse(LS.get(LSK + 'gtok') || 'null'); gd = t && t.tok ? t : { tok: '', exp: 0 }; } catch (e) { gd = { tok: '', exp: 0 }; } }
+const gdLive = () => !!gd.tok && Date.now() < gd.exp - 60000;
+function gdDrop() { gd = { tok: '', exp: 0 }; LS.del(LSK + 'gtok'); }
+function gdGot(r, er) {
+  const w = gdWait; gdWait = null; if (!w) return;
+  if (r && r.access_token) { if (google.accounts.oauth2.hasGrantedAllScopes(r, GD_SCOPE)) w.ok(r); else w.no(gdE('gd/scope')); }
+  else w.no(gdE((er && er.type) || (r && r.error) || 'gd/cancel'));
+}
+function gdAsk(hint) {
+  return new Promise((ok, no) => {
+    if (gdWait) gdWait.no(gdE('gd/cancel'));
+    gdWait = { ok, no };
+    try {
+      if (!gdTc) gdTc = google.accounts.oauth2.initTokenClient({ client_id: GD_CLIENT, scope: GD_SCOPE, callback: r => gdGot(r), error_callback: e => gdGot(null, e) });
+      gdTc.requestAccessToken(hint ? { prompt: '', hint } : { prompt: '' });
+    } catch (e) { gdWait = null; no(gdE('gd/load')); }
+  });
+}
+const gdNap = (ms) => new Promise(r => setTimeout(r, ms));
+async function gdFetch(url, opt, tries = 3) {
+  for (let i = 0; ; i++) {
+    if (!gdLive()) throw gdE('gd/token');
+    let r;
+    try { r = await fetch(url, Object.assign({}, opt, { headers: Object.assign({ Authorization: 'Bearer ' + gd.tok }, (opt && opt.headers) || {}) })); }
+    catch (e) { if (i + 1 < tries && navigator.onLine) { await gdNap(1000 * (i + 1)); continue; } throw gdE('gd/net'); }
+    if (r.ok) return r;
+    let why = ''; try { const j = await r.json(), er = (j && j.error) || {}; why = (er.errors && er.errors[0] && er.errors[0].reason) || er.status || ''; } catch (e) { }
+    if (r.status === 401) { gdDrop(); throw gdE('gd/token'); }
+    if ((r.status === 429 || r.status >= 500 || (r.status === 403 && /rateLimit/i.test(why))) && i + 1 < tries) { await gdNap(1000 * 2 ** i + Math.random() * 500); continue; }
+    throw gdE('gd/' + r.status, why);
+  }
+}
+const gdName = (k) => k === '_sizes' ? 'sizes.json' : k === '_review' ? 'review.json' : 'plan-' + k + '.json';
+const gdKey = (n) => n === 'sizes.json' ? '_sizes' : n === 'review.json' ? '_review' : ((/^plan-([a-z0-9]+)\.json$/.exec(n || '') || [])[1] || null);
+const gdU = (f) => +((f && f.appProperties) || {}).u || 0;
+async function gdList() {
+  const out = []; let pt = '';
+  do {
+    const j = await (await gdFetch(GD_API + 'files?spaces=appDataFolder&pageSize=1000&fields=' + encodeURIComponent('nextPageToken,files(id,name,appProperties)') + (pt ? '&pageToken=' + encodeURIComponent(pt) : ''))).json();
+    out.push(...(j.files || [])); pt = j.nextPageToken || '';
+  } while (pt);
+  return out;
+}
+async function gdEach(list, n, fn) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => { while (i < list.length) await fn(list[i++]); })); }
+function gdRun(fn) { return new Promise((ok, no) => { gdQ.push({ fn, ok, no }); gdPump(); }); }
+function gdPump() { while (gdQn < 2 && gdQ.length) { const j = gdQ.shift(); gdQn++; gdGen++; j.fn().then(j.ok, j.no).finally(() => { gdQn--; gdGen++; gdPump(); }); } }
+async function gdCurrent(k) {
+  const m = gdMirror.get(k);
+  if (m && m.fid) {
+    try { const j = await (await gdFetch(GD_API + 'files/' + m.fid + '?fields=id,appProperties,trashed')).json(); if (!j.trashed) return { fid: j.id, u: gdU(j) }; }
+    catch (e) { if (e.code !== 'gd/404') throw e; }
+  }
+  const q = encodeURIComponent("name = '" + gdName(k) + "' and trashed = false");
+  const j = await (await gdFetch(GD_API + 'files?spaces=appDataFolder&q=' + q + '&fields=' + encodeURIComponent('files(id,appProperties)'))).json();
+  const f = (j.files || []).sort((a, b) => gdU(b) - gdU(a))[0];
+  return f ? { fid: f.id, u: gdU(f) } : null;
+}
+function gdBody(meta, text) {
+  const b = 'pkp' + uid() + uid();
+  return { headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body: '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + text + '\r\n--' + b + '--' };
+}
+const gdPut = (k, v, expect, also) => gdRun(async () => {
+  const cur = await gdCurrent(k), cu = cur ? cur.u : null;
+  if (cu !== expect && cu !== also) throw gdE('pokopia/changed');
+  const u = v.updated, text = k[0] === '_' ? JSON.stringify(v) : v.data, meta = { appProperties: { u: String(u) } };
+  const b = gdBody(cur ? meta : Object.assign({ name: gdName(k), parents: ['appDataFolder'], mimeType: 'application/json' }, meta), text);
+  const j = await (await gdFetch(GD_UP + 'files' + (cur ? '/' + cur.fid : '') + '?uploadType=multipart&fields=id', { method: cur ? 'PATCH' : 'POST', headers: b.headers, body: b.body })).json();
+  gdMirror.set(k, { fid: j.id, u }); gdCache.set(k, { u, t: text });
+  if (sync) { const w = sync.wrote || (sync.wrote = {}); w[k] = [u, ...(w[k] || []).filter(t => t !== u)].slice(0, 6); }
+  if (k === '_sizes') remoteSizes = Object.assign({}, v); else if (k === '_review') remoteReview = Object.assign({}, v); else if (remote) remote.set(k, { updated: u, data: text });
+});
+const gdDel = (k, expect) => gdRun(async () => {
+  const cur = await gdCurrent(k);
+  if (cur) {
+    if (cur.u !== expect) throw gdE('pokopia/changed');
+    try { await gdFetch(GD_API + 'files/' + cur.fid, { method: 'DELETE' }); } catch (e) { if (e.code !== 'gd/404') throw e; }
+    if (sync) { const dl = sync.dl || (sync.dl = {}); dl[k] = [cur.u, Date.now()]; if (sync.wrote) delete sync.wrote[k]; }
+  }
+  gdMirror.delete(k); gdCache.delete(k); if (remote) remote.delete(k);
+});
+async function gdPoll() {
+  clearTimeout(gdLater);
+  if (!useDrive || !gdUser || !syncOn()) return;
+  if (!navigator.onLine) { syncSettled(); return; }
+  if (!gdLive()) { gdPaused(true); return; }
+  if (gdBusy) { gdAgain = true; return; }
+  gdBusy = true; const g = gdGen;
+  try {
+    const files = await gdList(), by = new Map(), extra = [], dl = sync.dl || {};
+    for (const k in dl) if (Date.now() - dl[k][1] > 600000) delete dl[k];
+    for (const f of files) {
+      const k = gdKey(f.name), u = gdU(f); if (!k || (dl[k] && dl[k][0] === u)) continue;
+      const o = by.get(k); if (o && o.u >= u) { extra.push(f.id); continue; }
+      if (o) extra.push(o.fid);
+      by.set(k, { fid: f.id, u });
+    }
+    for (const [k, v] of by) { const s = sync.wrote && sync.wrote[k]; if (s && s[0] !== v.u && s.includes(v.u)) v.u = s[0]; }
+    const local = new Map(plansIndex.map(p => [p.id, p.updated]));
+    const need = [...by].filter(([k, v]) => (k === '_sizes' ? v.u !== sizesStamp() : k === '_review' ? v.u !== rvStamp() : local.get(k) !== v.u) && !(gdCache.has(k) && gdCache.get(k).u === v.u));
+    await gdEach(need, 4, async ([k, v]) => {
+      try {
+        const t = await (await gdFetch(GD_API + 'files/' + v.fid + '?alt=media')).text(); let u = v.u;
+        try { const o = JSON.parse(t); if (o && +o.updated) u = +o.updated; } catch (e) { }
+        v.u = u; gdCache.set(k, { u, t });
+      } catch (e) { if (e.code === 'gd/404') by.delete(k); else throw e; }
+    });
+    if (g !== gdGen || inflight.size || gdQn || gdQ.length) { gdAgain = true; return; }
+    gdMirror.clear(); for (const [k, v] of by) gdMirror.set(k, v);
+    const meta = (k) => { const v = by.get(k), c = v && gdCache.get(k); let o = {}; if (c && c.u === v.u) { try { o = JSON.parse(c.t) || {}; } catch (e) { } } return v ? Object.assign(o, { updated: v.u }) : {}; };
+    remote = new Map([...by].filter(([k]) => k[0] !== '_').map(([k, v]) => { const c = gdCache.get(k); return [k, { updated: v.u, data: c && c.u === v.u ? c.t : undefined }]; }));
+    remotePending = new Set(); remoteSizes = meta('_sizes'); remoteReview = meta('_review'); syncErr = '';
+    reconcile();
+    for (const fid of extra) gdFetch(GD_API + 'files/' + fid, { method: 'DELETE' }).catch(() => { });
+  } catch (e) {
+    if (e.code === 'gd/token') gdPaused(true); else { syncErr = syncProblem(e); syncUI(); syncSettled(); }
+  } finally { gdBusy = false; if (gdAgain) { gdAgain = false; gdLater = setTimeout(gdPoll, 800); } }
+}
+function gdStart() {
+  stopWatching(); gdPoll();
+  gdPollT = setInterval(() => { if (!document.hidden) gdPoll(); }, 30000);
+  gdExpT = setTimeout(() => gdPaused(true), Math.max(1000, gd.exp - 60000 - Date.now()));
+}
+function gdPaused(quiet) {
+  if (!useDrive || !syncOn()) return;
+  if (gdUser) stopWatching();
+  gdUser = null; syncUI(); syncSettled(); loadGis().catch(() => { });
+  if (document.hidden || (quiet && !syncPending()) || Date.now() - gdNag < 600000) return;
+  gdNag = Date.now(); toast('Sync is paused until you reconnect to Google', 12000, { label: 'Reconnect', fn: () => gdSignIn() }, 'gdre');
+}
+async function gdSignIn() {
+  const back = syncOn(); syncErr = ''; syncMsg = 'Opening Google…'; syncUI();
+  try {
+    if (!gisReady()) await loadGis();
+    const r = await gdAsk(sync && sync.via === 'drive' ? sync.email : '');
+    gd = { tok: r.access_token, exp: Date.now() + (+r.expires_in || 3599) * 1000 }; LS.set(LSK + 'gtok', JSON.stringify(gd));
+    const u = (((await (await gdFetch(GD_API + 'about?fields=' + encodeURIComponent('user(permissionId,emailAddress)'))).json()) || {}).user) || {}, id = u.permissionId || u.emailAddress;
+    if (!id) throw gdE('gd/who');
+    if (!sync || sync.uid !== id || sync.via !== 'drive') { sync = { uid: id, via: 'drive', base: {}, sizesBase: 0, gone: [], last: 0 }; gdMirror.clear(); gdCache.clear(); }
+    sync.on = true; sync.email = u.emailAddress || ''; saveSync(); gdUser = { id, email: sync.email }; gdNag = 0;
+    toastDrop('gdre'); toast(back ? 'Sync is back on' : 'Sync is on'); gdStart();
+  } catch (e) { syncErr = signInProblem(e); if (syncOn() && !gdLive()) gdUser = null; }
+  syncMsg = ''; syncUI(); syncSettled();
+}
+function gdBoot() {
+  gdLoadTok();
+  if (syncMoved()) { gdUser = null; loadGis().catch(() => { }); toast('Sync now keeps your plans in your own Google Drive. Sign in once more on this device to carry on.', 15000, { label: 'Sign in', fn: () => gdSignIn() }, 'gdre'); syncUI(); return; }
+  if (!syncOn()) { gdUser = null; syncUI(); return; }
+  if (gdLive()) { gdUser = { id: sync.uid, email: sync.email || '' }; gdStart(); } else gdPaused(false);
+  syncUI();
+}
+function syncRefresh(ms) { if (!useDrive) { scheduleSync(ms); return; } clearTimeout(gdLater); gdLater = setTimeout(gdPoll, ms); }
+const syncRetry = (e) => !(e && (e.code === 'permission-denied' || (e.code === 'gd/403' && !/rateLimit/i.test(e.why || ''))));
+function syncOps() {
+  if (useDrive) return { put: gdPut, del: gdDel };
+  const { S, db } = fb, me = fbUser.uid, ref = (k) => k === '_sizes' ? S.doc(db, 'users', me, 'pokopiaMeta', 'sizes') : k === '_review' ? S.doc(db, 'users', me, 'pokopiaMeta', 'review') : S.doc(db, 'users', me, 'pokopiaPlans', k);
+  const guarded = (r, expect, also, change) => S.runTransaction(db, async tx => {
+    const d = await tx.get(r), cur = d.exists() ? (d.data() || {}).updated : null;
+    if (cur !== expect && cur !== also) throw Object.assign(new Error('changed on another device'), { code: 'pokopia/changed' });
+    change(tx, cur);
+  });
+  return { put: (k, v, expect, also) => guarded(ref(k), expect, also, tx => tx.set(ref(k), v)), del: (k, expect) => guarded(ref(k), expect, null, (tx, cur) => { if (cur !== null) tx.delete(ref(k)); }) };
+}
+const syncOn = () => !!(sync && sync.on && (!useDrive || sync.via === 'drive'));
 function loadFirebase() {
   if (!fbLoading) fbLoading = Promise.all(['app', 'auth', 'firestore'].map(n => import(FB_CDN + 'firebase-' + n + '.js'))).then(([A, U, S]) => {
     const app = A.initializeApp(FB_CONFIG, 'pokopia-planner');
@@ -5886,7 +6066,7 @@ function onUser(u) {
   }
   syncUI(); syncSettled();
 }
-function stopWatching() { unsubs.forEach(f => { try { f(); } catch (e) { } }); unsubs = []; remote = null; remoteSizes = null; remoteReview = null; }
+function stopWatching() { unsubs.forEach(f => { try { f(); } catch (e) { } }); unsubs = []; clearInterval(gdPollT); gdPollT = null; clearTimeout(gdExpT); remote = null; remoteSizes = null; remoteReview = null; }
 function startWatching() {
   const { S, db } = fb, me = fbUser.uid, live = { includeMetadataChanges: true };
   unsubs.push(S.onSnapshot(S.collection(db, 'users', me, 'pokopiaPlans'), live, snap => {
@@ -5906,7 +6086,15 @@ function startWatching() {
 }
 function watchFailed(e) { syncErr = syncProblem(e); syncUI(); syncSettled(); }
 function syncProblem(e) {
-  const c = (e && e.code) || '';
+  const c = (e && e.code) || '', w = (e && e.why) || '';
+  if (useDrive) {
+    if (c === 'gd/net' || /^gd\/5\d\d$/.test(c) || !navigator.onLine) return 'Can\'t reach Google Drive. Changes sync once it\'s back.';
+    if (w === 'storageQuotaExceeded') return 'Your Google Drive is full. Changes sync once there\'s room.';
+    if (c === 'gd/429' || /rateLimit/i.test(w)) return 'Google Drive is busy. Changes sync in a minute.';
+    if (w === 'accessNotConfigured' || w === 'SERVICE_DISABLED') return 'The planner\'s Google project needs the Google Drive API turned on.';
+    if (c === 'gd/403') return 'Google Drive refused access. Sign out, then sign in again and allow the planner its Drive folder.';
+    return 'Sync problem (' + (c || (e && e.message) || 'unknown') + '). Changes sync once it clears.';
+  }
   if (c === 'permission-denied' || c === 'firestore/permission-denied') return 'Firebase refused access to your plans. Its database rules need to allow users/<you>/… (GM Companion\'s rules already do).';
   if (c === 'unavailable' || c === 'deadline-exceeded') return 'Can\'t reach Firebase. Changes sync once it\'s back.';
   if (c === 'resource-exhausted') return 'Today\'s free Firebase allowance is used up. Changes sync tomorrow.';
@@ -5914,6 +6102,15 @@ function syncProblem(e) {
 }
 function signInProblem(e) {
   const c = (e && e.code) || '';
+  if (useDrive) {
+    if (c === 'popup_closed' || c === 'gd/cancel') return '';
+    if (c === 'access_denied') return 'Sync needs Google\'s OK to keep its files in your Drive. Tap Sign in with Google and click Continue.';
+    if (c === 'popup_failed_to_open') return 'The browser blocked Google\'s sign-in window. Tap Sign in with Google again, or allow pop-ups for this site.';
+    if (c === 'gd/scope') return 'To sync, tick the box that lets the planner keep its files in your Google Drive.';
+    if (c === 'gd/load' || c === 'gd/net' || !navigator.onLine) return 'Couldn\'t reach Google. Check your connection and try again.';
+    if (c.startsWith('gd/')) return syncProblem(e);
+    return 'Google sign-in didn\'t work (' + c + ').';
+  }
   if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request' || c === 'auth/user-cancelled') return '';
   if (c === 'auth/unauthorized-domain') return 'Firebase doesn\'t allow this address yet. In the Firebase console open Authentication → Settings → Authorized domains and add ' + location.hostname + '.';
   if (c === 'auth/popup-blocked') return 'The browser blocked Google\'s sign-in window. Tap Sign in with Google again, or allow pop-ups for this site.';
@@ -5921,6 +6118,7 @@ function signInProblem(e) {
   return 'Google sign-in didn\'t work (' + c + ').';
 }
 async function syncSignIn() {
+  if (useDrive) return gdSignIn();
   syncErr = ''; syncMsg = 'Opening Google…'; syncUI();
   try { const f = await loadFirebase(); await f.U.signInWithPopup(f.auth, new f.U.GoogleAuthProvider()); toast('Sync is on'); }
   catch (e) { syncErr = signInProblem(e); }
@@ -5929,11 +6127,12 @@ async function syncSignIn() {
 function syncOffDialog() {
   modal('Sign out on this device?', (b) => b.append(h('p', { class: 'sub' }, 'Plans stay here and in your Google account.')), 'Sign out', async () => {
     if (sync) { sync.on = false; saveSync(); } stopWatching(); clearTimeout(syncTimer);
-    try { if (fb) await fb.U.signOut(fb.auth); } catch (e) { }
-    fbUser = null; syncErr = ''; if (saveState === 'synced') setSave('local'); renderPlans(); toast('Signed out on this device');
+    if (useDrive) { gdDrop(); gdUser = null; toastDrop('gdre'); }
+    else { try { if (fb) await fb.U.signOut(fb.auth); } catch (e) { } fbUser = null; }
+    syncErr = ''; if (saveState === 'synced') setSave('local'); renderPlans(); toast('Signed out on this device');
   });
 }
-function scheduleSync(ms) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(reconcile, ms == null ? 2500 : ms); }
+function scheduleSync(ms) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(useDrive && gdUser === null ? () => gdPaused(true) : reconcile, ms == null ? 2500 : ms); }
 const localPlanRaw = (id) => { try { return JSON.parse(LS.get(LSK + 'plan:' + id) || 'null'); } catch (e) { return null; } };
 function storeRaw(s) { LS.set(LSK + 'plan:' + s.id, JSON.stringify(s)); plansIndex = plansIndex.filter(p => p.id !== s.id); plansIndex.push({ id: s.id, name: s.name, area: s.area, w: s.w, h: s.h, updated: s.updated }); }
 const planCore = (s) => { if (!s) return ''; const o = Object.assign({}, s); delete o.updated; delete o.id; return JSON.stringify(Object.keys(o).sort().map(k => [k, o[k]])); };
@@ -5946,7 +6145,7 @@ function syncPending() {
   return plansIndex.some(p => sync.base[p.id] !== p.updated && !isPristineExample(p.id, p.updated));
 }
 function syncSettled() {
-  const ok = fbUser && remote && remoteSizes && !syncErr && navigator.onLine && !syncPending();
+  const ok = syncUser() && remote && remoteSizes && !syncErr && navigator.onLine && !syncPending();
   if (ok && sync) { sync.last = Date.now(); saveSync(); }
   if (ok && (saveState === 'local' || saveState === 'syncing')) setSave('synced');
   else if (!ok && saveState === 'synced') setSave('local', syncErr || undefined);
@@ -5954,30 +6153,25 @@ function syncSettled() {
 }
 function reconcile() {
   clearTimeout(syncTimer);
-  if (!fb || !fbUser || !remote || !remoteSizes || !sync) { syncUI(); return; }
+  if (!syncUser() || (!useDrive && !fb) || !remote || !remoteSizes || !sync) { syncUI(); return; }
   if (dirty) persistNow(true);
   if (!navigator.onLine) { syncSettled(); return; }
-  const { S, db } = fb, me = fbUser.uid, ref = (id) => S.doc(db, 'users', me, 'pokopiaPlans', id);
-  const pulled = [], removed = [], gone = new Set(sync.gone || []);
+  const ops = syncOps(), pulled = [], removed = [], gone = new Set(sync.gone || []); let stale = false;
   const done = () => { if (sync) saveSync(); syncSettled(); };
   const send = (key, write, after) => {
     inflight.set(key, true);
     write().then(() => { inflight.delete(key); if (sync) after(); done(); }, e => {
       inflight.delete(key);
-      if (e && e.code === 'pokopia/changed') scheduleSync(1500);
-      else { syncErr = syncProblem(e); if (e.code !== 'permission-denied') scheduleSync(30000); }
+      if (e && e.code === 'pokopia/changed') syncRefresh(1500);
+      else if (e && e.code === 'gd/token') gdPaused(true);
+      else { syncErr = syncProblem(e); if (syncRetry(e)) syncRefresh(30000); }
       done();
     });
   };
-  const guarded = (r, expect, also, change) => S.runTransaction(db, async tx => {
-    const d = await tx.get(r), cur = d.exists() ? (d.data() || {}).updated : null;
-    if (cur !== expect && cur !== also) throw Object.assign(new Error('changed on another device'), { code: 'pokopia/changed' });
-    change(tx, cur);
-  });
   const put = (s, expect) => {
-    const json = JSON.stringify(s); if (json.length > 900000) { syncErr = '“' + s.name + '” is too big to sync.'; return; }
+    const json = JSON.stringify(s); if (json.length > (useDrive ? 4500000 : 900000)) { syncErr = '“' + s.name + '” is too big to sync.'; return; }
     const sent = sync.sent || (sync.sent = {}); sent[s.id] = [s.updated, ...(sent[s.id] || []).filter(t => t !== s.updated)].slice(0, 6); saveSync();
-    send(s.id, () => guarded(ref(s.id), expect, s.updated, tx => tx.set(ref(s.id), { name: s.name, updated: s.updated, data: json })), () => { sync.base[s.id] = s.updated; });
+    send(s.id, () => ops.put(s.id, { name: s.name, updated: s.updated, data: json }, expect, s.updated), () => { sync.base[s.id] = s.updated; });
   };
   const push = (id, R) => { const s = localPlanRaw(id); if (s) { s.id = id; put(s, R ? R.updated : null); } };
   const pull = (id, R) => { try { const s = JSON.parse(R.data); if (!s || !s.w || !s.h) return; s.id = id; storeRaw(s); sync.base[id] = s.updated; pulled.push(id); } catch (e) { } };
@@ -5985,9 +6179,10 @@ function reconcile() {
   for (const id of new Set([...plansIndex.map(p => p.id), ...remote.keys(), ...gone])) {
     if (remotePending.has(id) || inflight.has(id)) continue;
     const L = plansIndex.find(p => p.id === id), R = remote.get(id), B = R && sync.sent && (sync.sent[id] || []).includes(R.updated) ? R.updated : sync.base[id];
+    if (R && R.data === undefined && (!L || L.updated !== R.updated)) { stale = true; continue; }
     if (gone.has(id)) {
       if (R && B != null && R.updated !== B) { pull(id, R); sync.gone = sync.gone.filter(x => x !== id); }
-      else if (R) send(id, () => guarded(ref(id), R.updated, null, (tx, cur) => { if (cur !== null) tx.delete(ref(id)); }), () => { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); });
+      else if (R) send(id, () => ops.del(id, R.updated), () => { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); });
       else { delete sync.base[id]; sync.gone = sync.gone.filter(x => x !== id); }
       continue;
     }
@@ -6006,9 +6201,10 @@ function reconcile() {
       else push(id, null);
     } else if (R) pull(id, R);
   }
-  if (!inflight.has('_sizes')) {
-    const lTs = sizesStamp(), rTs = +remoteSizes.updated || 0, bTs = +sync.sizesBase || 0, sizesRef = S.doc(db, 'users', me, 'pokopiaMeta', 'sizes');
-    const putSizes = (ts) => { const sizes = Object.assign({}, userSizes); send('_sizes', () => guarded(sizesRef, remoteSizes.updated == null ? null : remoteSizes.updated, ts, tx => tx.set(sizesRef, { sizes, updated: ts })), () => { sync.sizesBase = ts; }); };
+  if (remoteSizes.updated != null && remoteSizes.sizes === undefined && sizesStamp() !== +remoteSizes.updated) stale = true;
+  else if (!inflight.has('_sizes')) {
+    const lTs = sizesStamp(), rTs = +remoteSizes.updated || 0, bTs = +sync.sizesBase || 0;
+    const putSizes = (ts) => { const sizes = Object.assign({}, userSizes); send('_sizes', () => ops.put('_sizes', { sizes, updated: ts }, remoteSizes.updated == null ? null : remoteSizes.updated, ts), () => { sync.sizesBase = ts; }); };
     let sizesIn = false;
     if (lTs !== rTs) {
       const lCh = lTs !== bTs, rCh = rTs !== bTs;
@@ -6018,11 +6214,12 @@ function reconcile() {
     } else sync.sizesBase = rTs;
     if (sizesIn) { LS.set('pokopia-planner:sizes', JSON.stringify(userSizes)); requestDraw(); if (activeTab !== 'plans') renderPanel(); }
   }
-  if (remoteReview && !inflight.has('_review')) {
+  if (remoteReview && remoteReview.updated != null && remoteReview.data === undefined && rvStamp() !== +remoteReview.updated) stale = true;
+  else if (remoteReview && !inflight.has('_review')) {
     rvFlush(); clearTimeout(syncTimer);
-    const lTs = rvStamp(), rTs = +remoteReview.updated || 0, bTs = +sync.reviewBase || 0, rvRef = S.doc(db, 'users', me, 'pokopiaMeta', 'review');
+    const lTs = rvStamp(), rTs = +remoteReview.updated || 0, bTs = +sync.reviewBase || 0;
     const theirs = () => { try { const o = JSON.parse(remoteReview.data || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; } };
-    const putRv = (ts) => { const data = JSON.stringify(rvData().items); send('_review', () => guarded(rvRef, remoteReview.updated == null ? null : remoteReview.updated, ts, tx => tx.set(rvRef, { data, updated: ts })), () => { sync.reviewBase = ts; }); };
+    const putRv = (ts) => { const data = JSON.stringify(rvData().items); send('_review', () => ops.put('_review', { data, updated: ts }, remoteReview.updated == null ? null : remoteReview.updated, ts), () => { sync.reviewBase = ts; }); };
     if (lTs !== rTs) {
       const lCh = lTs !== bTs, rCh = rTs !== bTs;
       if (lCh && rCh) { rvSetItems(rvMerge(rvData().items, theirs())); const ts = Date.now(); rvStore(ts); putRv(ts); rvRefresh(); }
@@ -6040,24 +6237,30 @@ function reconcile() {
     const p = readLocalPlan(plan.id); if (p) { const v = mapView.cam(); installPlan(p); mapView.setCam(v); toast('Updated “' + p.name + '” from your other device'); }
   }
   if (pulled.length || removed.length) { updateHeader(); if (activeTab === 'plans') renderPlans(); }
+  if (stale) syncRefresh(1500);
   done();
 }
 function ago(t) { const s = (Date.now() - t) / 1000; return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : new Date(t).toLocaleDateString(); }
 function syncCard() {
-  const signedIn = !!fbUser, waiting = syncOn() && fbUser === undefined;
-  const state = signedIn ? (syncErr ? ['bad', 'Problem'] : !navigator.onLine || syncPending() ? ['warn', 'Waiting'] : ['good', 'On']) : waiting ? ['', 'Connecting…'] : null;
-  const card = h('div', { class: 'card', id: 'syncCard' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Sync between devices'), tipBtn('Sign in with your Google account once on each device: plans and item sizes then stay the same on your phone, tablet and computer. Edits made offline are sent when you\'re back online.'), state ? h('span', { class: 'chip ' + state[0], style: 'margin-left:auto' }, h('span', { class: 'dot' }), state[1]) : ''));
+  const user = syncUser(), signedIn = !!user, waiting = syncOn() && user === undefined, paused = useDrive && syncOn() && user === null;
+  const state = signedIn ? (syncErr ? ['bad', 'Problem'] : !navigator.onLine || syncPending() ? ['warn', 'Waiting'] : ['good', 'On']) : paused ? ['warn', 'Paused'] : waiting ? ['', 'Connecting…'] : null;
+  const tip = 'Sign in with your Google account once on each device: plans, item sizes and item reviews then stay the same on your phone, tablet and computer. Edits made offline are sent when you\'re back online.' + (useDrive ? ' They\'re kept in a hidden folder in your own Google Drive that only this planner can open. Google\'s sign-in lasts an hour, so now and then sync asks you to tap Reconnect.' : '');
+  const card = h('div', { class: 'card', id: 'syncCard' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Sync between devices'), tipBtn(tip), state ? h('span', { class: 'chip ' + state[0], style: 'margin-left:auto' }, h('span', { class: 'dot' }), state[1]) : ''));
   const note = (t, bad) => h('p', { class: 'note', style: 'margin:6px 0 0' + (bad ? ';color:var(--bad)' : '') }, t);
   if (signedIn) {
     card.append(note(syncErr || (!navigator.onLine ? 'Offline: syncs when you\'re back' : (sync && sync.email ? sync.email + ' · ' : '') + (syncPending() ? 'sending…' : 'synced ' + (sync && sync.last ? ago(sync.last) : 'just now'))), !!syncErr));
     card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Sign out')));
+  } else if (paused) {
+    card.append(note(syncErr || ((sync && sync.email ? sync.email + ' · ' : '') + 'paused until you reconnect. Edits wait on this device.'), !!syncErr));
+    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: () => gdSignIn() }, syncMsg || 'Reconnect'), h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Sign out')));
   } else if (waiting) {
     card.append(note(syncErr || (navigator.onLine ? 'Connecting to Google…' : 'Offline: syncs when you\'re back'), !!syncErr));
   } else {
-    if (syncOn() || (sync && sync.uid)) card.append(note('Signed out on this device'));
+    if (syncMoved()) card.append(note('Sync now keeps your plans in your own Google Drive. Sign in once more on this device to carry on.'));
+    else if (syncOn() || (sync && sync.uid && (!useDrive || sync.via === 'drive'))) card.append(note('Signed out on this device'));
     if (syncErr) card.append(note(syncErr, true));
     card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: syncSignIn }, syncMsg || 'Sign in with Google')));
-    if (navigator.onLine) loadFirebase().catch(() => { });
+    if (navigator.onLine) (useDrive ? loadGis() : loadFirebase()).catch(() => { });
   }
   return card;
 }
@@ -6065,6 +6268,7 @@ function syncUI() { const old = document.getElementById('syncCard'); if (old) ol
 function otherWindow(e) {
   if (!e.key || !e.key.startsWith(LSK)) return;
   if (e.key === LSK + 'index') { loadLocalPlans(); if (activeTab === 'plans') renderPlans(); return; }
+  if (e.key === LSK + 'gtok') { if (useDrive) { gdLoadTok(); if (syncOn() && !gdUser && gdLive()) { gdUser = { id: sync.uid, email: sync.email || '' }; toastDrop('gdre'); gdStart(); syncUI(); } } return; }
   if (e.key === LSK + 'sync') { try { const s = JSON.parse(e.newValue || 'null'); if (s && sync && s.uid === sync.uid) sync = Object.assign(s, { on: sync.on }); } catch (er) { } return; }
   if (plan && e.key === LSK + 'plan:' + plan.id && !dirty && e.newValue) { try { const s = JSON.parse(e.newValue); if ((s.updated || 0) > (plan.updated || 0)) { const v = mapView.cam(); installPlan(deserialize(s)); mapView.setCam(v); } } catch (er) { } }
 }
@@ -6158,13 +6362,13 @@ async function boot() {
   if (location.hash === '#review') openReview();
   initCapabilities();
   idle(initSW, 2500); if (S.offline) setTimeout(() => idle(() => fillPictures(), 4000), 2500);
-  const startSync = () => { if (syncOn() && !fbLoading) loadFirebase().catch(() => { if (navigator.onLine) { syncErr = 'Couldn\'t load Google sign-in. Retrying when online.'; syncUI(); } }); };
-  if (syncOn()) idle(startSync, 1200);
+  const startSync = () => { if (useDrive) { if (gdUser) gdPoll(); return; } if (syncOn() && !fbLoading) loadFirebase().catch(() => { if (navigator.onLine) { syncErr = 'Couldn\'t load Google sign-in. Retrying when online.'; syncUI(); } }); };
+  if (useDrive) idle(gdBoot, 1200); else if (syncOn()) idle(startSync, 1200);
   addEventListener('online', () => { if (S.offline && picFill.done < picFill.total) fillPictures(); startSync(); syncErr = ''; scheduleSync(500); syncUI(); });
   addEventListener('offline', () => { syncSettled(); });
   addEventListener('storage', otherWindow);
   const leaving = () => { rvFlush(); if (dirty) persistNow(true); if (syncOn() && syncPending()) reconcile(); };
   addEventListener('pagehide', leaving);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); else syncUI(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { leaving(); return; } syncUI(); if (useDrive && syncOn()) { if (gdUser && gdLive()) gdPoll(); else if (gdUser !== undefined) gdPaused(false); } });
 }
 boot();
