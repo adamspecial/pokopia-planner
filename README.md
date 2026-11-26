@@ -419,4 +419,6 @@ The plans are stored in Firestore, in the free Firebase project GM Companion alr
 
 If the same plan is changed on two devices before they sync, the newer version keeps the plan and the other is kept as a copy named "from another device" or "from this device", so nothing is lost. No copy is made when both versions are the same, or when the other version is one this device sent itself. Windows of the planner open on the same device keep each other up to date. When there are copies, **Plans** shows how many, and **Remove copies** deletes the ones older than their plan, on every synced device. Copies newer than their plan, or with no plan left under that name, stay.
 
+Sync is moving off Firebase, to a hidden folder in each person's own Google Drive, so anyone with the link can sign in and sync with no setup: see [plans/Drive sync.md](plans/Drive%20sync.md). It switches on once the planner's Google sign-in ID is added.
+
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item and Pokémon pictures from Serebii.net.

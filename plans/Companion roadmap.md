@@ -71,7 +71,7 @@ What makes it harder to grow:
 
 ## How it fits what exists
 
-- **Still one offline app.** Everything works without internet, and new pages save for offline like the pictures. There's no new server: your record syncs through the same Google sign-in as plans.
+- **Still one offline app.** Everything works without internet, and new pages save for offline like the pictures. There's no server: your record syncs like plans, into each person's own Google Drive (see [Drive sync](Drive%20sync.md)).
 - **Two new tabs.** **Game** holds Today and your record. **Guide** holds the reference pages. Layers leaves the tab bar, since it already opens from the layers button and L, so the bar goes from six tabs to seven.
 - **Guide data loads when opened.** It lives in its own `guide.json`, so the map starts as fast as now.
 - **Names are links.** Every Pokémon, item, habitat, kit, move or town named anywhere opens its card in the Guide, or where the card already lives (Pokédex, Build, Habitat Dex).
@@ -230,7 +230,7 @@ Each phase is a release that's usable on its own.
 ## Decisions (recommended)
 
 1. **Part 2 comes first.** Then groundwork and accessibility come before the new tabs, so those are built accessible instead of fixed afterwards.
-2. **No new server.** Your record rides on the existing sync. Reminders while the app is closed would need push messages, and those need a paid Firebase plan. Start with in-app notices and calendar files, and decide later.
+2. **No server.** Your record rides on the same Drive sync as plans. Reminders while the app is closed would need a push server, so reminders are in-app notices and calendar files.
 3. **No build step.** Plain modules keep the repo easy to edit and the GitHub Pages site unchanged.
 4. **Spoilers are hidden by default** past your Trainer Rank, with one switch to show everything.
 5. **You fill in your record.** The game has no export, so nothing is read from the console. Plans fill in what they can.
@@ -246,7 +246,6 @@ Each phase is a release that's usable on its own.
 
 - What Part 2 adds, until 9 December.
 - Where to get Japanese item names. Pokémon names come from PokeAPI, but item names need a Japanese guide's lists.
-- Whether reminders while the app is closed are worth a paid Firebase plan.
 - The in-game tests listed in the reports.
 
 ## Status
