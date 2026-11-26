@@ -797,23 +797,31 @@ const envAxisOf = (ideal) => ENV_AX[ideal] ? ENV_AX[ideal][0] : null;
 const envClash = (a, b) => !!a && !!b && a !== b && envAxisOf(a) === envAxisOf(b);
 const ROOF_WORD = ['no roof', 'a quarter roofed', 'half roofed', 'three quarters roofed', 'roofed over'];
 function roofOf(hs) { const r = (plan.roofs || []).find(r => hs.cells.has(r.y * plan.w + r.x)); return r ? r.q : null; }
-function setRoof(hs, q) { plan.roofs = (plan.roofs || []).filter(r => !hs.cells.has(r.y * plan.w + r.x)); if (q != null) plan.roofs.push({ x: hs.anchor % plan.w, y: (hs.anchor / plan.w) | 0, q }); markDirty(); }
 function houseDaylight(hs) {
   const inner = new Set([...hs.cells].filter(k => !hs.doors.has(k))), all = new Set(inner);
   for (const k of inner) { const x = k % plan.w, y = (k / plan.w) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inB(plan, x + dx, y + dy)) all.add((y + dy) * plan.w + x + dx); }
-  const q = roofOf(hs), floor = hs.cells.size, roofed = Math.round(floor * (q || 0) / 4), open = floor - roofed;
-  return { q, floor, total: all.size, roofed, open, v: 90 * Math.fround(open / all.size) };
+  const base = hs.area.base, floor = hs.cells.size; let roofed = 0; for (const k of hs.cells) if (roofedAt(k, base)) roofed++;
+  const open = floor - roofed;
+  return { floor, total: all.size, roofed, open, all, v: 90 * Math.fround(open / all.size) };
 }
-function roofedCell(k) {
-  const zs = plan.tz, tt = plan.tt; let top = -1;
-  for (let j = zs.length - 1; j >= 0; j--) if (tt[j][k]) { top = j; break; }
-  if (top >= 0) { const T = zs[top]; if (!terrAt(plan, k, T - 1) && !occAt(plan, k, T - 1)) for (let j = top - 1; j >= 0; j--) if (zs[j] < T - 1 && tt[j][k]) return true; }
-  for (const ob of stackAt(k)) if (lookK(ITEMS[ob.i]).startsWith('roof')) { const z = zOf(ob); if (!occAt(plan, k, z - 1) && !terrAt(plan, k, z - 1)) return true; }
+const roofish = (it) => isWall(it) || lookK(it).startsWith('roof');
+function solidAt(k, z) {
+  const g = terrAt(plan, k, z); if (g && !ITEMS[g - 1].lq) return true;
+  const o = occAt(plan, k, z), ob = o && plan.objs.get(o); return !!ob && roofish(ITEMS[ob.i]);
+}
+function roofedAt(k, L) {
+  let top = topTerr(k); if (top == null) top = -Infinity;
+  for (const ob of stackAt(k)) top = Math.max(top, topOf(ob));
+  let run = true;
+  for (let z = L; z <= top; z++) {
+    if (solidAt(k, z)) { if (!run || z === L + 3) return true; }
+    else run = false;
+  }
   return false;
 }
 function habitatDaylight(a) {
   const R = a.rect; let open = 0, total = 0;
-  for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inB(plan, x, y)) continue; total++; if (!roofedCell(y * plan.w + x)) open++; }
+  for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inB(plan, x, y)) continue; total++; if (!roofedAt(y * plan.w + x, a.base)) open++; }
   return { open, total, v: total ? 90 * open / total : 0 };
 }
 const burnsIt = (p) => !!p && (p.s || []).includes('Burn');
@@ -861,8 +869,8 @@ function envOf(home) {
       terr(k, base, -AREA_R, AREA_R, -1, 3);
     }
   } else {
-    const hs = home.hs, base = hs.area.base, D = houseDaylight(hs); E.roof = D.q; E.day = D;
-    add('b', 'Daylight (' + D.open + ' of ' + D.total + ' tiles open to the sky' + (D.q == null ? ', roof not set' : '') + ')', D.v);
+    const hs = home.hs, base = hs.area.base, D = houseDaylight(hs); E.roof = D.roofed; E.day = D;
+    add('b', 'Daylight (' + D.open + ' of ' + D.total + ' tiles open to the sky)', D.v);
     const seen = new Set();
     for (const k of hs.cells) {
       for (const ob of stackAt(k)) { const lv = zOf(ob) - base; if (lv < -1 || lv > 3 || seen.has(ob.id)) continue; seen.add(ob.id); addIt(ITEMS[ob.i], ob); }
@@ -925,7 +933,7 @@ function envBlock(home, E = envOf(home)) {
   if (chips.childNodes.length) box.append(chips);
   const wheat = E.ax.u.parts.get('Wheat field'), U = E.ax.u;
   if (wheat && !envGap('Humid', U.v, E.kind) && envGap('Humid', U.v - wheat.v, E.kind)) box.append(h('div', { class: 'note', 'data-tip': 'Harvested wheat goes back to seed and adds no humidity until it sprouts again, a day later if it\'s watered.' }, '⚠ Humidity drops to ' + envNum(U.v - wheat.v) + ' after the wheat is harvested, so it isn\'t humid until it sprouts again.'));
-  if (plan.wx === 'rain' && home.kind !== 'kit') { const fires = E.ax.t.parts.size && [...E.ax.t.parts].filter(([, e]) => e.need === 'f').map(([n]) => n); if (fires && fires.length && !(E.built && E.roof === 4)) box.append(h('div', { class: 'note', 'data-tip': 'Rain puts out fires with no roof over them. A Burn Pokémon living nearby lights them again.' }, 'Raining: ' + listNames(fires) + ' can go out where there\'s no roof, and ' + (E.burn.length ? E.burn[0] : 'a Burn Pokémon') + ' lights ' + (fires.length > 1 ? 'them' : 'it') + ' again.')); }
+  if (plan.wx === 'rain' && home.kind !== 'kit') { const fires = E.ax.t.parts.size && [...E.ax.t.parts].filter(([, e]) => e.need === 'f').map(([n]) => n); if (fires && fires.length && !(E.built && E.day && E.day.roofed === E.day.floor)) box.append(h('div', { class: 'note', 'data-tip': 'Rain puts out fires with no roof over them. A Burn Pokémon living nearby lights them again.' }, 'Raining: ' + listNames(fires) + ' can go out where there\'s no roof, and ' + (E.burn.length ? E.burn[0] : 'a Burn Pokémon') + ' lights ' + (fires.length > 1 ? 'them' : 'it') + ' again.')); }
   const det = h('details', { class: 'envwhat' }, h('summary', null, 'What counts'));
   for (const [k, lb] of ENV_ROWS) { const A = E.ax[k]; const parts = [...A.parts].sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)); det.append(h('div', { class: 'note' }, h('b', null, lb + ': '), parts.length ? parts.map(([l, e]) => l + (e.n > 1 && !/tile/.test(l) ? ' ×' + e.n : '') + ' ' + envPts(e.v) + (e.by ? ' (lit by ' + e.by + ')' : e.need ? ' (' + ENV_NEED[e.need] + ')' : '') + (e.guess ? ' (untested)' : '')).join(' · ') : 'nothing')); }
   if (E.off.size) det.append(h('div', { class: 'note' }, h('b', null, 'Not counted: '), [...E.off].map(([n, e]) => n + (e.n > 1 ? ' ×' + e.n : '') + ' (' + e.why + ')').join(' · ')));
@@ -1781,7 +1789,7 @@ function computeFields() {
       const still = (q, z) => hydrates(terrAt(plan, q, z)) && !((flowAt(q, z) || {}).f === FL_RUN);
       if (nb.some(q => still(q, p) || still(q, f))) why.push('water beside it');
       const Q = sprayed(x, y, f); if (Q) { why.push('the sprinkler at ' + Q.ob.x + ', ' + Q.ob.y); Q.n++; }
-      if (plan.wx === 'rain' && !roofedCell(k)) why.push('rain');
+      if (plan.wx === 'rain' && !roofedAt(k, p)) why.push('rain');
       const B = basins.find(b => b.has && inR(b.hm, x, y, p)); if (B) why.push(B.who[0].n + '\'s water basin (reach not measured)');
       state = why.length ? 'wet' : 'dry';
     }
@@ -4428,12 +4436,40 @@ function selectHouse(hs) {
   const ct = areaContents(hs.area), inside = floorItems(hs);
   box.append(h('div', { class: 'note hrow', style: 'margin-top:6px' }, icon('area'), 'Area ' + hs.area.rect.w + '×' + hs.area.rect.h + ' · ' + ct.n + ' item' + (ct.n === 1 ? '' : 's') + ' (' + inside + ' inside)', tipBtn(areaSummary(hs.area) + (ct.n ? ' In it: ' + [...ct.out].map(([c, n]) => n + ' ' + c).join(', ') + '.' : ''))));
   if (hs.kitHomes.length) box.append(h('div', { class: 'section' }, h('div', { class: 'hrow' }, h('b', null, 'Kit homes inside'), tipBtn('Homes of their own: they don\'t count as this house\'s furniture.')), kitHomesList(hs)));
-  { const q = roofOf(hs), D = houseDaylight(hs), seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'How much of the house is roofed' });
-    for (const [v, lb] of [[0, 'None'], [1, '¼'], [2, '½'], [3, '¾'], [4, 'Full']]) seg.append(h('button', { 'aria-pressed': q === v ? 'true' : 'false', 'aria-label': ROOF_WORD[v][0].toUpperCase() + ROOF_WORD[v].slice(1), onclick: () => { setRoof(hs, v); selectHouse(houseById.get(hs.id) || hs); } }, lb));
-    box.append(h('div', { class: 'roofline' }, h('b', null, 'Roof'), seg, h('span', { class: 'note' }, '☀ ' + envNum(D.v)), tipBtn((q == null ? 'Roof not set, so counted as open sky. ' : '') + 'Daylight = 90 × ' + D.open + ' floor tiles open to the sky ÷ ' + D.total + ' tiles of house, walls included. A roof is any block 2 or more above the floor.'))); }
+  { const D = houseDaylight(hs), old = roofOf(hs), full = D.roofed === D.floor;
+    const row = h('div', { class: 'roofline' }, h('b', null, 'Roof'), h('span', { class: 'note' }, full ? 'All of the floor' : D.roofed ? D.roofed + ' of ' + D.floor + ' floor tiles' : 'None'), h('span', { class: 'note' }, '☀ ' + envNum(D.v)),
+      tipBtn('Daylight = 90 × ' + D.open + ' floor tiles open to the sky ÷ ' + D.total + ' tiles of house, walls included. A floor tile is roofed when a block, wall or roof piece sits anywhere above it with a gap under it, or when a stack of 4 blocks stands on it. A block standing on the floor, and furniture, never roof. To see inside a roofed house, hide the roof\'s level in Layers.'));
+    if (!full) row.append(h('button', { class: 'btn sm', 'data-tip': 'Lays the walls\' blocks over the whole house, one level above the walls', onclick: () => buildRoof(hs) }, 'Build a roof'));
+    box.append(row);
+    if (old != null) box.append(h('p', { class: 'note', style: 'margin:6px 0 0' }, 'This house had the old Roof setting (' + ROOF_WORD[old] + '). Roofs now come from blocks over the house, so only tiles with a block over them count as roofed. ', h('button', { class: 'lnk', onclick: () => { setRoofs((plan.roofs || []).filter(r => !hs.cells.has(r.y * plan.w + r.x))); commitTx('Forget the roof setting'); selectHouse(houseById.get(hs.id) || hs); } }, 'Forget it')));
+  }
   box.append(residentsSection(houseHome(hs)));
   box.append(boxLine('house:' + hs.id));
   requestDraw();
+}
+function roofPlan(hs) {
+  const base = hs.area.base, D = houseDaylight(hs), mat = new Map(), lv = new Map(); let top = base;
+  for (const k of D.all) {
+    for (const ob of stackAt(k)) {
+      const it = ITEMS[ob.i], z = zOf(ob); if (topOf(ob) < base) continue;
+      if (!hs.cells.has(k) || hs.doors.has(k)) { if (structural(it) && z <= base + 3) { top = Math.max(top, topOf(ob)); if (isWall(it) && it.c === 'Blocks') mat.set(ob.i, (mat.get(ob.i) || 0) + 1); } continue; }
+      if (roofish(it) && z > base) lv.set(z, (lv.get(z) || 0) + 1); else if (!roofish(it)) top = Math.max(top, topOf(ob));
+    }
+  }
+  const m = [...mat].sort((a, b) => b[1] - a[1])[0], l = [...lv].sort((a, b) => b[1] - a[1])[0];
+  return { z: l && l[0] > top ? l[0] : top + 1, i: m ? m[0] : BY_NAME.get('Wooden wall').i, cells: D.all };
+}
+function buildRoof(hs) {
+  const R = roofPlan(hs), base = hs.area.base; let n = 0;
+  for (const k of R.cells) {
+    if (hs.cells.has(k) && roofedAt(k, base)) continue;
+    if (occAt(plan, k, R.z) || terrAt(plan, k, R.z)) continue;
+    if (addObj(R.i, k % plan.w, (k / plan.w) | 0, 1, 1, R.z, 1)) n++;
+  }
+  if (roofOf(hs) != null) setRoofs((plan.roofs || []).filter(r => !hs.cells.has(r.y * plan.w + r.x)));
+  if (!commitTx('Build a roof')) { toast('There\'s no room for a roof over this house'); return; }
+  undoToast(n ? 'Roofed with ' + n + ' ' + ITEMS[R.i].n + ' blocks at level ' + R.z + '. Hide that level in Layers to see inside.' : 'Old roof setting forgotten');
+  const nh = houseAt(hs.anchor % plan.w, (hs.anchor / plan.w) | 0); selectHouse(nh || houseById.get(hs.id) || hs);
 }
 function selectZone(z) {
   selection = { zone: z }; evaluateAll(); const r = zoneStatus.get(z.id);
