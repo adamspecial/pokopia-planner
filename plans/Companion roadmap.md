@@ -250,4 +250,6 @@ Each phase is a release that's usable on its own.
 
 ## Status
 
-Phase 0 is under way. The comfort fixes, the weekly data check and the game version in the data are done. Next are the items and differences the first data check found, then Part 2 after 9 December.
+Phase 0 is done apart from Part 2, which comes after 9 December: the comfort fixes, the weekly data check, the game version in the data, the fixes from the first data check, and the data consistency check.
+
+Phase 1 is under way. Automated tests run on every pull request: the data and no-comments rules, the app on a Pixel 7 and in a 1366×768 window in Chrome and in Edge on Windows, and an axe-core scan that fails on anything new. Next: splitting `app.js` into modules, the strings table and the time limits.

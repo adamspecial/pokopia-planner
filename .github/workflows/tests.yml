@@ -1,0 +1,84 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    name: Data and code rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: data.json is consistent
+        run: python3 tools/data_lint.py
+      - run: npm ci
+        working-directory: tests
+      - name: No comments in code
+        run: node no-comments.js
+        working-directory: tests
+
+  android-and-chrome:
+    name: Android phone and Windows window (Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci
+        working-directory: tests
+      - run: npx playwright install --with-deps chromium
+        working-directory: tests
+      - name: Run the app tests
+        run: npx playwright test --trace off
+        working-directory: tests
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: chrome-results
+          path: tests/test-results
+          retention-days: 7
+
+  edge:
+    name: Windows (Edge)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      EDGE: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - run: npm ci
+        working-directory: tests
+      - name: Run the app tests in Edge
+        run: npx playwright test --project windows-edge --trace off
+        working-directory: tests
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: edge-results
+          path: tests/test-results
+          retention-days: 7
