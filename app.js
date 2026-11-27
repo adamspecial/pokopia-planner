@@ -5599,6 +5599,7 @@ function renderSettings() {
   sec('data',
     row('Storage', h('span', { class: 'note', id: 'setsUse' }, 'Checking…')),
     h('div', { id: 'setsKeep' }),
+    row('Game data', 'Items, Pokémon and habitats match the game\'s Ver. ' + (DATA.gv || '?') + '. They\'re checked against Serebii every week, and new game data is added as it\'s found.', h('span', { class: 'note' }, 'Ver. ' + (DATA.gv || '?'))),
     row('Plans, backups and sync', 'Export, import and Google sync are in the Plans tab.', h('button', { class: 'btn sm', type: 'button', onclick: () => closeSettings(() => { showTab('plans'); if (innerWidth < 900 && sheetState === 'peek') setSheet(S.sheet); }) }, icon('map'), 'Open Plans')),
     row('Reset settings', 'Puts everything on this page back as it was at the start. Your plans stay as they are.', h('button', { class: 'btn sm danger', type: 'button', onclick: resetSettingsDialog }, 'Reset')));
   let cur = '';
