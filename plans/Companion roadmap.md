@@ -71,7 +71,7 @@ What makes it harder to grow:
 
 ## How it fits what exists
 
-- **Still one offline app.** Everything works without internet, and new pages save for offline like the pictures. There's no server: your record syncs like plans, into each person's own Google Drive (see [Drive sync](Drive%20sync.md)).
+- **Still one offline app.** Everything works without internet, and new pages save for offline like the pictures. There's no server: your record syncs like plans, into your own Google Drive (see [Drive sync](Drive%20sync.md)).
 - **Two new tabs.** **Game** holds Today and your record. **Guide** holds the reference pages. Layers leaves the tab bar, since it already opens from the layers button and L, so the bar goes from six tabs to seven.
 - **Guide data loads when opened.** It lives in its own `guide.json`, so the map starts as fast as now.
 - **Names are links.** Every Pokémon, item, habitat, kit, move or town named anywhere opens its card in the Guide, or where the card already lives (Pokédex, Build, Habitat Dex).

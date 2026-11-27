@@ -414,12 +414,14 @@ Fires count only when lit, and a Burn Pokémon lights them when its home is with
 
 ## Sync between devices
 
-Plans → **Sync between devices** → **Sign in with Google**, once on each device. Plans, item sizes and item reviews then stay the same everywhere: changes show up on your other devices within seconds, and edits made offline are sent when the device is back online. Each device keeps its own copy too, so the planner works the same without internet.
+Plans → **Sync between devices** → **Sign in with Google**, once on each device, and let the planner keep its files in your Google Drive. Plans, item sizes and item reviews then stay the same everywhere. The planner checks for changes when it opens, when you come back to it and every 30 seconds while it's open, and sends your edits a few seconds after you stop. Edits made offline are sent when the device is back online. Each device keeps its own copy too, so the planner works the same without internet.
 
-The plans are stored in Firestore, in the free Firebase project GM Companion already uses (`my-gm-companion`), under `users/<you>/pokopiaPlans` and `users/<you>/pokopiaMeta`, apart from GM Companion's data; its existing rules let only you read and write them. One-time step: Firebase console → Authentication → Settings → Authorized domains → add `adamspecial.github.io`.
+- **Where they're kept.** In a hidden folder in your own Google Drive that only the planner can open and that doesn't show among your files. There's no server.
+- **Reconnect.** Google's sign-in lasts an hour, and only a tap can renew it. When it runs out, or when you open the planner later, a notice offers **Reconnect**; edits made meanwhile wait on the device. The sign-in is in Google's testing mode, for you only, so about once a week Google asks you to approve it again.
+- **Removing it.** **Remove from Drive** in the sync card deletes everything the planner saved in your Drive and turns sync off. Plans stay on your devices, and your other devices turn sync off too and keep theirs.
 
 If the same plan is changed on two devices before they sync, the newer version keeps the plan and the other is kept as a copy named "from another device" or "from this device", so nothing is lost. No copy is made when both versions are the same, or when the other version is one this device sent itself. Windows of the planner open on the same device keep each other up to date. When there are copies, **Plans** shows how many, and **Remove copies** deletes the ones older than their plan, on every synced device. Copies newer than their plan, or with no plan left under that name, stay.
 
-Sync is moving off Firebase, to a hidden folder in each person's own Google Drive, so anyone with the link can sign in and sync with no setup: see [plans/Drive sync.md](plans/Drive%20sync.md). It switches on once the planner's Google sign-in ID is added.
+How the sync works, and how its Google sign-in was set up, is in [plans/Drive sync.md](plans/Drive%20sync.md).
 
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item and Pokémon pictures from Serebii.net.

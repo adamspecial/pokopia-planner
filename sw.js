@@ -1,13 +1,9 @@
-const CACHE = 'pokopia-1795741193', PICS = 'pokopia-pics', LIB = 'pokopia-lib', FILES = ["./", "index.html", "data.json", "pics/index.json", "manifest.webmanifest", "app.js", "map3d.js", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png", "towns/withered-wasteland.json", "towns/bleak-beach.json", "towns/rocky-ridges.json", "towns/sparkling-skylands.json", "towns/palette-town.json"];
+const CACHE = 'pokopia-1795742749', PICS = 'pokopia-pics', FILES = ["./", "index.html", "data.json", "pics/index.json", "manifest.webmanifest", "app.js", "map3d.js", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png", "towns/withered-wasteland.json", "towns/bleak-beach.json", "towns/rocky-ridges.json", "towns/sparkling-skylands.json", "towns/palette-town.json"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('pokopia-') && k !== CACHE && k !== PICS && k !== LIB).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('pokopia-') && k !== CACHE && k !== PICS).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const url = new URL(req.url), fonts = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
-  if (url.origin === 'https://www.gstatic.com' && url.pathname.startsWith('/firebasejs/')) {
-    e.respondWith(caches.open(LIB).then(async c => { const hit = await c.match(req); if (hit) return hit; const r = await fetch(req); if (r.ok) await c.put(req, r.clone()); return r; }));
-    return;
-  }
   if (url.origin !== location.origin && !fonts) return;
   if (url.origin === location.origin && /\/pics\/((top|pk)\/)?[^/]+\.webp$/.test(url.pathname)) {
     if (req.headers.get('x-pokopia-fill')) return;
