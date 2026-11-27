@@ -100,7 +100,7 @@ Each phase is a release that's usable on its own.
      - the comfort numbers checked again
 1. **Groundwork**
    - Split `app.js` into files by area: map, 3D, homes and comfort, world systems, panels, data and sync. They load as plain browser scripts, with no build step.
-   - Move every bit of on-screen text into one table of strings, ready for other languages.
+   - Move every bit of on-screen text into one table of strings, ready for other languages. The English text is the key, so the code stays readable.
    - Automated tests on GitHub for every pull request:
      - open the app on a Pixel 7 and in a 1366×768 window
      - open each game town and use each tool once
@@ -258,4 +258,5 @@ Phase 1 is under way.
   - Automated tests run on every pull request: the data and no-comments rules, the app on a Pixel 7 and in a 1366×768 window in Chrome and in Edge on Windows, and an axe-core scan that fails on anything new.
   - `app.js` is split into 15 files by area in `js/`, with a check that they load in a safe order.
   - Time limits for start-up, an edit on a full-size town and frames while panning, on a mid-range Android phone.
-- **Next:** the strings table.
+  - **Text for translation.** On-screen text goes through `say()` and is listed in `strings/en.json`. Settings and the page's own buttons and tabs have moved. A check stops new text being written straight into the code, and the remaining text, about 2,700 pieces, moves area by area before phase 7.
+- **Next:** phase 2, accessibility.
