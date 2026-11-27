@@ -52,7 +52,10 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: tests
       - name: Run the app tests
-        run: npx playwright test --trace off
+        run: npx playwright test --project android-phone --project windows --trace off
+        working-directory: tests
+      - name: Time limits on a mid-range phone
+        run: npx playwright test --project phone-timing --workers 1 --trace off
         working-directory: tests
       - uses: actions/upload-artifact@v4
         if: failure()

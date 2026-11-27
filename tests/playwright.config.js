@@ -16,8 +16,9 @@ module.exports = defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   projects: [
-    { name: 'android-phone', use: { ...devices['Pixel 7'] } },
-    { name: 'windows', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } } },
-    ...(process.env.EDGE ? [{ name: 'windows-edge', use: { ...devices['Desktop Edge'], channel: 'msedge', viewport: { width: 1366, height: 768 } } }] : []),
+    { name: 'android-phone', testIgnore: /timing\.spec\.js$/, use: { ...devices['Pixel 7'] } },
+    { name: 'windows', testIgnore: /timing\.spec\.js$/, use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } } },
+    ...(process.env.EDGE ? [{ name: 'windows-edge', testIgnore: /timing\.spec\.js$/, use: { ...devices['Desktop Edge'], channel: 'msedge', viewport: { width: 1366, height: 768 } } }] : []),
+    { name: 'phone-timing', testMatch: /timing\.spec\.js$/, fullyParallel: false, use: { ...devices['Pixel 7'] } },
   ],
 });
