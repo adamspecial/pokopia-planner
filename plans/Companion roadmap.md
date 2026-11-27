@@ -99,7 +99,7 @@ Each phase is a release that's usable on its own.
      - Part 2's items, Pokémon, habitats and kits added
      - the comfort numbers checked again
 1. **Groundwork**
-   - Split `app.js` into modules by area: map, 3D, homes and comfort, world systems, panels, data and sync. They load as plain browser modules, with no build step.
+   - Split `app.js` into files by area: map, 3D, homes and comfort, world systems, panels, data and sync. They load as plain browser scripts, with no build step.
    - Move every bit of on-screen text into one table of strings, ready for other languages.
    - Automated tests on GitHub for every pull request:
      - open the app on a Pixel 7 and in a 1366×768 window
@@ -252,4 +252,9 @@ Each phase is a release that's usable on its own.
 
 Phase 0 is done apart from Part 2, which comes after 9 December: the comfort fixes, the weekly data check, the game version in the data, the fixes from the first data check, and the data consistency check.
 
-Phase 1 is under way. Automated tests run on every pull request: the data and no-comments rules, the app on a Pixel 7 and in a 1366×768 window in Chrome and in Edge on Windows, and an axe-core scan that fails on anything new. Next: splitting `app.js` into modules, the strings table and the time limits.
+Phase 1 is under way.
+
+- **Done:**
+  - Automated tests run on every pull request: the data and no-comments rules, the app on a Pixel 7 and in a 1366×768 window in Chrome and in Edge on Windows, and an axe-core scan that fails on anything new.
+  - `app.js` is split into 15 files by area in `js/`, with a check that they load in a safe order.
+- **Next:** the strings table and the time limits.

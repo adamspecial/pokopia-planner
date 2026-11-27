@@ -33,7 +33,7 @@ You did this once, on a computer. These are the steps, in case it ever needs doi
    2. **Application type:** **Web application**. **Name:** `Pokopia Planner site`.
    3. Under **Authorized JavaScript origins**, click **Add URI** and enter `https://adamspecial.github.io`, with no slash at the end.
    4. Leave **Authorized redirect URIs** empty, and click **Create**.
-7. **Put the Client ID in the planner.** It goes in `GD_CLIENT` in `app.js`. It isn't a secret. The client secret isn't used.
+7. **Put the Client ID in the planner.** It goes in `GD_CLIENT` in `js/sync.js`. It isn't a secret. The client secret isn't used.
 
 ## How it works
 

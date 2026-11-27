@@ -436,6 +436,31 @@ How the sync works, and how its Google sign-in was set up, is in [plans/Drive sy
 
 **Data check.** `tools/data_check.py` compares `data.json` with Serebii's item, Pokémon and habitat lists and pages, and writes [reports/Data check.md](reports/Data%20check.md): what's new on Serebii and what differs. GitHub runs it every Wednesday (`.github/workflows/data-check.yml`) and commits the report when something changes. Settings → Data shows which game version the data matches.
 
+## The code
+
+The planner is plain HTML, CSS and JavaScript, with no build step. `index.html` holds the page and its styles. The code is in `js/`, one file per area:
+
+| File | What it holds |
+|---|---|
+| `base.js` | Page helpers, tips and toasts, settings, and the index of the game data |
+| `plan.js` | A plan in memory and as saved, levels and layers, placing and removing things, undo and redo |
+| `homes.js` | Habitat zones, houses and kit homes, Pokémon pictures and sizes, residents, light, warmth, humidity, roofs and reach |
+| `interior.js` | The interior editor for houses and kits |
+| `comfort.js` | Housemates, comfort, dislikes, environment level and storage boxes |
+| `world.js` | Power, fields, switches and sensors, liquids, Pokémon at work, areas, materials, limits and problems |
+| `draw.js` | The map canvas, the flat and 3D views, and drawing terrain, items, rugs and zones |
+| `input.js` | Tools, taps, drags and keys on the map, the Show menu and the status line |
+| `pictures.js` | Item pictures, and how walls and furniture are drawn |
+| `inspect.js` | The option bar, the details panel, item sizes, moving, deleting, groups, copy and paste, houses, roofs, zones and stamping |
+| `panels.js` | The tabs and the phone sheet; the Layers, Build, Materials, Habitats and Pokémon tabs; drag and drop |
+| `plans.js` | The Plans tab, new plans and game towns, Settings, dialogs, saving and export |
+| `review.js` | Item review and importing files |
+| `sync.js` | Sync with Google Drive |
+| `boot.js` | The example plan, offline use, updates and start-up |
+| `map3d.js` | The 3D view's drawing, loaded on its own |
+
+The files share one scope and load one after another, in the order of `APP_JS` in `index.html`. While it loads, a file can use only what earlier files define. Anything that starts listening or schedules work, such as an event listener, a timer or an observer, goes inside `atStart(() => { … })`. That runs once every file has loaded, so nothing fires before the code it needs exists.
+
 ## Tests
 
 GitHub tests every pull request and every change to `main` (`.github/workflows/tests.yml`), in three jobs:
@@ -443,6 +468,7 @@ GitHub tests every pull request and every change to `main` (`.github/workflows/t
 - **Data and code rules.**
   - `tools/data_lint.py` checks that `data.json` holds together: every recipe's materials exist, every habitat's Pokémon and parts exist, every favourite is a known kind, and every group, default and processing step points at something real.
   - `tests/no-comments.js` fails on any comment in the code: `//`, `/* */`, `#`, `<!-- -->` and docstrings.
+  - `tests/load-order.js` checks the two rules above for the files in `js/`.
 - **Android phone and Windows window.** The app opens in Chrome as a Pixel 7 and as a 1366×768 window. The tests use only what's on screen, so they don't depend on how the code is split up. They check that it:
   - starts
   - opens every tab
