@@ -434,4 +434,6 @@ If the same plan is changed on two devices before they sync, the newer version k
 
 How the sync works, and how its Google sign-in was set up, is in [plans/Drive sync.md](plans/Drive%20sync.md).
 
+**Data check.** `tools/data_check.py` compares `data.json` with Serebii's item, Pokémon and habitat lists and pages, and writes [reports/Data check.md](reports/Data%20check.md): what's new on Serebii and what differs. GitHub runs it every Wednesday (`.github/workflows/data-check.yml`) and commits the report when something changes. Settings → Data shows which game version the data matches.
+
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item and Pokémon pictures from Serebii.net.

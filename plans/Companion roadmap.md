@@ -250,4 +250,4 @@ Each phase is a release that's usable on its own.
 
 ## Status
 
-Planned. Phase 0 is next, before 9 December.
+Phase 0 is under way. The comfort fixes, the weekly data check and the game version in the data are done. Next are the items and differences the first data check found, then Part 2 after 9 December.
