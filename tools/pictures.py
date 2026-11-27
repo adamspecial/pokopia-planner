@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import concurrent.futures as cf
 import hashlib
 import io

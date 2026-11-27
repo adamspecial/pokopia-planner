@@ -436,4 +436,28 @@ How the sync works, and how its Google sign-in was set up, is in [plans/Drive sy
 
 **Data check.** `tools/data_check.py` compares `data.json` with Serebii's item, Pokémon and habitat lists and pages, and writes [reports/Data check.md](reports/Data%20check.md): what's new on Serebii and what differs. GitHub runs it every Wednesday (`.github/workflows/data-check.yml`) and commits the report when something changes. Settings → Data shows which game version the data matches.
 
+## Tests
+
+GitHub tests every pull request and every change to `main` (`.github/workflows/tests.yml`), in three jobs:
+
+- **Data and code rules.**
+  - `tools/data_lint.py` checks that `data.json` holds together: every recipe's materials exist, every habitat's Pokémon and parts exist, every favourite is a known kind, and every group, default and processing step points at something real.
+  - `tests/no-comments.js` fails on any comment in the code: `//`, `/* */`, `#`, `<!-- -->` and docstrings.
+- **Android phone and Windows window.** The app opens in Chrome as a Pixel 7 and as a 1366×768 window. The tests use only what's on screen, so they don't depend on how the code is split up. They check that it:
+  - starts
+  - opens every tab
+  - opens each game town at full size
+  - uses every tool once, with undo and redo
+  - switches between the 3D and flat maps
+  - goes through Settings
+  - keeps a plan after a reload
+  - still opens with no internet
+
+  Any error in the page fails the test.
+- **Windows (Edge).** The same tests in Microsoft Edge on Windows.
+
+Each run also scans every tab, Settings and the New plan dialog with axe-core for WCAG 2.2 AA problems. Problems found when the scan was added are listed in `tests/a11y-baseline.json`. A problem fails the run when it's new or appears in more places than before. When you fix some, record the lower counts with `UPDATE_A11Y=1 npx playwright test a11y --workers 1`.
+
+To run the tests on your own computer, from `tests/`: `npm ci`, `npx playwright install chromium`, then `npx playwright test`. The tests start their own local server (`tests/serve.js`).
+
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item and Pokémon pictures from Serebii.net.

@@ -1,0 +1,15 @@
+{
+  "android-phone": {
+    "button-name": 8,
+    "color-contrast": 11,
+    "meta-viewport": 9,
+    "scrollable-region-focusable": 1,
+    "target-size": 12
+  },
+  "windows": {
+    "button-name": 8,
+    "color-contrast": 19,
+    "meta-viewport": 9,
+    "target-size": 3
+  }
+}
