@@ -257,4 +257,5 @@ Phase 1 is under way.
 - **Done:**
   - Automated tests run on every pull request: the data and no-comments rules, the app on a Pixel 7 and in a 1366×768 window in Chrome and in Edge on Windows, and an axe-core scan that fails on anything new.
   - `app.js` is split into 15 files by area in `js/`, with a check that they load in a safe order.
-- **Next:** the strings table and the time limits.
+  - Time limits for start-up, an edit on a full-size town and frames while panning, on a mid-range Android phone.
+- **Next:** the strings table.
