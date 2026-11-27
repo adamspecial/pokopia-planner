@@ -108,8 +108,8 @@ const LS = {
   del(k) { try { localStorage.removeItem(k); } catch (e) { } },
 };
 const SET_KEY = 'pokopia-planner:settings';
-const SET_DEF = { gReach: 'rt', gSensor: 2, gSprinkler: 5, gRock: 4, gGen: 10, map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
-const SET_OPTS = { gReach: ['rt', 'r', 'all'], gSensor: [2, 1], gSprinkler: [5, 4], gRock: [4, 6], gGen: [10, 7], theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
+const SET_DEF = { gStory: 'zero', gReach: 'rt', gSensor: 2, gSprinkler: 5, gRock: 4, gGen: 10, map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
+const SET_OPTS = { gStory: ['zero', 'count'], gReach: ['rt', 'r', 'all'], gSensor: [2, 1], gSprinkler: [5, 4], gRock: [4, 6], gGen: [10, 7], theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
 let S = Object.assign({}, SET_DEF);
 try { const v = JSON.parse(LS.get(SET_KEY) || 'null'); if (v && typeof v === 'object') for (const k in SET_DEF) if (k in v && (SET_OPTS[k] ? SET_OPTS[k].includes(v[k]) : typeof v[k] === 'boolean')) S[k] = v[k]; } catch (e) { }
 const TOAST_K = { short: 0.6, normal: 1, long: 1.8 };
@@ -847,6 +847,7 @@ function envOf(home) {
   const off = (it, why) => { const e = E.off.get(it.n); if (e) e.n++; else E.off.set(it.n, { why, n: 1 }); };
   const addIt = (it, ob, warmOk = true) => {
     const fx = envFx(it); if (!fx) return; let by = '';
+    if (fx.need === 'f' && plan.wx === 'rain' && !interior && ob && !roofedAt(ob.y * plan.w + ob.x, zOf(ob))) { off(it, 'out: it\'s raining and there\'s no roof over it'); return; }
     if (fx.need === 'f') { const who = ob ? burnersAt(ob.x, ob.y, zOf(ob), rng()) : pks.filter(burnsIt).map(p => p.n); if (!who.length) { off(it, 'not lit: no Burn Pokémon lives nearby'); return; } by = listNames(who.slice(0, 2)) + (who.length > 2 ? ' +' + (who.length - 2) : ''); }
     if (fx.need === 'd' && plan.wx === 'rain' && !interior) { off(it, 'it\'s raining'); return; }
     if (it.n === 'Sprinkler' && ob && FIELDS && FIELDS.spr.get(ob.id) && !FIELDS.spr.get(ob.id).works) { off(it, 'no water in reach'); return; }
@@ -933,7 +934,7 @@ function envBlock(home, E = envOf(home)) {
   if (chips.childNodes.length) box.append(chips);
   const wheat = E.ax.u.parts.get('Wheat field'), U = E.ax.u;
   if (wheat && !envGap('Humid', U.v, E.kind) && envGap('Humid', U.v - wheat.v, E.kind)) box.append(h('div', { class: 'note', 'data-tip': 'Harvested wheat goes back to seed and adds no humidity until it sprouts again, a day later if it\'s watered.' }, '⚠ Humidity drops to ' + envNum(U.v - wheat.v) + ' after the wheat is harvested, so it isn\'t humid until it sprouts again.'));
-  if (plan.wx === 'rain' && home.kind !== 'kit') { const fires = E.ax.t.parts.size && [...E.ax.t.parts].filter(([, e]) => e.need === 'f').map(([n]) => n); if (fires && fires.length && !(E.built && E.day && E.day.roofed === E.day.floor)) box.append(h('div', { class: 'note', 'data-tip': 'Rain puts out fires with no roof over them. A Burn Pokémon living nearby lights them again.' }, 'Raining: ' + listNames(fires) + ' can go out where there\'s no roof, and ' + (E.burn.length ? E.burn[0] : 'a Burn Pokémon') + ' lights ' + (fires.length > 1 ? 'them' : 'it') + ' again.')); }
+  if (plan.wx === 'rain' && home.kind !== 'kit') { const out = [...E.off].filter(([, e]) => /raining/.test(e.why)).map(([n]) => n); if (out.length) box.append(h('div', { class: 'note', style: 'color:var(--warn)', 'data-tip': 'Rain puts out fires with no roof over them, and they stay out while it rains, so they add no warmth or light. A roof keeps a fire lit.' }, 'Raining: ' + listNames(out) + (out.length > 1 ? ' are' : ' is') + ' out, with no roof over ' + (out.length > 1 ? 'them' : 'it') + '.')); }
   const det = h('details', { class: 'envwhat' }, h('summary', null, 'What counts'));
   for (const [k, lb] of ENV_ROWS) { const A = E.ax[k]; const parts = [...A.parts].sort((a, b) => Math.abs(b[1].v) - Math.abs(a[1].v)); det.append(h('div', { class: 'note' }, h('b', null, lb + ': '), parts.length ? parts.map(([l, e]) => l + (e.n > 1 && !/tile/.test(l) ? ' ×' + e.n : '') + ' ' + envPts(e.v) + (e.by ? ' (lit by ' + e.by + ')' : e.need ? ' (' + ENV_NEED[e.need] + ')' : '') + (e.guess ? ' (untested)' : '')).join(' · ') : 'nothing')); }
   if (E.off.size) det.append(h('div', { class: 'note' }, h('b', null, 'Not counted: '), [...E.off].map(([n, e]) => n + (e.n > 1 ? ' ×' + e.n : '') + ' (' + e.why + ')').join(' · ')));
@@ -1550,25 +1551,34 @@ function largeRestChip(home, floor) { const b = restFit(home, floor); if (!b) re
 const TRIO_TIP = { Rest: 'A rest item (bed, seat…)', Toy: 'A toy', Decoration: 'A decoration' };
 function trioChips(home, floor) { return h('div', { class: 'reqs' }, comfortTrio(home).map(([lb, ok]) => h('span', { class: 'req ' + (ok ? 'ok' : ''), 'data-tip': TRIO_TIP[lb] + (ok ? ' is in range.' : ' isn\'t in range yet.') + ' Pokémon are most comfortable with a rest, a toy and a decoration item nearby.' }, (ok ? '✓ ' : '') + lb)), largeRestChip(home, floor)); }
 const LEGENDS = new Set(['Kyogre', 'Raikou', 'Entei', 'Suicune', 'Volcanion', 'Articuno', 'Zapdos', 'Moltres', 'Lugia', 'Ho-Oh', 'Mewtwo', 'Mew', 'Phione', 'Manaphy', 'Jirachi']);
-const CMF = ['Iffy', 'Average', 'Nice', 'Great', 'Awesome'], CMF_PTS = [0, 1, 2, 5, 10], CMF_CLS = ['miss', '', '', 'ok', 'ok'], ENV_LV = [0, 3, 12, 26, 52, 77, 100, 120, 140, 160];
+const CMF = ['Won\'t move in', 'Average', 'Nice', 'Great', 'Awesome'], CMF_PTS = [0, 1, 2, 5, 10], CMF_CLS = ['miss', '', '', 'ok', 'ok'], ENV_LV = [0, 3, 12, 26, 52, 77, 100, 120, 140, 160];
 const FOOD_FOR = { Sweet: 'Pecha Berries or beans', Spicy: 'fresh carrots', Bitter: 'Rawst Berries, potatoes or seaweed', Dry: 'Chesto Berries, wheat or cave mushrooms', Sour: 'Aspear Berries or tomatoes' };
-const flavourOf = (p) => p && p.fl ? p.fl.replace(/ flavou?rs?$/i, '') : '';
-const DISLIKES = [['Fire', 'Lots of water', 'water', 'Fire types dislike water'], ['Grass', 'Lots of fire', 'fire', 'Grass types dislike fire']];
-function dislikesOf(p) { const out = []; if (p) for (const [t, f, w, why] of DISLIKES) { const i = FAVS.indexOf(f); if (i >= 0 && p.t.includes(t) && !(p.fv || []).includes(i)) out.push({ f: i, w, why, wet: t === 'Fire' }); } return out; }
-const hatesIt = (p, it) => !!it && dislikesOf(p).some(d => (it.fv || []).includes(d.f));
-const WET = new Set(['Water', 'Ocean water', 'Muddy water', 'Hot-spring water', 'Waterfall']);
-let WET_IX = null;
-function wetTiles(a) {
-  if (!a || !a.rect) return 0; const wi = WET_IX || (WET_IX = new Set(ITEMS.filter(it => WET.has(it.n)).map(it => it.i + 1))), R = a.rect, zs = plan.tz, tt = plan.tt; let n = 0;
+const flavourOf = (p) => p && p.fl && !/^none$/i.test(p.fl) ? p.fl.replace(/ flavou?rs?$/i, '') : '';
+const STORY = new Set(['Professor Tangrowth', 'Peakychu', 'Mosslax', 'Hoppip', 'Skiploom', 'Jumpluff']);
+const storyNil = (p) => !!p && STORY.has(p.n) && S.gStory !== 'count';
+const rankOf = (pts) => pts >= 9 ? 4 : pts >= 6 ? 3 : pts >= 4 ? 2 : 1;
+const holdOf = (L) => L < 2 ? 0 : ENV_LV[L - 2] + 0.75 * (ENV_LV[L - 1] - ENV_LV[L - 2]);
+const lvOfPts = (pts) => { let lv = 1; for (let i = 1; i < ENV_LV.length; i++) if (pts >= ENV_LV[i]) lv = i + 1; return lv; };
+const ptsTxt = (v) => String(Math.round(v * 100) / 100);
+const DIS_WATER = new Set(['Horsea fountain']), DIS_WATER_MAYBE = new Set(['Gyarados fountain', 'Bathtub', 'Shower', 'Sink', 'Water basin', 'Sprinkler', 'Fire hydrant', 'Humidifier', 'Canoe', 'Inflatable boat', 'Bubble machine', 'Water pillar quarter', 'Funky diffuser']);
+const DISLIKES = [
+  { t: 'Fire', f: 'Lots of water', w: 'water', why: 'Fire types dislike water', wet: true, tier: (it) => DIS_WATER.has(it.n) ? 2 : DIS_WATER_MAYBE.has(it.n) ? 1 : 0, desc: 'water in range and the Horsea fountain; maybe things that hold or spray water, such as a sink, bathtub or sprinkler' },
+  { t: 'Grass', f: 'Lots of fire', w: 'fire', why: 'Grass types dislike fire', wet: false, tier: (it, i) => (it.fv || []).includes(i) ? 2 : 0, desc: 'fire, such as a campfire, candle or cooking stove' }];
+function dislikesOf(p) { const out = []; if (p) for (const d of DISLIKES) { const i = FAVS.indexOf(d.f); if (i >= 0 && p.t.includes(d.t) && !(p.fv || []).includes(i)) out.push({ f: i, w: d.w, why: d.why, wet: d.wet, desc: d.desc, tier: (it) => d.tier(it, i) }); } return out; }
+const hatesIt = (p, it) => !!it && dislikesOf(p).some(d => d.tier(it) > 0);
+const WET = { hard: new Set(['Water', 'Ocean water', 'Waterfall']), soft: new Set(['Muddy water']) };
+const WET_IX = {};
+function wetTiles(a, kind = 'hard') {
+  if (!a || !a.rect) return 0; const wi = WET_IX[kind] || (WET_IX[kind] = new Set(ITEMS.filter(it => WET[kind].has(it.n)).map(it => it.i + 1))), R = a.rect, zs = plan.tz, tt = plan.tt; let n = 0;
   for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) { if (!inB(plan, x, y)) continue; const k = y * plan.w + x; for (let j = 0; j < zs.length; j++) if (wi.has(tt[j][k]) && inArea(a, x, y, zs[j])) { n++; break; } }
   return n;
 }
 function homeStuff(home, floor) {
   const obs = [];
-  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, floor)) obs.push({ it: pc.it, w: pc.w, h: pc.h }); const ki = kitInfo(home.ob); for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; const F = intFloor(home.ob, f); for (const v of [F.wp, F.fc]) if (v != null && ITEMS[v]) obs.push({ it: ITEMS[v], w: 1, h: 1 }); } return { obs, wet: 0 }; }
+  if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, floor)) obs.push({ it: pc.it, w: pc.w, h: pc.h }); const ki = kitInfo(home.ob); for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; const F = intFloor(home.ob, f); for (const v of [F.wp, F.fc]) if (v != null && ITEMS[v]) obs.push({ it: ITEMS[v], w: 1, h: 1 }); } return { obs, wet: 0, wetSoft: 0 }; }
   const a = home.kind === 'habitat' ? home.area : home.hs.area;
   for (const ob of plan.objs.values()) if (objInArea(ob, a)) obs.push({ it: ITEMS[ob.i], w: ob.w, h: ob.h, ob });
-  return { obs, wet: wetTiles(a) };
+  return { obs, wet: wetTiles(a, 'hard'), wetSoft: wetTiles(a, 'soft') };
 }
 function comfortOf(p, home, floor, S, E) {
   S = S || homeStuff(home, floor); E = E || envOf(home.kind === 'habitat' ? home : floorOf(home, floor));
@@ -1582,12 +1592,21 @@ function comfortOf(p, home, floor, S, E) {
     else if (it.tg === 'Toy' || it.tg === 'Decoration') { const m = it.tg === 'Toy' ? toys : decs; if (!m.has(it.i)) m.set(it.i, { it, f, v: f != null ? 2 : 1 }); }
   }
   const top = (m) => [...m.values()].sort((a, b) => b.v - a.v).slice(0, 2), play = top(toys).concat(top(decs)).sort((a, b) => b.v - a.v).slice(0, 3);
-  const restV = rest ? (rest.f != null ? 2 : 1) : 0, playV = play.reduce((s, x) => s + x.v, 0), envOk = !!p.ideal && envMet(p, E), envV = envOk ? 2 : 0, foodV = p.fl ? 2 : 0;
-  const dis = disIn(p, S), pts = restV + playV + envV + foodV, rank = dis.length ? 0 : pts >= 9 ? 4 : pts >= 6 ? 3 : pts >= 4 ? 2 : 1;
-  const cutL = [...cut.values()], cutRest = rest ? null : cutL.find(it => it.tg === 'Relaxation') || null;
-  return { p, home, rest, small: rest ? null : small, restV, play, playV, toyN: toys.size, decN: decs.size, envOk, envV, foodV, dis, pts, rank, cut: cutL, cutRest, big: tooBig(p), score: CMF_PTS[rank] * (LEGENDS.has(p.n) ? 2 : 1) };
+  const restV = rest ? (rest.f != null ? 2 : 1) : 0, playV = play.reduce((s, x) => s + x.v, 0), envOk = !!p.ideal && envMet(p, E), envV = envOk ? 2 : 0, foodV = flavourOf(p) ? 2 : 0;
+  const dis = disIn(p, S, home), maybe = dis.length ? [] : disIn(p, S, home, true), pts = restV + playV + envV + foodV, rank = dis.length ? 0 : rankOf(pts);
+  const cutL = [...cut.values()], cutRest = rest ? null : cutL.find(it => it.tg === 'Relaxation') || null, story = storyNil(p), unfed = !dis.length && foodV && rankOf(pts - foodV) < rank ? rankOf(pts - foodV) : null;
+  return { p, home, rest, small: rest ? null : small, restV, play, playV, toyN: toys.size, decN: decs.size, envOk, envV, foodV, dis, maybe, pts, rank, unfed, story, cut: cutL, cutRest, big: tooBig(p), score: story ? 0 : CMF_PTS[rank] * (LEGENDS.has(p.n) ? 2 : 1) };
 }
-function disIn(p, S) { const dis = []; for (const d of dislikesOf(p)) { const what = [...new Set(S.obs.filter(o => (o.it.fv || []).includes(d.f)).map(o => o.it.n))]; if (d.wet && S.wet) what.push(S.wet + ' water tile' + (S.wet > 1 ? 's' : '')); if (what.length) dis.push({ why: d.why, w: d.w, what }); } return dis; }
+function disIn(p, S, home, soft) {
+  if (home && home.kind === 'habitat' && home.hb && home.hb.p.includes(p.n)) return [];
+  const want = soft ? 1 : 2, dis = [];
+  for (const d of dislikesOf(p)) {
+    const what = [...new Set(S.obs.filter(o => d.tier(o.it) === want).map(o => o.it.n))], wt = d.wet ? (soft ? S.wetSoft : S.wet) || 0 : 0;
+    if (wt) what.push(wt + (soft ? ' muddy water tile' : ' water tile') + (wt > 1 ? 's' : ''));
+    if (what.length) dis.push({ why: d.why, w: d.w, what });
+  }
+  return dis;
+}
 function homeComfort(home) {
   const split = splitFloors(home), memo = new Map(), out = [];
   for (const r of residentsOf(home)) { const p = PK_BY_NAME.get(r.p); if (!p) continue; const f = split ? (r.f || 0) : null; if (!memo.has(f)) memo.set(f, [homeStuff(home, f), envOf(floorOf(home, f))]); const [S, E] = memo.get(f); out.push(comfortOf(p, home, f, S, E)); }
@@ -1595,15 +1614,19 @@ function homeComfort(home) {
 }
 const disText = (c) => c.dis.map(d => listNames(d.what.slice(0, 3)) + (d.what.length > 3 ? ' and more' : '') + ' (' + d.why + ')').join('; ');
 function cmfHint(c) {
+  if (c.dis.length) return '⚠ Dislikes ' + disText(c);
+  const mw = c.maybe && c.maybe.length ? [...new Set(c.maybe.flatMap(d => d.what))] : [], may = mw.length ? '. It may dislike ' + listNames(mw.slice(0, 2).map(n => /^\d/.test(n) ? n : 'the ' + n.toLowerCase())) + (mw.length > 2 ? ' and more' : '') : '';
+  return cmfNext(c) + may;
+}
+function cmfNext(c) {
   const p = c.p, nf = (x) => x && x.f == null;
-  if (c.dis.length) return (c.home && c.home.kind === 'habitat' ? '⚠ Unhappy here: ' : '⚠ Won\'t move in, and stays unhappy: ') + disText(c);
   if (!c.rest && c.cutRest) return 'Can\'t get to the ' + c.cutRest.n.toLowerCase() + ': ' + WAY_TXT(c);
-  if (!c.rest) return c.small ? 'Its ' + c.small.n.toLowerCase() + ' is too small: it needs a ' + RANK_WORD[SIZE_RANK[pkSize(p)]] + ' rest item' : 'Add a rest item, ideally one it likes';
   if (c.cut && c.cut.length && c.play.length < 3) return 'Can\'t get to ' + listNames(c.cut.slice(0, 2).map(it => 'the ' + it.n.toLowerCase())) + (c.cut.length > 2 ? ' and more' : '') + ': ' + WAY_TXT(c);
+  if (p.ideal && !c.envOk) return 'Make it ' + p.ideal.toLowerCase();
+  if (!c.rest) return c.small ? 'Its ' + c.small.n.toLowerCase() + ' is too small: it needs a ' + RANK_WORD[SIZE_RANK[pkSize(p)]] + ' rest item' : 'Add a rest item, ideally one it likes';
   if (!c.toyN || !c.decN) return 'Add a ' + (!c.toyN && !c.decN ? 'toy and a decoration' : !c.toyN ? 'toy' : 'decoration') + ', ideally ones it likes';
   if (c.play.length < 3) return 'Add another toy or decoration';
-  if (p.ideal && !c.envOk) return 'Make it ' + p.ideal.toLowerCase();
-  if (c.rank === 4) return 'Can reach Awesome';
+  if (c.rank === 4) return c.unfed != null ? 'Awesome once fed ' + flavourOf(p).toLowerCase() + ' food, ' + CMF[c.unfed] + ' without' : 'Can reach Awesome';
   const hit = new Set([c.rest, ...c.play].filter(x => x && x.f != null).flatMap(x => (x.it.fv || []).filter(f => (p.fv || []).includes(f)))), miss = (p.fv || []).filter(f => !hit.has(f));
   return nf(c.rest) || c.play.some(nf) ? 'Swap in a rest, toy or decoration it likes: ' + (miss.length ? miss : p.fv || []).slice(0, 3).map(f => FAVS[f]).join(', ') : 'All set';
 }
@@ -1613,30 +1636,51 @@ function cmfTip(c) {
   const b = ['Rest ' + c.restV + (c.rest ? ' (' + nm(c.rest) + ')' : c.small ? ' (' + c.small.n + ' is too small)' : ''),
     'toys and decorations ' + c.playV + ' of 6' + (c.play.length ? ' (' + c.play.map(nm).join(', ') + ')' : ''),
     (p.ideal ? p.ideal.toLowerCase() : 'ideal habitat') + ' ' + c.envV + (p.ideal && !c.envOk ? ' (not yet)' : ''),
-    (fl ? fl.toLowerCase() + ' food ' : 'food ') + c.foodV + (fl ? ' when you give it some (' + (FOOD_FOR[fl] || 'its flavour') + ')' : '')];
+    (fl ? fl.toLowerCase() + ' food ' : 'food ') + c.foodV + (fl ? ' when you give it some (' + (FOOD_FOR[fl] || 'its flavour') + ')' : ' (it has no favourite flavour)')];
   if (c.cut && c.cut.length) b.push('can\'t get to ' + listNames(c.cut.slice(0, 4).map(it => it.n)) + (c.cut.length > 4 ? ' and ' + (c.cut.length - 4) + ' more' : '') + ', so ' + (c.cut.length > 1 ? 'they don\'t' : 'it doesn\'t') + ' count');
-  return 'Best it can reach here: ' + b.join(', ') + ' = ' + c.pts + '. ' + (c.dis.length ? 'It dislikes ' + disText(c) + (c.home && c.home.kind === 'habitat' ? ', so it stays Iffy. ' : ', so it would refuse to move in and stays Iffy. ') : '') + CMF_RULE;
+  const extra = (c.dis.length ? 'It dislikes ' + disText(c) + ', so it would refuse to move in, and scores 0. If that turns up after it has moved in, its comfort drops by an amount nobody has measured, and it can\'t reach Awesome. ' : '')
+    + (c.maybe && c.maybe.length ? 'It may dislike ' + disText({ dis: c.maybe }) + ': guides name only water around it and the Horsea fountain, so these are only a guess. ' : '')
+    + (c.unfed != null ? 'Without its favourite food it would be ' + CMF[c.unfed] + '. ' : '')
+    + (c.story ? 'Story Pokémon add nothing to the environment level (Settings → Game rules). ' : '');
+  return 'Best it can reach here: ' + b.join(', ') + ' = ' + c.pts + '. ' + extra + CMF_RULE;
 }
 const CMF_RULE = 'Scored the way one player\'s tests found it: 1 for a rest item it fits on, 2 if it\'s a favourite; 1 for each toy or decoration, 2 for a favourite, counting up to 3 different ones; 2 for its ideal habitat; 2 for food of its favourite flavour. 9 or more is Awesome, 6 to 8 Great, 4 or 5 Nice, less Average. Copies of the same item count once.';
-const CMF_HELP = 'The best comfort each one can reach with what\'s here. In the game it climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts low, at Iffy or Average. Something it dislikes in range stops it moving in and keeps it Iffy: Grass types dislike fire, Fire types dislike water, as the guides report.  In a house you built, it has to be able to walk to the items it uses, from the door, stepping up or down 1 level at a time (large ones need paths 2 tiles wide). Settings → Game rules picks which items those are. ' + CMF_RULE;
-function cmfChip(c) { return h('span', { class: 'req ' + CMF_CLS[c.rank], 'data-tip': cmfTip(c) }, '≈ ' + CMF[c.rank], h('b', null, c.dis.length ? '⚠' : c.pts)); }
+const CMF_HELP = 'The best comfort each one can reach with what\'s here. In the game it climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts low, at Iffy or Average. Something it dislikes in range stops it moving in, so it scores 0: Grass types dislike fire, and Fire types dislike water in range and the Horsea fountain, as the guides report. Other things that hold or spray water, such as a sink or bathtub, are marked "may dislike". A Pokémon is never put off by its own habitat. In a house you built, it has to be able to walk to the items it uses, from the door, stepping up or down 1 level at a time (large ones need paths 2 tiles wide). Settings → Game rules picks which items those are. ' + CMF_RULE;
+function cmfChip(c) { return h('span', { class: 'req ' + CMF_CLS[c.rank], 'data-tip': cmfTip(c) }, c.dis.length ? CMF[0] : '≈ ' + CMF[c.rank], h('b', null, c.dis.length ? '⚠' : c.pts)); }
 function cmfLine(c) { return c ? h('div', { class: 'cmfl' }, cmfChip(c), h('span', { class: 'note', style: c.dis.length ? 'color:var(--bad)' : null }, cmfHint(c))) : ''; }
 function cmfRow(c, open) { return h('div', { class: 'cmf' }, pkFace(c.p, 24), h('div', { class: 'cmfb' }, h('div', { class: 'cmfh' }, open ? h('button', { class: 'lnk', type: 'button', onclick: () => open(c.p.n) }, c.p.n) : h('b', null, c.p.n), cmfChip(c)), h('div', { class: 'note', style: c.dis.length ? 'color:var(--bad)' : null }, cmfHint(c)))); }
 function cmfBlock(list, title, open, pre) { if (!list.length) return ''; return h('div', { class: 'cmfs' }, h('div', { class: 'hrow', style: 'margin-top:6px' }, h('b', null, title || 'Comfort'), h('span', { class: 'note' }, 'best case'), tipBtn((pre || '') + CMF_HELP)), list.map(c => cmfRow(c, open))); }
 function townComfort() {
-  const out = [], used = new Set();
-  for (const { hm } of allHomes()) for (const c of homeComfort(hm)) { out.push(c); used.add(c.p.n); }
-  for (const z of plan.zones) { const hh = habitatHome(z); if (!hh || !hh.ok) continue; let S = null, E = null, best = null; for (const p of hh.pks) { if (used.has(p.n) || homeOfPokemon(p.n)) continue; if (!S) { S = homeStuff(hh); E = envOf(hh); } const c = comfortOf(p, hh, null, S, E); if (!best || c.score > best.score) best = c; } if (best) { out.push(best); used.add(best.p.n); } }
-  const pts = out.reduce((s, c) => s + c.score, 0); let lv = 1; for (let i = 1; i < ENV_LV.length; i++) if (pts >= ENV_LV[i]) lv = i + 1;
+  const out = [], used = new Set(); let lo = 0, crowd = 0;
+  for (const { hm } of allHomes()) for (const c of homeComfort(hm)) { out.push(c); used.add(c.p.n); lo += c.score; if (hm.kind !== 'kit') crowd++; }
+  for (const z of plan.zones) {
+    const hh = habitatHome(z); if (!hh || !hh.ok) continue; let S = null, E = null, best = null, worst = null;
+    for (const p of hh.pks) { if (used.has(p.n) || homeOfPokemon(p.n)) continue; if (!S) { S = homeStuff(hh); E = envOf(hh); } const c = comfortOf(p, hh, null, S, E); if (!best || c.score > best.score) best = c; if (!worst || c.score < worst.score) worst = c; }
+    if (best) { out.push(best); used.add(best.p.n); lo += worst.score; crowd++; }
+  }
+  const pts = out.reduce((s, c) => s + c.score, 0), lv = lvOfPts(pts);
   const n = [0, 0, 0, 0, 0]; for (const c of out) n[c.rank]++;
-  return { list: out, pts, lv, n };
+  return { list: out, pts, lv, n, lo, lvLo: lvOfPts(lo), crowd, story: out.filter(c => c.story).length };
 }
 const disShort = (dis) => dis.map(d => listNames(d.what.slice(0, 2)) + (d.what.length > 2 ? ' and more' : '')).join(', ');
 function envLvTip(tc) {
   const got = CMF.map((nm, i) => tc.n[i] ? tc.n[i] + ' ' + nm : '').filter(Boolean).reverse().join(', '), next = ENV_LV[tc.lv];
-  return (tc.list.length ? 'Best case for this plan: ' + got + ' = ' + tc.pts + ' points, so level ' + tc.lv + (next != null ? ' (level ' + (tc.lv + 1) + ' at ' + next + ')' : '') + '. ' : 'Nobody lives here yet. ') + 'Each resident\'s comfort gives points: Awesome 10, Great 5, Nice 2, Average 1, Iffy or no home 0, and twice that for legendary and mythical Pokémon. Levels 2 to 10 need 3, 12, 26, 52, 77, 100, 120, 140 and 160. Each finished habitat counts the best of its Pokémon with no house yet. From players\' tests; when points fall, the game keeps the old level for a while.';
+  const notes = [];
+  if (tc.lo < tc.pts) notes.push('A habitat holds whichever of its Pokémon arrives, so with the least happy ones it would be ' + tc.lo + ' points, level ' + tc.lvLo + '.');
+  if (tc.lv >= 2) notes.push('Once reached, level ' + tc.lv + ' holds until points fall below about ' + ptsTxt(holdOf(tc.lv)) + '. Below that the town drops a level, and that level\'s unbought shop stock and challenges lock again.');
+  if (tc.story) notes.push(tc.story + ' story Pokémon add nothing (Settings → Game rules).');
+  if (tc.crowd > 25) notes.push(tc.crowd + ' Pokémon live outside kit houses, and only about 25 show at once, so some may not notice new things, and sit lower than this until they\'re shown.');
+  return (tc.list.length ? 'Best case for this plan: ' + got + ' = ' + tc.pts + ' points, so level ' + tc.lv + (next != null ? ' (level ' + (tc.lv + 1) + ' at ' + next + ')' : '') + '. ' + notes.join(' ') + ' ' : 'Nobody lives here yet. ') + 'Each resident\'s comfort gives points: Awesome 10, Great 5, Nice 2, Average 1, Iffy or no home 0, and twice that for legendary and mythical Pokémon. Levels 2 to 10 need 3, 12, 26, 52, 77, 100, 120, 140 and 160. From two players\' tests; a level is kept until points fall below about three quarters of the way from the level before.';
 }
-function moveInWarn(p, home, floor) { if (!p || !home) return ''; const S = homeStuff(home, splitFloors(home) ? floor || 0 : null), dis = disIn(p, S); return dis.length ? ' ⚠ In the game it would refuse: ' + disText({ dis }) + '.' : ''; }
+let lvWatch = { id: null, lv: 0 }, lvT = 0;
+function lvCheck() {
+  if (!plan) return; const tc = townComfort(), lv = tc.list.length ? tc.lv : 1;
+  if (lvWatch.id !== plan.id) { lvWatch = { id: plan.id, lv }; return; }
+  const was = lvWatch.lv;
+  if (lv >= was) { lvWatch.lv = lv; return; }
+  if (tc.pts < holdOf(was)) { lvWatch.lv = lv; toast('Down to ' + tc.pts + ' points, below level ' + was + '\'s hold of about ' + ptsTxt(holdOf(was)) + ': in the game the town would drop to level ' + tc.lv + ', and level ' + was + '\'s unbought shop stock and challenges would lock again.', 8000); }
+}
+function moveInWarn(p, home, floor) { if (!p || !home) return ''; const S = homeStuff(home, splitFloors(home) ? floor || 0 : null), dis = disIn(p, S, home); return dis.length ? ' ⚠ In the game it would refuse: ' + disText({ dis }) + '.' : ''; }
 const CBOX = 'Community box', BOX_R = 4;
 const isBox = (it) => it && it.n === CBOX;
 function growRect(R, n) { const x0 = Math.max(0, R.x - n), y0 = Math.max(0, R.y - n), x1 = Math.min(plan.w - 1, R.x + R.w - 1 + n), y1 = Math.min(plan.h - 1, R.y + R.h - 1 + n); return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }; }
@@ -5040,7 +5084,7 @@ function renderPokemon() {
     h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Can appear'), h('div', { class: 'v' }, att.size)),
     h('div', { class: 'tile', 'data-tip': 'Places to live in kit homes and houses you built' }, h('div', { class: 'k' }, 'Beds'), h('div', { class: 'v' }, hc.cap)),
     h('div', { class: 'tile' }, h('div', { class: 'k' }, 'Housed'), h('div', { class: 'v' }, pc.home.size)),
-    (() => { const tc = townComfort(); return h('div', { class: 'tile', 'data-tip': envLvTip(tc) }, h('div', { class: 'k' }, 'Env. level'), h('div', { class: 'v' }, tc.list.length ? '≈' + tc.lv : '–', tc.list.length ? h('small', null, ' ' + tc.pts + ' pts') : '')); })()));
+    (() => { const tc = townComfort(); lvWatch = { id: plan.id, lv: Math.max(lvWatch.id === plan.id ? lvWatch.lv : 0, tc.lv) }; return h('div', { class: 'tile', 'data-tip': envLvTip(tc) }, h('div', { class: 'k' }, 'Env. level'), h('div', { class: 'v' }, tc.list.length ? '≈' + (tc.lvLo < tc.lv ? tc.lvLo + '–' + tc.lv : tc.lv) : '–', tc.list.length ? h('small', null, ' ' + (tc.lo < tc.pts ? tc.lo + '–' : '') + tc.pts + ' pts') : '')); })()));
   root.append(h('div', { class: 'card', style: 'margin-top:10px;border-left:4px solid var(--accent)' }, h('div', { class: 'hd' }, h('span', { class: 'title' }, 'Group into houses'), tipBtn('Find who should share a home: Pokémon that like the same things need fewer decorations.')),
     h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', onclick: housemateGroups }, icon('ball'), 'Plan housemates'))));
   const cov = new Map(); for (const n of att.keys()) { const p = PK_BY_NAME.get(n); if (p) for (const s of p.s) cov.set(s, (cov.get(s) || 0) + 1); }
@@ -5123,7 +5167,7 @@ function pkCardEl(p, pc) {
       h('div', { class: 'hd' }, pkGrip(p), h('span', { class: 'no' }, pkNo(p)), h('span', { class: 'title' }, p.n), p.ideal ? h('span', { class: 'env' }, p.ideal) : '', sizeBadge(p, () => renderPanel()), pc.att.has(p.n) ? h('span', { class: 'chip good', style: 'margin-left:auto' }, 'In plan') : ''),
       h('div', null, h('span', { class: 'note' }, p.t.join(' / ') + (p.hw ? ' · ' + p.hw[0] + ' m, ' + p.hw[1] + ' kg' : '') + ' · '), p.s.map(s => h('span', { class: 'spec' }, s))),
       p.fv && p.fv.length ? h('div', { class: 'note', style: 'margin-top:4px' }, 'Likes: ' + p.fv.map(f => FAVS[f]).join(' · ') + (p.fl ? ' · ' + p.fl : '')) : '',
-      dislikesOf(p).length ? h('div', { class: 'note', style: 'margin-top:2px', 'data-tip': 'It won\'t move into a home with this in range, and it lowers its comfort. From the guides; nothing else is known to be disliked.' }, 'Dislikes: ' + dislikesOf(p).map(d => d.w + ' (' + d.why.toLowerCase() + ')').join(' · ')) : '',
+      dislikesOf(p).length ? h('div', { class: 'note', style: 'margin-top:2px', 'data-tip': 'It won\'t move into a home with this in range, and it lowers its comfort, but never in its own habitat. From the guides; the "maybe" ones are only a guess, and nothing else is known to be disliked.' }, 'Dislikes: ' + dislikesOf(p).map(d => d.desc).join(' · ')) : '',
       hm ? h('div', { class: 'note' }, '⌂ Lives in ' + hm.label) : '', habs));
 }
 function pkPicBtn(p, d) { return h('button', { class: 'pkpbtn', type: 'button', 'aria-label': 'Adjust ' + p.n + '\'s portrait', 'data-tip': 'Adjust the portrait: the circle used where space is short', onclick: (e) => { e.stopPropagation(); pkFrameEditor(p); } }, pkPic(p, d), h('span', { class: 'pfedit', 'aria-hidden': 'true' }, icon('resize'))); }
@@ -5341,7 +5385,7 @@ document.addEventListener('pointerdown', ddDown);
 document.addEventListener('touchmove', e => { if (dd && e.cancelable) e.preventDefault(); }, { passive: false });
 addEventListener('keydown', e => { if (e.key === 'Escape' && dd) { e.stopPropagation(); e.preventDefault(); ddEnd(false); } }, true);
 
-const WX_TIP = 'The weather in this town. In the game it only changes when a Pokémon uses a Rain Dance or Sunny Day spot, and then it stays. Rain puts out fires with no roof over them (a Burn Pokémon living nearby lights them again), and turns Smooth Rock off except inside kit houses. Sun changes nothing in the planner yet.';
+const WX_TIP = 'The weather in this town. In the game it only changes when a Pokémon uses a Rain Dance or Sunny Day spot, and then it stays. Rain puts out fires with no roof over them for as long as it rains, and turns Smooth Rock off except inside kit houses. Sun changes nothing in the planner yet.';
 function setWeather(v) { if ((plan.wx || null) === v) return; plan.wx = v; markDirty(); evaluateAll(); requestDraw(); renderPanel(); refreshInspector(); toast(v === 'rain' ? 'Raining in this town' : v === 'sun' ? 'Sunny in this town' : 'Weather not set'); }
 function refreshInspector() { if (!$('#inspector').classList.contains('open') || !selection) return; if (selection.obj && plan.objs.has(selection.obj.id)) showObjInspector(selection.obj); else if (selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selectZone(z); } else if (selection.house) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
 function renderPlans() {
@@ -5389,7 +5433,7 @@ function renderPlans() {
     ['Doors and windows', 'They go into walls: tap a wall piece to put one in, and it turns to follow the wall. Move, turn or delete it and the wall closes up again (erase the wall piece too for an open gap). Other items never cover walls. Doors, gates and fences can be more than one level high: set it with Resize, so a door 2 high fills a wall 2 high.'],
     ['Show on the map', 'The button by the zoom controls (or S) turns on what\'s drawn over the map: active areas, how far items reach, which fields are wet, switches and sensors with what they work, Litter drops, and power networks. A selected item always shows its own.'],
     ['Problems and limits', 'The ⚠ chip at the bottom left lists what won\'t work as planned: over a game limit, no power, dry crops, a switch that reaches nothing, a machine nobody runs and more. Show takes you to each one. Materials ends with the game\'s per-area limits.'],
-    ['Weather and fire', 'Set the town\'s weather in Plans. Fires count only when a Burn Pokémon lives within 4 tiles to light them; rain puts out fires with no roof (they light them again), turns Smooth Rocks off and waters open fields.'],
+    ['Weather and fire', 'Set the town\'s weather in Plans. Fires count only when a Burn Pokémon lives within 4 tiles to light them; rain puts out fires with no roof, turns Smooth Rocks off and waters open fields.'],
     ['Power', 'Generators link to a transmitter within 10 tiles, transmitters link within 15 and power up to 20 items within 10, never more than 5 levels up or down. Using more than you make turns the whole network off. Items join a transmitter in the order you placed them.'],
     ['Switches and sensors', 'Floor switches reach a 5×5×5 cube, wall switches and card readers 7×7×7, and a laser sensor watches the tiles in front of it and works 11 cells around it. They need no power or wires; what they work does, if it\'s a light or appliance.'],
     ['Fields and crops', 'A crop grows a stage each day it\'s wet: water beside it, a running sprinkler within 5 tiles, rain with no roof, or a Water Pokémon with a water basin. 3 days to ripe, 1 with a Grow Pokémon nearby. Smooth Rock dries fields within 4 tiles.'],
@@ -5546,6 +5590,7 @@ function renderSettings() {
   const segN = (k, opts, label) => { const g = h('span', { class: 'seg', role: 'group', 'aria-label': label }), paint = () => { for (const b of g.children) b.setAttribute('aria-pressed', b.dataset.v === String(S[k]) ? 'true' : 'false'); }; for (const [v, t] of opts) g.append(h('button', { type: 'button', 'data-v': String(v), onclick: () => { setPref(k, v); paint(); } }, t)); paint(); return g; };
   sec('rules',
     'Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.',
+    row('Story Pokémon', 'Professor Tangrowth, Peakychu, Mosslax, Hoppip, Skiploom and Jumpluff. PokoTraqr\'s calculator, from one player\'s tests, says story Pokémon and the Hoppip line add nothing to the environment level; which Pokémon count as story ones is a reading.', segN('gStory', [['zero', 'Add nothing'], ['count', 'Count normally']], 'Story Pokémon')),
     row('Items a Pokémon must reach', 'In a house you built, which items only count toward comfort when the resident can walk to them from the door, stepping up or down 1 level at a time. ぽこポケ学会 says items it can\'t get to don\'t count, without saying which; players\' tests point to the ones it uses, rest items and toys. Decorations it only looks at, such as wall hangings.', segN('gReach', [['rt', 'Rest and toys'], ['r', 'Rest only'], ['all', 'Everything']], 'Items a Pokémon must reach')),
     row('Laser sensor reach', 'How many tiles in front of a laser sensor it watches. 2 per GameWith and 攻略大百科; 1 per ぽこポケ学会\'s diagram.', segN('gSensor', [[2, '2 tiles'], [1, '1 tile']], 'Laser sensor reach')),
     row('Sprinkler reach', 'How far a sprinkler waters, counted along each axis and added up. 5 per GameWith, 攻略大百科 and Serebii (61 tiles); ぽこポケ学会 points to 4 (41 tiles), and Game8 says one tile less.', segN('gSprinkler', [[5, '5 tiles'], [4, '4 tiles']], 'Sprinkler reach')),
@@ -5596,7 +5641,7 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeM
 addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 let exampleUntouched = false, dirty = false, saveTimer = null, saveState = 'local', cloud = null, downloads = null, cloudErr = '';
-function changed() { editSeq++; exampleUntouched = false; evaluateAll(); markDirty(); requestDraw(); if (activeTab !== 'build') renderPanel(); $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (selection && selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selection.zone = z; } if (selection && selection.house && $('#inspector').classList.contains('open')) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
+function changed() { editSeq++; clearTimeout(lvT); lvT = setTimeout(() => idle(lvCheck, 1500), 900); exampleUntouched = false; evaluateAll(); markDirty(); requestDraw(); if (activeTab !== 'build') renderPanel(); $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length; if (selection && selection.zone) { const z = plan.zones.find(q => q.id === selection.zone.id); if (z) selection.zone = z; } if (selection && selection.house && $('#inspector').classList.contains('open')) { const hs = houseById.get(selection.house); if (hs) selectHouse(hs); } }
 function markDirty() { dirty = true; plan.updated = Date.now(); setSave('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(persistNow, 1200); }
 function saveIndex() { LS.set(LSK + 'index', JSON.stringify(plansIndex)); }
 function indexEntry(p) { return { id: p.id, name: p.name, area: p.area, w: p.w, h: p.h, updated: p.updated }; }
