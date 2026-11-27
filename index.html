@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-27T10:00';
-const APP_JS = ['strings', 'base', 'plan', 'homes', 'interior', 'comfort', 'world', 'draw', 'input', 'pictures', 'inspect', 'panels', 'plans', 'review', 'sync', 'boot'].map(n => 'js/' + n + '.js?v=' + encodeURIComponent(APP_BUILD));
+<script>const APP_BUILD = '2026-11-27T11:00';
+const APP_JS = ['strings', 'base', 'plan', 'homes', 'interior', 'comfort', 'world', 'draw', 'input', 'pictures', 'inspect', 'panels', 'plans', 'review', 'sync', 'game', 'boot'].map(n => 'js/' + n + '.js?v=' + encodeURIComponent(APP_BUILD));
 for (const u of APP_JS) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = u; document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'js/map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -254,6 +254,16 @@ button.req.kind{font:inherit;font-size:12px;color:var(--ink);cursor:pointer;padd
 .req.ok{border-color:color-mix(in srgb,var(--good) 45%,var(--line));background:color-mix(in srgb,var(--good) 10%,var(--paper))}
 .req.miss{border-color:color-mix(in srgb,var(--bad) 40%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
 .card{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:0 0 6px;background:var(--panel)}
+.today .tday{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.today .big{font-family:var(--font-display);font-weight:800;font-size:30px;font-variant-numeric:tabular-nums;line-height:1.1}
+.dl{display:flex;align-items:center;gap:6px;padding:5px 2px;border-bottom:1px solid var(--line)}
+.dl .toggle{flex:1;min-width:0;font-size:14px;min-height:30px}
+.dl .toggle input{width:20px;height:20px;flex:none;accent-color:var(--accent)}
+.dl.done .toggle span{text-decoration:line-through;color:var(--muted)}
+.dl .tmn{flex:1;min-width:0;font-size:14px}
+.dl .chip{font-variant-numeric:tabular-nums}
+.wk{margin:2px 2px 6px;font-size:14px}
+.wk.now{font-weight:700}
 .card.zone-ok{border-left:4px solid var(--good)}
 .card.zone-part{border-left:4px solid var(--warn)}
 .card.zone-none{border-left:4px solid var(--line)}
@@ -761,10 +771,10 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
       <button class="handle" id="handle" aria-label="Resize panel" data-say-attr="aria-label"></button>
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" data-tab="build" aria-selected="true" data-say><svg><use href="#i-cube"/></svg>Build</button>
-        <button class="tab" role="tab" data-tab="layers" aria-selected="false" data-say><svg><use href="#i-layers"/></svg>Layers</button>
         <button class="tab" role="tab" data-tab="materials" aria-selected="false" data-say><svg><use href="#i-list"/></svg>Materials</button>
         <button class="tab" role="tab" data-tab="habitats" aria-selected="false" data-say><svg><use href="#i-leaf"/></svg>Habitats</button>
         <button class="tab" role="tab" data-tab="pokemon" aria-selected="false" data-say><svg><use href="#i-ball"/></svg>Pokémon</button>
+        <button class="tab" role="tab" data-tab="game" aria-selected="false" data-say><svg><use href="#i-clock"/></svg>Game</button>
         <button class="tab" role="tab" data-tab="plans" aria-selected="false" data-say><svg><use href="#i-map"/></svg>Plans</button>
       </div>
       <section class="tabbody" id="tab-build" role="tabpanel"></section>
@@ -773,6 +783,7 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
       <section class="tabbody" id="tab-habitats" role="tabpanel" hidden></section>
       <section class="tabbody" id="tab-pokemon" role="tabpanel" hidden></section>
       <section class="tabbody" id="tab-plans" role="tabpanel" hidden></section>
+      <section class="tabbody" id="tab-game" role="tabpanel" hidden></section>
     </aside>
   </div>
 </div>

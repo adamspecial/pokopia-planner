@@ -1,0 +1,15 @@
+{
+ "v": 1,
+ "events": [
+  { "n": "More Spores for Hoppip", "from": "2026-03-10", "to": "2026-03-25", "pk": ["Hoppip", "Skiploom", "Jumpluff"], "src": "https://www.nintendolife.com/news/2026/03/pokemon-pokopia-limited-time-special-event-announced-more-spores-for-hoppip" },
+  { "n": "Sableye's Gem Hunt", "from": "2026-04-29", "to": "2026-05-14", "pk": ["Sableye"], "src": "https://game8.co/games/Pokemon-Pokopia/archives/585577" },
+  { "n": "Wish Upon a Jirachi", "from": "2026-06-23", "to": "2026-07-08", "pk": ["Jirachi"], "src": "https://game8.co/games/Pokemon-Pokopia/archives/585577" },
+  { "n": "Fetching Scales for Feebas", "from": "2026-08-13", "to": "2026-08-28", "pk": ["Feebas", "Milotic"], "src": "https://www.serebii.net/pokemonpokopia/events/fetchingscalesforfeebas.shtml" },
+  { "n": "Bulbasaur's Jump Rope Contest", "from": "2026-09-20", "to": "2026-09-28", "pk": [], "src": "https://game8.co/games/Pokemon-Pokopia/archives/585577" },
+  { "n": "Pumpkaboo's Sweet Surprises", "from": "2026-10-17", "to": "2026-11-01", "pk": ["Pumpkaboo", "Gourgeist"], "src": "https://gamertagmythras.com/blog/pokemon-pokopia/pokemon-pokopia-pumpkaboo-halloween-event" },
+  { "n": "Apples to Applin", "from": "2026-11-16", "to": "2026-12-01", "pk": ["Applin", "Dipplin", "Hydrapple", "Appletun", "Flapple"], "cur": "Syrupy Apples", "src": "https://www.nintendolife.com/guides/pokemon-pokopia-apples-to-applin-event-guide" }
+ ],
+ "updates": [
+  { "n": "Expansion Pass Part 2: Dazzling Decorations, with free Ver. 3.0.0", "on": "2026-12-09", "src": "https://www.pokemon.com/us/news/pokemon-pokopia-expansion-pass-part-2-dazzling-decorations-available-december-9" }
+ ]
+}

@@ -6,7 +6,7 @@ const { test, expect, boot, openTab, settle } = require('./helpers');
 const BASE = path.join(__dirname, 'a11y-baseline.json');
 const SCREENS = [
   ['map', async () => { }],
-  ...['build', 'layers', 'materials', 'habitats', 'pokemon', 'plans'].map(t => ['tab ' + t, page => openTab(page, t)]),
+  ...['build', 'layers', 'materials', 'habitats', 'pokemon', 'game', 'plans'].map(t => ['tab ' + t, page => openTab(page, t)]),
   ['settings', async page => { await page.locator('#setBtn').click(); await expect(page.locator('#sets')).toBeVisible(); await settle(page); }],
   ['new plan dialog', async page => { await openTab(page, 'plans'); await page.locator('#tab-plans').getByRole('button', { name: 'New plan', exact: true }).click(); await expect(page.locator('#modalBox')).toBeVisible(); await settle(page); }],
 ];

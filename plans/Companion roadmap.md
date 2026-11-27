@@ -108,7 +108,7 @@ Each phase is a release that's usable on its own.
      - run an accessibility scan (axe-core)
      - enforce the no-comments rule
    - Time limits for starting up, for an edit on a full-size town and for drawing one frame, on a mid-range Android phone.
-2. **Accessible to everyone** (aiming at WCAG 2.2 AA)
+2. **Accessible to everyone** (aiming at WCAG 2.2 AA). *Postponed indefinitely, since the planner is for one person now. The accessibility scan still stops things getting worse.*
    - **Text:**
      - a **Text size** setting from 100% to 200%, on top of Android's font size
      - nothing under 12 pixels at 100%
@@ -223,13 +223,14 @@ Each phase is a release that's usable on its own.
 | When | Phases |
 |---|---|
 | Now, before 9 December | 0 |
-| December and January | 1 and 2 |
-| Then | 3, 4 and 5, which share the new tabs |
+| November | 1 (done) |
+| Now | 3, 4 and 5, which share the new tabs, starting with Today |
+| Postponed | 2 |
 | Later | 6, 7 and 8 |
 
 ## Decisions (recommended)
 
-1. **Part 2 comes first.** Then groundwork and accessibility come before the new tabs, so those are built accessible instead of fixed afterwards.
+1. **Part 2 comes first.** Groundwork came before the new tabs. Accessibility is postponed, so the new tabs are built without it, but the scan still stops them adding new kinds of problem.
 2. **No server.** Your record rides on the same Drive sync as plans. Reminders while the app is closed would need a push server, so reminders are in-app notices and calendar files.
 3. **No build step.** Plain modules keep the repo easy to edit and the GitHub Pages site unchanged.
 4. **Spoilers are hidden by default** past your Trainer Rank, with one switch to show everything.
@@ -259,4 +260,6 @@ Phase 1 is under way.
   - `app.js` is split into 15 files by area in `js/`, with a check that they load in a safe order.
   - Time limits for start-up, an edit on a full-size town and frames while panning, on a mid-range Android phone.
   - **Text for translation.** On-screen text goes through `say()` and is listed in `strings/en.json`. Settings and the page's own buttons and tabs have moved. A check stops new text being written straight into the code, and the remaining text, about 2,700 pieces, moves area by area before phase 7.
-- **Next:** phase 2, accessibility.
+- Phase 2, accessibility, is postponed indefinitely.
+
+Phase 5 has started. The **Game** tab replaces Layers in the tab bar, and its first page is **Today**: the 05:00 countdown with a console clock offset, a daily list that clears itself, the week's Friday and Sunday, the current and coming events, and timers with calendar files. Next: the Guide tab (phase 3) and the record of your game (phase 4).

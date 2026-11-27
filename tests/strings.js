@@ -5,8 +5,8 @@ const acorn = require('acorn');
 const ROOT = path.resolve(__dirname, '..'), CAT = path.join(ROOT, 'strings', 'en.json'), BASE = path.join(__dirname, 'strings-baseline.json');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const files = [...html.match(/const APP_JS = \[([^\]]*)\]/)[1].matchAll(/'([^']+)'/g)].map(m => 'js/' + m[1] + '.js');
-const PROSE = /[A-Za-z]{2,}.*\s|^[A-Z][a-z]+$|[a-z][.:!?…]$/;
-const CODE = /^--|^[#.\[]|^(https?:|data:|image\/|text\/|application\/)|^[\w-]+\.(js|json|png|webp|svg)$|[a-z-]+:[^;]*;|^[a-z][a-z0-9-]*$/;
+const PROSE = /[A-Za-z]{2,}.*\s|\s[A-Za-z]{2,}|^[A-Z][a-z]+$|[a-z][.:!?…]$/;
+const CODE = /^ ?[a-z][a-z0-9-]*( [a-z][a-z0-9-]*)*$|^[A-Z]{3,}[:;]|^--|^[#.\[]|^(https?:|data:|image\/|text\/|application\/)|^[\w-]+\.(js|json|png|webp|svg)$|[a-z-]+:[^;]*;|^[a-z][a-z0-9-]*$/;
 const cat = {}, bad = [], count = {};
 const add = (s, where, one) => { const e = cat[s] || (cat[s] = { in: [] }); if (one) e.one = one; if (!e.in.includes(where)) e.in.push(where); };
 const entry = e => e.one ? { one: e.one, in: e.in } : e.in;
@@ -21,7 +21,7 @@ function walk(n, parent, f) {
     return;
   }
   const s = lit(n);
-  if (s != null && !(parent && parent.type === 'Property' && parent.key === n) && PROSE.test(s) && !CODE.test(s)) count[f] = (count[f] || 0) + 1;
+  if (s != null && !(parent && parent.type === 'Property' && parent.key === n) && PROSE.test(s) && !CODE.test(s)) { count[f] = (count[f] || 0) + 1; if (process.env.SHOW === f) console.log(f + ':' + n.loc.start.line + ' ' + JSON.stringify(s)); }
   for (const k of Object.keys(n)) { if (k === 'loc') continue; const v = n[k]; if (Array.isArray(v)) v.forEach(x => walk(x, n, f)); else if (v && typeof v.type === 'string') walk(v, n, f); }
 }
 for (const f of files.filter(x => x !== 'js/strings.js')) { count[f] = 0; walk(acorn.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'), { ecmaVersion: 'latest', locations: true }), null, f); }
