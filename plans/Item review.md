@@ -25,7 +25,7 @@ A quick way to go through every item in the game, flag the ones whose size, shap
 
 ## What it reuses
 
-- The 3D drawing in `map3d.js` renders each item into a small picture (`thumb` and `thumbs`), with the same models the map uses. This is the first piece of the 3D model editor's groundwork.
+- The 3D drawing in `js/map3d.js` renders each item into a small picture (`thumb` and `thumbs`), with the same models the map uses. This is the first piece of the 3D model editor's groundwork.
 - A short fingerprint of each item's model, size and colours decides **Changed**.
 
 ## Status

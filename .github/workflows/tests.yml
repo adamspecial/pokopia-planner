@@ -32,6 +32,9 @@ jobs:
       - name: No comments in code
         run: node no-comments.js
         working-directory: tests
+      - name: Files load in a safe order
+        run: node load-order.js
+        working-directory: tests
 
   android-and-chrome:
     name: Android phone and Windows window (Chrome)

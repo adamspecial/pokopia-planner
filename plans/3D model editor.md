@@ -8,7 +8,7 @@ Any item gets an **Edit model** button, in its panel on the map and in its item 
 
 ## How it fits what exists
 
-- **Same shapes as today.** Each model is a short list of simple shapes in `map3d.js`, sized as fractions of the item's footprint and height. The editor edits that same list, so edited models still stretch when resized and turn with facing.
+- **Same shapes as today.** Each model is a short list of simple shapes in `js/map3d.js`, sized as fractions of the item's footprint and height. The editor edits that same list, so edited models still stretch when resized and turn with facing.
 - **Shapes stay simple until you need more.** A shape keeps its size handles until you drag its corners or merge or subtract it. Then it becomes a free shape: a set of points and flat faces you shape by hand.
 - **Edits are stored like custom sizes.** They're saved on the device, synced, and carried inside any plan that uses them, so shared plans look the same. **Reset** brings back the built-in model.
 - **No cost at startup.** The editor is its own file and loads only when opened, like the 3D view.
