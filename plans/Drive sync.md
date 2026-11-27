@@ -53,6 +53,11 @@ Friends do the same on their own devices. Nothing is needed from you.
   - When it runs out, or when you open the planner later, a notice offers **Reconnect**. One tap and sync carries on.
   - Until then, edits are kept on the device and sent afterwards.
 - **Clashes** work as before. If a plan changed on two devices before they synced, the newer version keeps the plan, and the other is kept as a copy.
+- **Removing it.** **Remove from Drive** in the sync card deletes everything the planner saved in that person's Drive and turns sync off. Plans stay on their devices. Drive's own settings do the same: on a computer, drive.google.com → ⚙ → Settings → Manage apps → Pokopia Planner → Options → Delete hidden app data.
+- **A wipe never deletes plans on other devices.**
+  - The folder keeps a tiny marker file, `account.json`.
+  - When the marker is gone, every other device turns its sync off and keeps its plans, instead of treating the empty folder as plans deleted elsewhere.
+  - Signing in again puts that device's plans back.
 - **Moving from Firebase.**
   - The first time you sign in with Drive on a device, that device's plans go up, and plans already in Drive come down.
   - Nothing is deleted on the way.
@@ -68,5 +73,6 @@ Built, and tested against a stand-in for Google's sign-in and Drive on a Pixel 7
 - an expired or refused sign-in and Reconnect
 - an unticked Drive box, a closed sign-in window and a full Drive
 - switching accounts, 12 plans at once, and moving from Firebase
+- Remove from Drive, a wipe from Drive's settings, signing in again afterwards, and a normal delete of the last plan still syncing
 
 It switches on when the Client ID is added to `GD_CLIENT` in `app.js`. Until then the planner syncs through Firebase as before. Firebase stays in the code until Drive sync has worked on your phone and PC, and is removed after that.

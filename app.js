@@ -5954,7 +5954,7 @@ let syncErr = '', syncMsg = '', syncTimer = null; const inflight = new Map();
 function saveSync() { if (sync) LS.set(LSK + 'sync', JSON.stringify(sync)); else LS.del(LSK + 'sync'); }
 const GD_CLIENT = '', GD_SCOPE = 'https://www.googleapis.com/auth/drive.appdata', GD_API = 'https://www.googleapis.com/drive/v3/', GD_UP = 'https://www.googleapis.com/upload/drive/v3/', GD_GIS = 'https://accounts.google.com/gsi/client';
 const useDrive = !!GD_CLIENT;
-let gd = { tok: '', exp: 0 }, gdUser = undefined, gdTc = null, gdWait = null, gisLoading = null, gdPollT = null, gdExpT = null, gdLater = null, gdBusy = false, gdAgain = false, gdGen = 0, gdNag = 0, gdQn = 0;
+let gd = { tok: '', exp: 0 }, gdUser = undefined, gdTc = null, gdWait = null, gisLoading = null, gdPollT = null, gdExpT = null, gdLater = null, gdBusy = false, gdAgain = false, gdGen = 0, gdNag = 0, gdQn = 0, gdMiss = 0;
 const gdMirror = new Map(), gdCache = new Map(), gdQ = [];
 const syncMoved = () => useDrive && !!(sync && sync.on && sync.via !== 'drive');
 const syncUser = () => useDrive ? gdUser : fbUser;
@@ -6002,8 +6002,8 @@ async function gdFetch(url, opt, tries = 3) {
     throw gdE('gd/' + r.status, why);
   }
 }
-const gdName = (k) => k === '_sizes' ? 'sizes.json' : k === '_review' ? 'review.json' : 'plan-' + k + '.json';
-const gdKey = (n) => n === 'sizes.json' ? '_sizes' : n === 'review.json' ? '_review' : ((/^plan-([a-z0-9]+)\.json$/.exec(n || '') || [])[1] || null);
+const gdName = (k) => k === '_sizes' ? 'sizes.json' : k === '_review' ? 'review.json' : k === '_acct' ? 'account.json' : 'plan-' + k + '.json';
+const gdKey = (n) => n === 'sizes.json' ? '_sizes' : n === 'review.json' ? '_review' : n === 'account.json' ? '_acct' : ((/^plan-([a-z0-9]+)\.json$/.exec(n || '') || [])[1] || null);
 const gdU = (f) => +((f && f.appProperties) || {}).u || 0;
 async function gdList() {
   const out = []; let pt = '';
@@ -6037,9 +6037,9 @@ const gdPut = (k, v, expect, also) => gdRun(async () => {
   const u = v.updated, text = k[0] === '_' ? JSON.stringify(v) : v.data, meta = { appProperties: { u: String(u) } };
   const b = gdBody(cur ? meta : Object.assign({ name: gdName(k), parents: ['appDataFolder'], mimeType: 'application/json' }, meta), text);
   const j = await (await gdFetch(GD_UP + 'files' + (cur ? '/' + cur.fid : '') + '?uploadType=multipart&fields=id', { method: cur ? 'PATCH' : 'POST', headers: b.headers, body: b.body })).json();
-  gdMirror.set(k, { fid: j.id, u }); gdCache.set(k, { u, t: text });
+  gdMirror.set(k, { fid: j.id, u }); gdCache.set(k, { u, t: text }); if (k === '_acct' && sync) sync.acct = j.id;
   if (sync) { const w = sync.wrote || (sync.wrote = {}); w[k] = [u, ...(w[k] || []).filter(t => t !== u)].slice(0, 6); }
-  if (k === '_sizes') remoteSizes = Object.assign({}, v); else if (k === '_review') remoteReview = Object.assign({}, v); else if (remote) remote.set(k, { updated: u, data: text });
+  if (k === '_sizes') remoteSizes = Object.assign({}, v); else if (k === '_review') remoteReview = Object.assign({}, v); else if (k[0] !== '_' && remote) remote.set(k, { updated: u, data: text });
 });
 const gdDel = (k, expect) => gdRun(async () => {
   const cur = await gdCurrent(k);
@@ -6067,8 +6067,21 @@ async function gdPoll() {
       by.set(k, { fid: f.id, u });
     }
     for (const [k, v] of by) { const s = sync.wrote && sync.wrote[k]; if (s && s[0] !== v.u && s.includes(v.u)) v.u = s[0]; }
+    if (!by.has('_acct') && sync.acct) {
+      try { const j = await (await gdFetch(GD_API + 'files/' + sync.acct + '?fields=id,appProperties,trashed')).json(); if (!j.trashed) by.set('_acct', { fid: j.id, u: gdU(j) }); }
+      catch (e) { if (e.code !== 'gd/404') throw e; }
+      if (!by.has('_acct')) { gdWiped(false); return; }
+    }
+    if (!by.has('_acct')) {
+      if (gdSynced()) {
+        if (!gdMiss) gdMiss = Date.now();
+        if (Date.now() - gdMiss < 20000) { gdLater = setTimeout(gdPoll, 20500); return; }
+        gdMiss = 0; gdWiped(false); return;
+      }
+      const ts = Date.now(); gdPut('_acct', { updated: ts }, null, ts).catch(() => { });
+    } else { gdMiss = 0; if (sync.acct !== by.get('_acct').fid) { sync.acct = by.get('_acct').fid; saveSync(); } }
     const local = new Map(plansIndex.map(p => [p.id, p.updated]));
-    const need = [...by].filter(([k, v]) => (k === '_sizes' ? v.u !== sizesStamp() : k === '_review' ? v.u !== rvStamp() : local.get(k) !== v.u) && !(gdCache.has(k) && gdCache.get(k).u === v.u));
+    const need = [...by].filter(([k, v]) => k !== '_acct' && (k === '_sizes' ? v.u !== sizesStamp() : k === '_review' ? v.u !== rvStamp() : local.get(k) !== v.u) && !(gdCache.has(k) && gdCache.get(k).u === v.u));
     await gdEach(need, 4, async ([k, v]) => {
       try {
         const t = await (await gdFetch(GD_API + 'files/' + v.fid + '?alt=media')).text(); let u = v.u;
@@ -6086,6 +6099,27 @@ async function gdPoll() {
   } catch (e) {
     if (e.code === 'gd/token') gdPaused(true); else { syncErr = syncProblem(e); syncUI(); syncSettled(); }
   } finally { gdBusy = false; if (gdAgain) { gdAgain = false; gdLater = setTimeout(gdPoll, 800); } }
+}
+const gdSynced = () => !!sync && (Object.keys(sync.base || {}).length > 0 || +sync.sizesBase > 0 || +sync.reviewBase > 0);
+function gdWiped(mine) {
+  const email = sync ? sync.email || '' : '', id = sync ? sync.uid : '';
+  stopWatching(); clearTimeout(gdLater); gdDrop(); gdUser = null; gdMirror.clear(); gdCache.clear(); gdMiss = 0;
+  sync = { uid: id, via: 'drive', base: {}, sizesBase: 0, gone: [], last: 0, on: false, email }; saveSync();
+  syncErr = ''; if (saveState === 'synced') setSave('local'); syncUI(); if (activeTab === 'plans') renderPlans();
+  toastDrop('gdre');
+  if (mine) toast('Removed from Google Drive. Sync is off, and your plans are still on this device.', 8000);
+  else toast('Your planner data was removed from Google Drive, so sync is off here. Your plans are still on this device.', 15000, { label: 'Sign in', fn: () => gdSignIn() }, 'gdre');
+}
+function gdRemoveDialog() {
+  modal('Remove your plans from Google Drive?', (box) => box.append(h('p', { class: 'sub' }, 'Deletes everything the planner saved in your Google Drive and turns sync off. Your plans stay on this device, and your other devices keep theirs too, with sync off. Signing in again later puts this device\'s plans back. This can\'t be undone.')), 'Remove', async () => {
+    if (!gdLive()) { gdPaused(false); return; }
+    stopWatching(); clearTimeout(gdLater); syncMsg = 'Removing…'; syncUI();
+    try {
+      const files = await gdList(), order = files.filter(f => f.name === 'account.json').concat(files.filter(f => f.name !== 'account.json'));
+      for (const f of order) { try { await gdFetch(GD_API + 'files/' + f.id, { method: 'DELETE' }); } catch (e) { if (e.code !== 'gd/404') throw e; } }
+      syncMsg = ''; gdWiped(true);
+    } catch (e) { syncMsg = ''; if (e.code === 'gd/token') gdPaused(false); else { toast('Couldn\'t remove everything (' + (syncProblem(e) || e.code) + '). Try again.', 6000); gdStart(); } syncUI(); }
+  }, true);
 }
 function gdStart() {
   stopWatching(); gdPoll();
@@ -6333,7 +6367,7 @@ function syncCard() {
   const note = (t, bad) => h('p', { class: 'note', style: 'margin:6px 0 0' + (bad ? ';color:var(--bad)' : '') }, t);
   if (signedIn) {
     card.append(note(syncErr || (!navigator.onLine ? 'Offline: syncs when you\'re back' : (sync && sync.email ? sync.email + ' · ' : '') + (syncPending() ? 'sending…' : 'synced ' + (sync && sync.last ? ago(sync.last) : 'just now'))), !!syncErr));
-    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Sign out')));
+    card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Sign out'), useDrive ? h('button', { class: 'btn sm', disabled: !!syncMsg, 'data-tip': 'Delete everything the planner saved in your Google Drive. Plans stay on your devices.', onclick: gdRemoveDialog }, syncMsg || 'Remove from Drive') : ''));
   } else if (paused) {
     card.append(note(syncErr || ((sync && sync.email ? sync.email + ' · ' : '') + 'paused until you reconnect. Edits wait on this device.'), !!syncErr));
     card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: () => gdSignIn() }, syncMsg || 'Reconnect'), h('button', { class: 'btn sm', onclick: syncOffDialog }, 'Sign out')));
