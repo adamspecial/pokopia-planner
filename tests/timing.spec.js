@@ -1,7 +1,7 @@
 const { test, expect, openTab, m: onMap, drag } = require('./helpers');
 
 const SLOW = 4;
-const LIMIT = { start: 4000, edit: 800, frame: 100 };
+const LIMIT = { start: 2000, edit: 600, frame: 50 };
 
 async function slow(page) {
   const cdp = await page.context().newCDPSession(page);

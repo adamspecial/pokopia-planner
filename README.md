@@ -463,7 +463,7 @@ The files share one scope and load one after another, in the order of `APP_JS` i
 
 ## Tests
 
-GitHub tests every pull request and every change to `main` (`.github/workflows/tests.yml`), in three jobs:
+GitHub tests every pull request and every change to `main` (`.github/workflows/tests.yml`):
 
 - **Data and code rules.**
   - `tools/data_lint.py` checks that `data.json` holds together: every recipe's materials exist, every habitat's Pokémon and parts exist, every favourite is a known kind, and every group, default and processing step points at something real.
@@ -481,6 +481,15 @@ GitHub tests every pull request and every change to `main` (`.github/workflows/t
 
   Any error in the page fails the test.
 - **Windows (Edge).** The same tests in Microsoft Edge on Windows.
+- **Time limits.** After the other tests, the app runs as a mid-range Android phone: a Pixel 7 with the processor slowed 4 times. It fails if any of these takes too long:
+
+  | What | Limit | On GitHub when added |
+  |---|---|---|
+  | Starting up, best of 3 | 2 s | 0.6 s |
+  | An edit on Palette Town at full size, from the touch to the next frame | 0.6 s | 0.14 s |
+  | Frames while panning Palette Town, 9 in 10 | 50 ms | 17 ms |
+
+  The limits are in `tests/timing.spec.js`.
 
 Each run also scans every tab, Settings and the New plan dialog with axe-core for WCAG 2.2 AA problems. Problems found when the scan was added are listed in `tests/a11y-baseline.json`. A problem fails the run when it's new or appears in more places than before. When you fix some, record the lower counts with `UPDATE_A11Y=1 npx playwright test a11y --workers 1`.
 
