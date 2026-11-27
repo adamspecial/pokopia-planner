@@ -5953,7 +5953,6 @@ function saveSync() { if (sync) LS.set(LSK + 'sync', JSON.stringify(sync)); else
 const GD_CLIENT = '681529268201-ni1b3m37ilanr363gq76gqh9igej8dne.apps.googleusercontent.com', GD_SCOPE = 'https://www.googleapis.com/auth/drive.appdata', GD_API = 'https://www.googleapis.com/drive/v3/', GD_UP = 'https://www.googleapis.com/upload/drive/v3/', GD_GIS = 'https://accounts.google.com/gsi/client';
 let gd = { tok: '', exp: 0 }, gdUser = undefined, gdTc = null, gdWait = null, gisLoading = null, gdPollT = null, gdExpT = null, gdLater = null, gdBusy = false, gdAgain = false, gdGen = 0, gdNag = 0, gdQn = 0, gdMiss = 0;
 const gdMirror = new Map(), gdCache = new Map(), gdQ = [];
-const syncMoved = () => !!(sync && sync.on && sync.via !== 'drive');
 const syncUser = () => gdUser;
 const gdE = (code, why) => Object.assign(new Error(code), { code, why: why || '' });
 const gisReady = () => !!(window.google && google.accounts && google.accounts.oauth2);
@@ -6146,7 +6145,6 @@ async function gdSignIn() {
 }
 function gdBoot() {
   gdLoadTok();
-  if (syncMoved()) { gdUser = null; loadGis().catch(() => { }); toast('Sync now keeps your plans in your own Google Drive. Sign in once more on this device to carry on.', 15000, { label: 'Sign in', fn: () => gdSignIn() }, 'gdre'); syncUI(); return; }
   if (!syncOn()) { gdUser = null; syncUI(); return; }
   if (gdLive()) { gdUser = { id: sync.uid, email: sync.email || '' }; gdStart(); } else gdPaused(false);
   syncUI();
@@ -6305,8 +6303,7 @@ function syncCard() {
   } else if (waiting) {
     card.append(note(syncErr || (navigator.onLine ? 'Connecting to Google…' : 'Offline: syncs when you\'re back'), !!syncErr));
   } else {
-    if (syncMoved()) card.append(note('Sync now keeps your plans in your own Google Drive. Sign in once more on this device to carry on.'));
-    else if (syncOn() || (sync && sync.uid && sync.via === 'drive')) card.append(note('Signed out on this device'));
+    if (syncOn() || (sync && sync.uid && sync.via === 'drive')) card.append(note('Signed out on this device'));
     if (syncErr) card.append(note(syncErr, true));
     card.append(h('div', { class: 'acts' }, h('button', { class: 'btn sm primary', disabled: !!syncMsg, onclick: () => gdSignIn() }, syncMsg || 'Sign in with Google')));
     if (navigator.onLine) loadGis().catch(() => { });
