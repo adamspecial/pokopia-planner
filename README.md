@@ -90,7 +90,7 @@ Everything you place goes on top of the highest block at that spot: terrain, ite
 
 **Sizes.** Many items have no known size on record yet. Until you set it, the planner places such an item as 1×1 and shows its size with a ?, so you can see which sizes to check before you trust a layout. **Sizes** on the Build tab lists every unset size under **Guessed**: tap the right size once and it applies to all your plans and syncs.
 
-**Layers** works like the layers in a drawing app: each level is a layer with its own terrain and items, with the rugs and a switch for all terrain below them. Open it from its tab, from the layers button by the zoom controls, or with L. The list shows the levels you've used, plus one free level above and one below; **Go to level** jumps to any other. On a PC, Page Up and Page Down step the level you're working on.
+**Layers** works like the layers in a drawing app: each level is a layer with its own terrain and items, with the rugs and a switch for all terrain below them. Open it from the layers button by the zoom controls, or with L. The list shows the levels you've used, plus one free level above and one below; **Go to level** jumps to any other. On a PC, Page Up and Page Down step the level you're working on.
 
 - Tap the eye to hide or show a layer. Hidden layers aren't drawn and can't be tapped, selected or erased, but they still count for houses, habitats and comfort. The layers button gets a dot while anything is hidden. Each device remembers what you hid in each plan.
 - Tap a level to work on it. Place and Fill then put everything on that level, even in mid-air; Erase only takes from it; Select picks its items first; and everything above it fades out, so you can see into a basement under the ground. Tap it again, or tap **On top**, to go back to stacking. The **Level** menu in the Place, Fill and Erase bars is the same choice, so you can pick the level to erase from without opening Layers.
@@ -422,6 +422,30 @@ Fires count only when lit, and a Burn Pokémon lights them when its home is with
 
 **Decorate** and **Decorate inside** use all of this. Each resident's ideal gets a **Make it …** list of items that help. Suggestions that would spoil someone's ideal are marked ⚠ and drop down the list; for example, a lamp is marked if a resident wants it dark. Auto-place adds what's missing and leaves those out, along with anything a resident dislikes (see [Comfort](#comfort)). The resident picker shows who already suits the home as it is.
 
+## Today
+
+The **Game** tab starts with **Today**, for what to do in the game each day.
+
+- **The countdown** to 05:00, when the game's day changes, with the time band now: morning, day, evening or night.
+  - **Console clock.** If your console shows a different date or time from this device, enter what the console shows. The countdown and the list follow it from then on.
+  - **When morning ends.** Morning ends at 08:00 as Game8 and GameWith give it in Japanese, or at 07:00 as Serebii does. Settings → Game rules → **Morning ends at** picks one.
+- **Every day.** A checklist that clears itself at 05:00:
+  - the daily challenge
+  - a Dream Island visit
+  - the Mosslax offering
+  - the stamp card
+  - the Pokémon Center refill
+  - the vending machine drink
+
+  Each has ⓘ for what it gives. Hide the ones you don't do yet, or add your own.
+- **This week.** Friday's payouts, when the daily challenge pays 50% more coins and the stamp card pays out, and Sunday's Lucky Day.
+- **Events.** The event that's on, with the days it has left, its Pokémon and its currency. **Remind me the day before** saves a calendar file. Updates and events coming in the next few weeks show too. The dates are in `guide.json`, with a source for each.
+- **Timers.** Kit builds (15 minutes, 1 hour or the next day), furnace batches (about 4 minutes an item, 2 in the metallic furnace), a berry tree filling up (1 berry an hour, up to 3) or any number of minutes.
+  - A notice shows when one finishes while the planner is open.
+  - To be told when it's closed, add the timer to your calendar: the planner saves a calendar file (.ics) with an alarm, which Android and Windows calendars open.
+
+The list, your own items, the console clock and the timers are kept on this device.
+
 ## Sync between devices
 
 Plans → **Sync between devices** → **Sign in with Google**, once on each device, and let the planner keep its files in your Google Drive. Plans, item sizes and item reviews then stay the same everywhere. The planner checks for changes when it opens, when you come back to it and every 30 seconds while it's open, and sends your edits a few seconds after you stop. Edits made offline are sent when the device is back online. Each device keeps its own copy too, so the planner works the same without internet.
@@ -454,6 +478,7 @@ The planner is plain HTML, CSS and JavaScript, with no build step. `index.html` 
 | `pictures.js` | Item pictures, and how walls and furniture are drawn |
 | `inspect.js` | The option bar, the details panel, item sizes, moving, deleting, groups, copy and paste, houses, roofs, zones and stamping |
 | `panels.js` | The tabs and the phone sheet; the Layers, Build, Materials, Habitats and Pokémon tabs; drag and drop |
+| `game.js` | The Game tab: Today's countdown, daily list, week, events and timers |
 | `plans.js` | The Plans tab, new plans and game towns, Settings, dialogs, saving and export |
 | `review.js` | Item review and importing files |
 | `sync.js` | Sync with Google Drive |

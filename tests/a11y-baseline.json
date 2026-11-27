@@ -1,15 +1,15 @@
 {
   "android-phone": {
-    "button-name": 8,
-    "color-contrast": 11,
-    "meta-viewport": 9,
+    "button-name": 9,
+    "color-contrast": 12,
+    "meta-viewport": 10,
     "scrollable-region-focusable": 1,
-    "target-size": 12
+    "target-size": 13
   },
   "windows": {
-    "button-name": 8,
-    "color-contrast": 19,
-    "meta-viewport": 9,
+    "button-name": 9,
+    "color-contrast": 21,
+    "meta-viewport": 10,
     "target-size": 3
   }
 }

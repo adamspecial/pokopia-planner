@@ -1,6 +1,6 @@
 const { test, expect, boot, m: onMap, drag, tap, openTab, newPlan, mapShot } = require('./helpers');
 
-const TABS = ['build', 'layers', 'materials', 'habitats', 'pokemon', 'plans'];
+const TABS = ['build', 'materials', 'habitats', 'pokemon', 'game', 'plans'];
 const TOWNS = [['Withered Wasteland', 240], ['Bleak Beach', 272], ['Rocky Ridges', 272], ['Sparkling Skylands', 352], ['Palette Town', 384]];
 
 test('starts with the example plan and no errors', async ({ page }) => {
@@ -17,6 +17,8 @@ test('opens every tab', async ({ page }) => {
     await expect(page.locator('.tab[data-tab="' + t + '"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#tab-' + t)).not.toBeEmpty();
   }
+  await openTab(page, 'layers');
+  await expect(page.locator('#tab-layers')).not.toBeEmpty();
 });
 
 for (const [town, size] of TOWNS) {

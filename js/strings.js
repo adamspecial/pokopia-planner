@@ -1,9 +1,10 @@
 'use strict';
 const TR = {};
 let LANG = 'en';
+const sayLocale = () => LANG === 'en' ? undefined : LANG;
 const PLURALS = new Map();
 function pluralOf(n) { let p = PLURALS.get(LANG); if (!p) { p = new Intl.PluralRules(LANG); PLURALS.set(LANG, p); } return p.select(n); }
-function sayFill(s, v) { return v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k] == null ? m : typeof v[k] === 'number' ? v[k].toLocaleString(LANG) : String(v[k])) : s; }
+function sayFill(s, v) { return v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k] == null ? m : typeof v[k] === 'number' ? v[k].toLocaleString(sayLocale()) : String(v[k])) : s; }
 function say(s, v) { const o = TR[LANG] && TR[LANG][s]; return sayFill(typeof o === 'string' ? o : s, v); }
 function sayN(one, other, n, v) {
   const o = TR[LANG] && TR[LANG][other], f = pluralOf(n);

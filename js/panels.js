@@ -1,6 +1,6 @@
 'use strict';
 let activeTab = 'build';
-const VALID_TABS = ['build', 'layers', 'materials', 'habitats', 'pokemon', 'plans'];
+const VALID_TABS = ['build', 'layers', 'materials', 'habitats', 'pokemon', 'game', 'plans'];
 const phoneUI = () => innerWidth < 900;
 function toMap() { if (phoneUI() && sheetState !== 'peek') setSheet('peek'); }
 function openTab(t, stop = S.sheet) { showTab(t); if (phoneUI() && sheetState === 'peek') setSheet(stop); }
@@ -99,7 +99,7 @@ atStart(() => { (() => {
 })(); });
 
 let renderQueued = false;
-function renderPanel() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; const f = { build: renderBuild, layers: renderLayers, materials: renderMaterials, habitats: renderHabitats, pokemon: renderPokemon, plans: renderPlans }[activeTab]; if (f) f(); }); }
+function renderPanel() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; const f = { build: renderBuild, layers: renderLayers, materials: renderMaterials, habitats: renderHabitats, pokemon: renderPokemon, game: renderGame, plans: renderPlans }[activeTab]; if (f) f(); }); }
 
 function levelStats() {
   const n = new Map(), kinds = new Map(), t = new Map(), tk = new Map(); let all = 0;

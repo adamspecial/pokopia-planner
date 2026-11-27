@@ -62,7 +62,7 @@ async function tap(page, q) {
 }
 
 async function openTab(page, name) {
-  await page.locator('.tab[data-tab="' + name + '"]').click();
+  if (name === 'layers') await page.locator('#zlayers').click(); else await page.locator('.tab[data-tab="' + name + '"]').click();
   await base.expect(page.locator('#tab-' + name)).toBeVisible();
   await settle(page);
 }
