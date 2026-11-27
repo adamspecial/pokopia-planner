@@ -108,8 +108,8 @@ const LS = {
   del(k) { try { localStorage.removeItem(k); } catch (e) { } },
 };
 const SET_KEY = 'pokopia-planner:settings';
-const SET_DEF = { gSensor: 2, gSprinkler: 5, gRock: 4, gGen: 10, map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
-const SET_OPTS = { gSensor: [2, 1], gSprinkler: [5, 4], gRock: [4, 6], gGen: [10, 7], theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
+const SET_DEF = { gReach: 'rt', gSensor: 2, gSprinkler: 5, gRock: 4, gGen: 10, map3d: true, theme: 'system', accent: 'purple', motion: 'system', grid: 'all', shade: true, pics: true, faces: true, labels: true, status: true, tool: 'pan', wheel: 'zoom', tips: true, buzz: true, toast: 'normal', party: true, side: 'right', width: 'normal', sheet: 'half', start: 'last', updates: 'ask', offline: true };
+const SET_OPTS = { gReach: ['rt', 'r', 'all'], gSensor: [2, 1], gSprinkler: [5, 4], gRock: [4, 6], gGen: [10, 7], theme: ['system', 'light', 'dark'], accent: ['purple', 'blue', 'teal', 'pink', 'orange'], motion: ['system', 'on', 'off'], grid: ['all', 'blocks', 'off'], tool: ['pan', 'select'], wheel: ['zoom', 'pan'], toast: ['short', 'normal', 'long'], side: ['right', 'left'], width: ['narrow', 'normal', 'wide'], sheet: ['half', 'full'], start: ['last', 'build'], updates: ['ask', 'auto'] };
 let S = Object.assign({}, SET_DEF);
 try { const v = JSON.parse(LS.get(SET_KEY) || 'null'); if (v && typeof v === 'object') for (const k in SET_DEF) if (k in v && (SET_OPTS[k] ? SET_OPTS[k].includes(v[k]) : typeof v[k] === 'boolean')) S[k] = v[k]; } catch (e) { }
 const TOAST_K = { short: 0.6, normal: 1, long: 1.8 };
@@ -1016,6 +1016,46 @@ function bigWay(hs) {
   const reach = (o) => { for (let y = o.y; y < o.y + o.h; y++) for (let x = o.x; x < o.x + o.w; x++) if (near.has(y * Wd + x)) return true; return false; };
   return { door, objs: [...objs.values()], reach };
 }
+const mustReach = (it) => !!it && (it.tg === 'Relaxation' || (it.tg === 'Toy' && S.gReach !== 'r') || (it.tg === 'Decoration' && S.gReach === 'all'));
+const standOn = (it) => it.c === 'Blocks' || it.sh === 'block' || it.sh === 'hedge' || lookK(it) === 'steps';
+const WALK_CACHE = new Map();
+function walkOf(hs, big) {
+  const key = hs.id + ':' + (big ? 2 : 1), hit = WALK_CACHE.get(key); if (hit && hit.seq === evalSeq && hit.hs === hs) return hit.W;
+  const Wd = plan.w, N = Wd * plan.h, R = hs.area.rect, L = hs.area.base, zlo = L - 4, zhi = L + 3;
+  const inR = (k) => { const x = k % Wd, y = (k / Wd) | 0; return x >= R.x && y >= R.y && x < R.x + R.w && y < R.y + R.h; };
+  const free = (k, z) => { const g = terrAt(plan, k, z); if (g) return false; const o = occAt(plan, k, z), ob = o && plan.objs.get(o); if (!ob) return true; const it = ITEMS[ob.i]; return isDoor(it) || it.tg === 'Road' || lookK(it) === 'steps'; };
+  const under = (k, z) => { const g = terrAt(plan, k, z - 1); if (g) return !ITEMS[g - 1].lq; const o = occAt(plan, k, z - 1), ob = o && plan.objs.get(o); return !!ob && standOn(ITEMS[ob.i]); };
+  const stand1 = (k, z) => inR(k) && free(k, z) && under(k, z);
+  const cellsOf = (k) => big ? [k, k + 1, k + Wd, k + Wd + 1] : [k];
+  const fits = (k) => !big || ((k % Wd) + 1 < Wd && k + Wd + 1 < N);
+  const stand = (k, z) => fits(k) && cellsOf(k).every(c => stand1(c, z));
+  const roomAt = (k, z) => cellsOf(k).every(c => free(c, z));
+  const id = (k, z) => (z - ZMIN) * N + k, seen = new Set(), q = [];
+  for (const d of hs.doors) for (const k of big ? [d, d - 1, d - Wd, d - Wd - 1] : [d]) { if (k < 0 || !stand(k, L) || (big && cellsOf(k).filter(c => hs.doors.has(c)).length < 2)) continue; const i = id(k, L); if (!seen.has(i)) { seen.add(i); q.push([k, L]); } }
+  while (q.length) {
+    const [k, z] = q.pop(), x = k % Wd;
+    for (const n of [x > 0 ? k - 1 : -1, x + 1 < Wd ? k + 1 : -1, k >= Wd ? k - Wd : -1, k + Wd < N ? k + Wd : -1]) {
+      if (n < 0) continue;
+      for (const z2 of [z, z + 1, z - 1]) {
+        if (z2 < zlo || z2 > zhi || seen.has(id(n, z2)) || !stand(n, z2)) continue;
+        if (z2 > z && !roomAt(k, z2)) continue;
+        if (z2 < z && !roomAt(n, z)) continue;
+        seen.add(id(n, z2)); q.push([n, z2]);
+      }
+    }
+  }
+  const at = new Set(); for (const i of seen) { const k = i % N, z = Math.floor(i / N) + ZMIN; for (const c of cellsOf(k)) at.add(id(c, z)); }
+  const touch = (ob) => {
+    const lo = zOf(ob) - 1, hi = topOf(ob) + 1;
+    for (let y = ob.y - 1; y <= ob.y + ob.h; y++) for (let x = ob.x - 1; x <= ob.x + ob.w; x++) {
+      const inside = x >= ob.x && x < ob.x + ob.w && y >= ob.y && y < ob.y + ob.h, edge = (x === ob.x - 1 || x === ob.x + ob.w) !== (y === ob.y - 1 || y === ob.y + ob.h);
+      if (!inB(plan, x, y) || (!inside && !edge)) continue;
+      const k = y * Wd + x; for (let z = lo; z <= hi; z++) if (at.has(id(k, z))) return true;
+    }
+    return false;
+  };
+  const W = { touch, n: seen.size }; WALK_CACHE.set(key, { seq: evalSeq, hs, W }); return W;
+}
 function bigWayNotes(hs, pks) {
   const big = pks.filter(tooBig); if (!big.length || !hs) return [];
   const W = bigWay(hs), names = listNames(big.map(p => p.n)), one = big.length === 1;
@@ -1527,22 +1567,25 @@ function homeStuff(home, floor) {
   const obs = [];
   if (home.kind === 'kit') { for (const pc of kitPieces(home.ob, floor)) obs.push({ it: pc.it, w: pc.w, h: pc.h }); const ki = kitInfo(home.ob); for (let f = 0; f < ki.fl; f++) { if (floor != null && f !== floor) continue; const F = intFloor(home.ob, f); for (const v of [F.wp, F.fc]) if (v != null && ITEMS[v]) obs.push({ it: ITEMS[v], w: 1, h: 1 }); } return { obs, wet: 0 }; }
   const a = home.kind === 'habitat' ? home.area : home.hs.area;
-  for (const ob of plan.objs.values()) if (objInArea(ob, a)) obs.push({ it: ITEMS[ob.i], w: ob.w, h: ob.h });
+  for (const ob of plan.objs.values()) if (objInArea(ob, a)) obs.push({ it: ITEMS[ob.i], w: ob.w, h: ob.h, ob });
   return { obs, wet: wetTiles(a) };
 }
 function comfortOf(p, home, floor, S, E) {
   S = S || homeStuff(home, floor); E = E || envOf(home.kind === 'habitat' ? home : floorOf(home, floor));
   const fv = new Set(p.fv || []), fav = (it) => (it.fv || []).find(f => fv.has(f)), need = SIZE_RANK[pkSize(p)], toys = new Map(), decs = new Map();
+  const walk = home.kind === 'house' && home.hs ? walkOf(home.hs, tooBig(p)) : null, cut = new Map();
   let rest = null, small = null;
   for (const o of S.obs) {
     const it = o.it, f = fav(it);
+    if (walk && o.ob && mustReach(it) && !walk.touch(o.ob)) { if (!cut.has(it.i)) cut.set(it.i, it); continue; }
     if (it.tg === 'Relaxation') { if (SIZE_RANK[restClass(o.w, o.h)[0]] < need) { small = small || it; continue; } if (!rest || (f != null && rest.f == null)) rest = { it, f }; }
     else if (it.tg === 'Toy' || it.tg === 'Decoration') { const m = it.tg === 'Toy' ? toys : decs; if (!m.has(it.i)) m.set(it.i, { it, f, v: f != null ? 2 : 1 }); }
   }
   const top = (m) => [...m.values()].sort((a, b) => b.v - a.v).slice(0, 2), play = top(toys).concat(top(decs)).sort((a, b) => b.v - a.v).slice(0, 3);
   const restV = rest ? (rest.f != null ? 2 : 1) : 0, playV = play.reduce((s, x) => s + x.v, 0), envOk = !!p.ideal && envMet(p, E), envV = envOk ? 2 : 0, foodV = p.fl ? 2 : 0;
   const dis = disIn(p, S), pts = restV + playV + envV + foodV, rank = dis.length ? 0 : pts >= 9 ? 4 : pts >= 6 ? 3 : pts >= 4 ? 2 : 1;
-  return { p, home, rest, small: rest ? null : small, restV, play, playV, toyN: toys.size, decN: decs.size, envOk, envV, foodV, dis, pts, rank, score: CMF_PTS[rank] * (LEGENDS.has(p.n) ? 2 : 1) };
+  const cutL = [...cut.values()], cutRest = rest ? null : cutL.find(it => it.tg === 'Relaxation') || null;
+  return { p, home, rest, small: rest ? null : small, restV, play, playV, toyN: toys.size, decN: decs.size, envOk, envV, foodV, dis, pts, rank, cut: cutL, cutRest, big: tooBig(p), score: CMF_PTS[rank] * (LEGENDS.has(p.n) ? 2 : 1) };
 }
 function disIn(p, S) { const dis = []; for (const d of dislikesOf(p)) { const what = [...new Set(S.obs.filter(o => (o.it.fv || []).includes(d.f)).map(o => o.it.n))]; if (d.wet && S.wet) what.push(S.wet + ' water tile' + (S.wet > 1 ? 's' : '')); if (what.length) dis.push({ why: d.why, w: d.w, what }); } return dis; }
 function homeComfort(home) {
@@ -1554,7 +1597,9 @@ const disText = (c) => c.dis.map(d => listNames(d.what.slice(0, 3)) + (d.what.le
 function cmfHint(c) {
   const p = c.p, nf = (x) => x && x.f == null;
   if (c.dis.length) return (c.home && c.home.kind === 'habitat' ? '⚠ Unhappy here: ' : '⚠ Won\'t move in, and stays unhappy: ') + disText(c);
+  if (!c.rest && c.cutRest) return 'Can\'t get to the ' + c.cutRest.n.toLowerCase() + ': ' + WAY_TXT(c);
   if (!c.rest) return c.small ? 'Its ' + c.small.n.toLowerCase() + ' is too small: it needs a ' + RANK_WORD[SIZE_RANK[pkSize(p)]] + ' rest item' : 'Add a rest item, ideally one it likes';
+  if (c.cut && c.cut.length && c.play.length < 3) return 'Can\'t get to ' + listNames(c.cut.slice(0, 2).map(it => 'the ' + it.n.toLowerCase())) + (c.cut.length > 2 ? ' and more' : '') + ': ' + WAY_TXT(c);
   if (!c.toyN || !c.decN) return 'Add a ' + (!c.toyN && !c.decN ? 'toy and a decoration' : !c.toyN ? 'toy' : 'decoration') + ', ideally ones it likes';
   if (c.play.length < 3) return 'Add another toy or decoration';
   if (p.ideal && !c.envOk) return 'Make it ' + p.ideal.toLowerCase();
@@ -1562,16 +1607,18 @@ function cmfHint(c) {
   const hit = new Set([c.rest, ...c.play].filter(x => x && x.f != null).flatMap(x => (x.it.fv || []).filter(f => (p.fv || []).includes(f)))), miss = (p.fv || []).filter(f => !hit.has(f));
   return nf(c.rest) || c.play.some(nf) ? 'Swap in a rest, toy or decoration it likes: ' + (miss.length ? miss : p.fv || []).slice(0, 3).map(f => FAVS[f]).join(', ') : 'All set';
 }
+const WAY_TXT = (c) => 'make a way to ' + (c.cut && c.cut.length > 1 && !c.cutRest ? 'them' : 'it') + ' from the door' + (c.big ? ', 2 tiles wide,' : '') + ' that rises or drops 1 level at a time';
 function cmfTip(c) {
   const p = c.p, nm = (x) => x.it.n + (x.f != null ? ' ♥ ' + FAVS[x.f] : ''), fl = flavourOf(p);
   const b = ['Rest ' + c.restV + (c.rest ? ' (' + nm(c.rest) + ')' : c.small ? ' (' + c.small.n + ' is too small)' : ''),
     'toys and decorations ' + c.playV + ' of 6' + (c.play.length ? ' (' + c.play.map(nm).join(', ') + ')' : ''),
     (p.ideal ? p.ideal.toLowerCase() : 'ideal habitat') + ' ' + c.envV + (p.ideal && !c.envOk ? ' (not yet)' : ''),
     (fl ? fl.toLowerCase() + ' food ' : 'food ') + c.foodV + (fl ? ' when you give it some (' + (FOOD_FOR[fl] || 'its flavour') + ')' : '')];
+  if (c.cut && c.cut.length) b.push('can\'t get to ' + listNames(c.cut.slice(0, 4).map(it => it.n)) + (c.cut.length > 4 ? ' and ' + (c.cut.length - 4) + ' more' : '') + ', so ' + (c.cut.length > 1 ? 'they don\'t' : 'it doesn\'t') + ' count');
   return 'Best it can reach here: ' + b.join(', ') + ' = ' + c.pts + '. ' + (c.dis.length ? 'It dislikes ' + disText(c) + (c.home && c.home.kind === 'habitat' ? ', so it stays Iffy. ' : ', so it would refuse to move in and stays Iffy. ') : '') + CMF_RULE;
 }
 const CMF_RULE = 'Scored the way one player\'s tests found it: 1 for a rest item it fits on, 2 if it\'s a favourite; 1 for each toy or decoration, 2 for a favourite, counting up to 3 different ones; 2 for its ideal habitat; 2 for food of its favourite flavour. 9 or more is Awesome, 6 to 8 Great, 4 or 5 Nice, less Average. Copies of the same item count once.';
-const CMF_HELP = 'The best comfort each one can reach with what\'s here. In the game it climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts low, at Iffy or Average. Something it dislikes in range stops it moving in and keeps it Iffy: Grass types dislike fire, Fire types dislike water, as the guides report. ' + CMF_RULE;
+const CMF_HELP = 'The best comfort each one can reach with what\'s here. In the game it climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts low, at Iffy or Average. Something it dislikes in range stops it moving in and keeps it Iffy: Grass types dislike fire, Fire types dislike water, as the guides report.  In a house you built, it has to be able to walk to the items it uses, from the door, stepping up or down 1 level at a time (large ones need paths 2 tiles wide). Settings → Game rules picks which items those are. ' + CMF_RULE;
 function cmfChip(c) { return h('span', { class: 'req ' + CMF_CLS[c.rank], 'data-tip': cmfTip(c) }, '≈ ' + CMF[c.rank], h('b', null, c.dis.length ? '⚠' : c.pts)); }
 function cmfLine(c) { return c ? h('div', { class: 'cmfl' }, cmfChip(c), h('span', { class: 'note', style: c.dis.length ? 'color:var(--bad)' : null }, cmfHint(c))) : ''; }
 function cmfRow(c, open) { return h('div', { class: 'cmf' }, pkFace(c.p, 24), h('div', { class: 'cmfb' }, h('div', { class: 'cmfh' }, open ? h('button', { class: 'lnk', type: 'button', onclick: () => open(c.p.n) }, c.p.n) : h('b', null, c.p.n), cmfChip(c)), h('div', { class: 'note', style: c.dis.length ? 'color:var(--bad)' : null }, cmfHint(c)))); }
@@ -5499,6 +5546,7 @@ function renderSettings() {
   const segN = (k, opts, label) => { const g = h('span', { class: 'seg', role: 'group', 'aria-label': label }), paint = () => { for (const b of g.children) b.setAttribute('aria-pressed', b.dataset.v === String(S[k]) ? 'true' : 'false'); }; for (const [v, t] of opts) g.append(h('button', { type: 'button', 'data-v': String(v), onclick: () => { setPref(k, v); paint(); } }, t)); paint(); return g; };
   sec('rules',
     'Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.',
+    row('Items a Pokémon must reach', 'In a house you built, which items only count toward comfort when the resident can walk to them from the door, stepping up or down 1 level at a time. ぽこポケ学会 says items it can\'t get to don\'t count, without saying which; players\' tests point to the ones it uses, rest items and toys. Decorations it only looks at, such as wall hangings.', segN('gReach', [['rt', 'Rest and toys'], ['r', 'Rest only'], ['all', 'Everything']], 'Items a Pokémon must reach')),
     row('Laser sensor reach', 'How many tiles in front of a laser sensor it watches. 2 per GameWith and 攻略大百科; 1 per ぽこポケ学会\'s diagram.', segN('gSensor', [[2, '2 tiles'], [1, '1 tile']], 'Laser sensor reach')),
     row('Sprinkler reach', 'How far a sprinkler waters, counted along each axis and added up. 5 per GameWith, 攻略大百科 and Serebii (61 tiles); ぽこポケ学会 points to 4 (41 tiles), and Game8 says one tile less.', segN('gSprinkler', [[5, '5 tiles'], [4, '4 tiles']], 'Sprinkler reach')),
     row('Smooth Rock reach', 'How far a Smooth Rock dries the ground. 4 per ぽこポケ学会 (41 tiles, 1 level up and 2 down); GameWith gives 6.', segN('gRock', [[4, '4 tiles'], [6, '6 tiles']], 'Smooth Rock reach')),

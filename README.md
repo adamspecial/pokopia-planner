@@ -50,7 +50,7 @@ The ⚙ button at the top right opens Settings. Each setting's ⓘ explains what
 - **Notices**: how long they stay (short, normal or long), and whether new habitats sparkle.
 - **Layout**: the panel on the left or right and narrow, normal or wide on big screens; how far it opens on a phone when you tap a tab; and whether the app opens on the last tab you used or on Build.
 - **Updates and offline**: ask before opening a new version, or open it straight away unless you're in the middle of something; check for updates; and whether pictures are saved for offline use, with a button to remove them and free up space.
-- **Game rules**: for rules the guides disagree on, which reading the planner uses: how far a laser sensor watches (2 tiles or 1), how far a sprinkler waters (5 or 4) and a Smooth Rock dries (4 or 6), and how far a generator reaches its transmitter (10 or 7). The first choice is the one most sources give.
+- **Game rules**: for rules the guides disagree on, which reading the planner uses: which items a Pokémon must be able to walk to in a house you built (rest items and toys, rest items only, or everything), how far a laser sensor watches (2 tiles or 1), how far a sprinkler waters (5 or 4) and a Smooth Rock dries (4 or 6), and how far a generator reaches its transmitter (10 or 7). The first choice is the one most sources give.
 - **Data**: how much space the app uses, a way to ask the browser to keep your plans safe when space runs low, a shortcut to Plans for backups and sync, and **Reset settings**.
 
 ## Moving things
@@ -104,7 +104,7 @@ Plans saved before terrain had levels open with their heights turned into stacke
 Height decides what counts:
 
 - **Making a house:** found on whatever level its walls stand, on the ground, on a hill or in a basement, with terrain counting as wall. The 3 kinds of furniture have to stand inside the walls at the door's level. A kit house needs 3 different kinds on the floor with its door. In the two-floor house kits that take 2 Pokémon per floor (the Leaf, Sand, Stone, City and Imperial houses), each floor is its own home, so each floor someone lives on needs its own 3 kinds.
-- **Comfort and favourites:** anything in the active area counts at its own height, from 4 levels below to 3 above the door. That includes things just outside the walls, on a loft, on a block or on top of a wall.
+- **Comfort and favourites:** anything in the active area counts at its own height, from 4 levels below to 3 above the door. That includes things just outside the walls, on a loft, on a block or on top of a wall, as long as the Pokémon can get to the rest items and toys among them (see Comfort).
 - **Light, warmth and humidity:** only what's inside the walls, from 1 below to 3 above the floor (see below). Things on top of walls never count.
 - Items on top of walls don't break the house. Habitats only count items standing on the ground.
 
@@ -197,6 +197,7 @@ A home's panel, Decorate and Decorate inside show each resident's **Comfort**: t
 - **Favourites count through the rest item, toys and decorations.** A favourite bed or toy scores twice what any other does, and copies of one item count once. The ♥ chip still counts every favourite kind in range, tables and walls included.
 - **Rest items must fit.** A small Pokémon fits on anything, a medium one needs 2×1 or bigger and a large one 2×2.
 - **What's in range** is the same as for favourites: a built house's active area, a kit house's interior (each floor on its own in the two-floor kits that take 2 per floor) or a habitat's dotted area.
+- **It has to get to them.** In a house you built, a rest item or toy counts only if the Pokémon can walk to a tile beside it, starting from the door. It steps up or down 1 level at a time, over blocks, hedges and steps as well as the ground, so a rise or drop of 2 or more stops it, and it can't stand on fences or railings. It can use an item up to 1 level above or below where it stands. Large ones need room 2 tiles wide all the way. Decorations count without being reached, since they're looked at, not used: a wall hanging counts. The hint and the details behind the comfort chip name what it can't get to. **Settings → Game rules** picks which items need reaching: rest items and toys (the default, from players' tests), rest items only, or everything. ぽこポケ学会 says items a Pokémon can't get to don't count, without saying which.
 - **Food** can't be planned, so it's counted as given. The tip names the raw foods of its flavour: sweet Pecha Berries or beans, spicy fresh carrots, bitter Rawst Berries, potatoes or seaweed, dry Chesto Berries, wheat or cave mushrooms, sour Aspear Berries or tomatoes. No Pokémon likes plain food.
 - **It's a ceiling.** In the game comfort climbs a step at a time as the Pokémon notices things, answers one wish a day and is fed, and a newcomer starts low, at Iffy or Average.
 
