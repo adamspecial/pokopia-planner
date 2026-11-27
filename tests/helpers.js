@@ -79,7 +79,10 @@ async function newPlan(page, name, size = 24) {
 }
 
 async function mapShot(page) {
-  return page.locator('#mapwrap').screenshot({ animations: 'disabled' });
+  if (!isTouch(page)) await page.mouse.move(1, 1);
+  await page.waitForLoadState('networkidle');
+  await settle(page);
+  return page.locator('#mapwrap').screenshot({ animations: 'disabled', style: '#toasts, #tipbox, #optbar, #status, .zoomctl { visibility: hidden !important; }' });
 }
 
 module.exports = { test, expect: base.expect, boot, settle, mapAt, m, drag, tap, openTab, newPlan, mapShot, isTouch };

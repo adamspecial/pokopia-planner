@@ -11,8 +11,7 @@ module.exports = defineConfig({
   reporter: process.env.CI ? [['list'], ['github']] : 'list',
   use: { baseURL: 'http://127.0.0.1:8123/', serviceWorkers: 'block', trace: 'off' },
   webServer: {
-    command: (process.platform === 'win32' ? 'python' : 'python3') + ' -m http.server 8123 --bind 127.0.0.1',
-    cwd: '..',
+    command: 'node serve.js',
     url: 'http://127.0.0.1:8123/',
     reuseExistingServer: !process.env.CI,
   },

@@ -458,6 +458,6 @@ GitHub tests every pull request and every change to `main` (`.github/workflows/t
 
 Each run also scans every tab, Settings and the New plan dialog with axe-core for WCAG 2.2 AA problems. Problems found when the scan was added are listed in `tests/a11y-baseline.json`. A problem fails the run when it's new or appears in more places than before. When you fix some, record the lower counts with `UPDATE_A11Y=1 npx playwright test a11y --workers 1`.
 
-To run the tests on your own computer, from `tests/`: `npm ci`, `npx playwright install chromium`, then `npx playwright test`. The tests start their own local server.
+To run the tests on your own computer, from `tests/`: `npm ci`, `npx playwright install chromium`, then `npx playwright test`. The tests start their own local server (`tests/serve.js`).
 
 Game data compiled from Serebii, Game8, Bulbapedia, Pokopia Academy and the r/Pokopia "Who can fit in a den?" sheet. Item and Pokémon pictures from Serebii.net.

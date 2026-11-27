@@ -4,7 +4,7 @@ test.use({ serviceWorkers: 'allow' });
 
 test('works offline once opened', async ({ page, context }) => {
   await boot(page);
-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await expect.poll(() => page.evaluate(() => !!(navigator.serviceWorker && navigator.serviceWorker.controller)), { message: 'the service worker takes over', timeout: 30000 }).toBe(true);
   await expect.poll(() => page.evaluate(async () => {
     const keys = await caches.keys();
     for (const k of keys) { const c = await caches.open(k); if (await c.match('data.json', { ignoreSearch: true }) && await c.match('app.js', { ignoreSearch: true })) return true; }
