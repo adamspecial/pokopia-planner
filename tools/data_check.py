@@ -33,6 +33,21 @@ SYN = {'tree': 'largetree', 'windmill': 'windmillkit', 'waterwheel': 'waterwheel
        'canvas': 'blankcanvas', 'garbagebin': 'wastebin', 'vegetables': 'vegetablefield', 'lostreliclarge': 'largelostrelic', 'post': 'barrier', 'plaincloset': 'closet',
        'woodenpartition': 'partition', 'seatwidde': 'seatwide', 'professorstreasuretrove': 'professorstreasure', 'tallgrassany': 'tallgrass'}
 IMPLIED = {'highuplocation'}
+KEPT = {
+    'recipe:007': 'Game8 lists Lighting (any) ×1; Serebii\'s ×10 looks like a typo',
+    'recipe:010': 'Game8 lists the 2 water too',
+    'recipe:019': 'Game8 lists Seat (any), Table (any) and Plated food; Serebii shows examples',
+    'recipe:033': 'Game8 lists the plated food too',
+    'recipe:047': 'Game8 lists the Naptime bed too',
+    'recipe:091': 'Game8 lists 2 tables',
+    'recipe:113': 'Game8 lists 2 hot-spring water',
+    'recipe:170': 'Game8 lists the science experiment too',
+    'recipe:183': 'Game8 lists the Pop art table too',
+    'recipe:187': 'Game8 lists the hot-spring water too',
+    'recipe:209': 'Game8 lists the ribbon cake too',
+    'recipe:B012': 'Game8 lists 4 sea moss',
+    'spec:Drednaw': 'Game8 and Dexerto give Crush and Bulldoze; Serebii and The Game Haus give Chop and Bulldoze',
+}
 
 
 def bare(s):
@@ -182,7 +197,7 @@ def check(quick=False):
     s_all = serebii_items()
     s_mats, s_items = [x for x in s_all if x['sec'] == 'materials'], [x for x in s_all if x['sec'] != 'materials']
     mats = {norm(m['n']) for m in d['materials']}
-    out['materials'] = {'serebii': len(s_mats), 'ours': len(d['materials']), 'new': [x['n'] for x in s_mats if norm(x['n']) not in mats and norm(x['n']) not in {norm(i['n']) for i in d['items']} and not IGNORE.search(x['n'])]}
+    out['materials'] = {'serebii': len(s_mats), 'ours': len(d['materials']), 'new': [x['n'] for x in s_mats if norm(x['n']) not in mats and norm(x['n']) not in {norm(i['n']) for i in d['items']} and not re.search(r'\(outdoors?\)$', x['n'])]}
     by, byim = {}, {}
     for it in d['items']:
         by.setdefault(norm(it['n']), it)
@@ -218,7 +233,7 @@ def check(quick=False):
         if len(ns) == 1 and b not in pnames:
             pnames['base:' + b] = ns[0]
     pk = {p['n']: p for p in d['pokemon']}
-    newp, specd, matched = [], [], {}
+    newp, specd, matched, kept = [], [], {}, []
     for e in dex:
         n = data_name(e['n'], pnames)
         if not n:
@@ -227,7 +242,10 @@ def check(quick=False):
         matched.setdefault(n, e)
         p = pk[n]
         if e['s'] and set(e['s']) != set(p.get('s') or []):
-            specd.append('%s: %s here, %s on Serebii' % (n, ', '.join(p.get('s') or []) or 'none', ', '.join(e['s'])))
+            if 'spec:' + n in KEPT:
+                kept.append(n + ': ' + KEPT['spec:' + n])
+            else:
+                specd.append('%s: %s here, %s on Serebii' % (n, ', '.join(p.get('s') or []) or 'none', ', '.join(e['s'])))
     gonep = sorted(n for n in pk if n not in matched)
     fieldd = []
     if not quick:
@@ -270,7 +288,9 @@ def check(quick=False):
             continue
         mine = sorted((bare(t), q) for t, q in h['r'] if bare(t) not in IMPLIED)
         theirs = sorted((bare(t), q) for t, q in sp['r'] if bare(t) not in IMPLIED)
-        if sp['r'] and mine != theirs:
+        if sp['r'] and mine != theirs and 'recipe:' + hid in KEPT:
+            kept.append('%s %s: %s' % (hid, h['n'], KEPT['recipe:' + hid]))
+        elif sp['r'] and mine != theirs:
             recd.append('%s %s: %s here, %s on Serebii' % (hid, h['n'], ', '.join('%s ×%d' % (t, q) for t, q in h['r']), ', '.join('%s ×%d' % (t, q) for t, q in sp['r'])))
         mp = set(norm(x) for x in h['p'])
         tp = set(norm(data_name(x, pnames) or x) for x in sp['p'])
@@ -280,6 +300,7 @@ def check(quick=False):
             pkd.append('%s %s: %s' % (hid, h['n'], '; '.join(filter(None, ['Serebii adds ' + ', '.join(add) if add else '', 'Serebii lacks ' + ', '.join(drop) if drop else '']))))
     goneh = sorted(hid + ' ' + hb[hid]['n'] for hid in hb if hid not in seenh)
     out['habitats'] = {'serebii': len(hs), 'ours': len(d['habitats']), 'new': newh, 'name': named, 'recipe': recd, 'pokemon': pkd, 'gone': goneh}
+    out['kept'] = kept
     return out
 
 
@@ -310,6 +331,7 @@ def report(r, quick):
         section('Other fields differ', pk['fields']), section('In data.json, not in Serebii\'s lists', pk['gone']),
         '\n## Habitats\n', section('On Serebii, not in data.json', hb['new']), section('Name differs', hb['name']),
         section('Recipe differs', hb['recipe']), section('Pokémon differ', hb['pokemon']), section('In data.json, not in Serebii\'s list', hb['gone']),
+        '\n## Checked and kept\n\nDifferences already checked against another source, where data.json stays as it is.\n' if r['kept'] else '', section('Kept', r['kept']),
     ])
     return '\n'.join(lines) + body
 

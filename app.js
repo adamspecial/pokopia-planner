@@ -170,6 +170,7 @@ function buildIndex(d) {
     return o;
   });
   for (const it of ITEMS) { BY_NAME.set(it.n, it); if (it.lq) LIQUID.add(it.n); }
+  for (const it of ITEMS) for (const n of it.al || []) if (!BY_NAME.has(n)) BY_NAME.set(n, it);
   for (const g in d.groups) { const set = new Set(d.groups[g].map(n => BY_NAME.get(n)).filter(Boolean).map(x => x.i)); GROUPS.set(g, set); for (const i of set) { if (!GROUP_OF.has(i)) GROUP_OF.set(i, []); GROUP_OF.get(i).push(g); } }
   HAB = d.habitats; for (const hb of HAB) HAB_BY_ID.set(hb.id, hb);
   PK = d.pokemon; for (const p of PK) { if (!PK_BY_NAME.has(p.n)) PK_BY_NAME.set(p.n, p); }
