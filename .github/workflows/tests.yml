@@ -35,6 +35,9 @@ jobs:
       - name: Files load in a safe order
         run: node load-order.js
         working-directory: tests
+      - name: On-screen text is listed for translation
+        run: node strings.js
+        working-directory: tests
 
   android-and-chrome:
     name: Android phone and Windows window (Chrome)

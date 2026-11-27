@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Pokopia Area Planner</title>
-<script>const APP_BUILD = '2026-11-27T09:40';
-const APP_JS = ['base', 'plan', 'homes', 'interior', 'comfort', 'world', 'draw', 'input', 'pictures', 'inspect', 'panels', 'plans', 'review', 'sync', 'boot'].map(n => 'js/' + n + '.js?v=' + encodeURIComponent(APP_BUILD));
+<script>const APP_BUILD = '2026-11-27T10:00';
+const APP_JS = ['strings', 'base', 'plan', 'homes', 'interior', 'comfort', 'world', 'draw', 'input', 'pictures', 'inspect', 'panels', 'plans', 'review', 'sync', 'boot'].map(n => 'js/' + n + '.js?v=' + encodeURIComponent(APP_BUILD));
 for (const u of APP_JS) { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = u; document.head.append(l); }
 window.pokopiaLoad = ['data.json', 'pics/index.json'].map(u => fetch(u).then(r => r.ok ? r.json() : null).catch(() => null));
 window.pokopia3d = (() => { try { const v = JSON.parse(localStorage.getItem('pokopia-planner:settings') || '{}'); if (v && v.map3d === false) return null; } catch (e) { } const pr = new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'js/map3d.js?v=' + encodeURIComponent(APP_BUILD); s.onload = ok; s.onerror = no; document.head.append(s); }); pr.catch(() => { }); return pr; })();</script>
@@ -714,58 +714,58 @@ try { pokopiaLook(JSON.parse(localStorage.getItem('pokopia-planner:settings') ||
   <header class="top">
     <div class="brand">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 2 27 8.5v13L15 28 3 21.5v-13z" fill="var(--accent)"/><path d="M3 8.5 15 15l12-6.5M15 15v13" fill="none" stroke="var(--panel)" stroke-width="1.6" opacity=".8"/><path d="M8 6 15 2l7 4-7 4z" fill="#7fbf5f"/></svg>
-      <h1>Pokopia <span>Area Planner</span></h1>
+      <h1>Pokopia <span data-say>Area Planner</span></h1>
     </div>
     <div class="planpick">
-      <button class="planname" id="hdrPlan" type="button" data-tip="Plans">Loading…</button>
-      <button class="chip hide-sm" id="hdrArea" type="button" data-tip="Area and weather">—</button>
+      <button class="planname" id="hdrPlan" type="button" data-tip="Plans" data-say-attr="data-tip">Loading…</button>
+      <button class="chip hide-sm" id="hdrArea" type="button" data-tip="Area and weather" data-say-attr="data-tip">—</button>
       <button class="chip" id="saveChip" type="button" role="status"><span class="dot"></span><span>Starting</span></button>
-      <button class="iconbtn fsbtn" id="fsBtn" data-tip="Full screen" aria-label="Full screen" hidden><svg><use href="#i-expand"/></svg></button>
-      <button class="iconbtn fsbtn" id="setBtn" data-tip="Settings" aria-label="Settings"><svg><use href="#i-gear"/></svg></button>
+      <button class="iconbtn fsbtn" id="fsBtn" data-tip="Full screen" aria-label="Full screen" hidden data-say-attr="aria-label data-tip"><svg><use href="#i-expand"/></svg></button>
+      <button class="iconbtn fsbtn" id="setBtn" data-tip="Settings" aria-label="Settings" data-say-attr="aria-label data-tip"><svg><use href="#i-gear"/></svg></button>
     </div>
   </header>
 
-  <nav class="toolbar" aria-label="Tools">
-    <button class="tbtn" data-tool="pan" aria-pressed="true" data-tip="Pan (H)"><svg><use href="#i-hand"/></svg>Pan</button>
-    <button class="tbtn" data-tool="place" aria-pressed="false" data-tip="Place (B)"><svg><use href="#i-brush"/></svg>Place</button>
-    <button class="tbtn" data-tool="rect" aria-pressed="false" data-tip="Fill area (R)"><svg><use href="#i-rect"/></svg>Fill</button>
-    <button class="tbtn" data-tool="erase" aria-pressed="false" data-tip="Erase (E)"><svg><use href="#i-erase"/></svg>Erase</button>
-    <button class="tbtn" data-tool="select" aria-pressed="false" data-tip="Select (V)"><svg><use href="#i-select"/></svg>Select</button>
-    <button class="tbtn" data-tool="zone" aria-pressed="false" data-tip="Zone (Z)"><svg><use href="#i-zone"/></svg>Zone</button>
-    <button class="tbtn" data-tool="pick" aria-pressed="false" data-tip="Pick item (I)"><svg><use href="#i-pick"/></svg>Pick</button>
+  <nav class="toolbar" aria-label="Tools" data-say-attr="aria-label">
+    <button class="tbtn" data-tool="pan" aria-pressed="true" data-tip="Pan (H)" data-say data-say-attr="data-tip"><svg><use href="#i-hand"/></svg>Pan</button>
+    <button class="tbtn" data-tool="place" aria-pressed="false" data-tip="Place (B)" data-say data-say-attr="data-tip"><svg><use href="#i-brush"/></svg>Place</button>
+    <button class="tbtn" data-tool="rect" aria-pressed="false" data-tip="Fill area (R)" data-say data-say-attr="data-tip"><svg><use href="#i-rect"/></svg>Fill</button>
+    <button class="tbtn" data-tool="erase" aria-pressed="false" data-tip="Erase (E)" data-say data-say-attr="data-tip"><svg><use href="#i-erase"/></svg>Erase</button>
+    <button class="tbtn" data-tool="select" aria-pressed="false" data-tip="Select (V)" data-say data-say-attr="data-tip"><svg><use href="#i-select"/></svg>Select</button>
+    <button class="tbtn" data-tool="zone" aria-pressed="false" data-tip="Zone (Z)" data-say data-say-attr="data-tip"><svg><use href="#i-zone"/></svg>Zone</button>
+    <button class="tbtn" data-tool="pick" aria-pressed="false" data-tip="Pick item (I)" data-say data-say-attr="data-tip"><svg><use href="#i-pick"/></svg>Pick</button>
     <span class="sep"></span>
-    <button class="tbtn icononly" id="undoBtn" aria-label="Undo" data-tip="Undo (Ctrl+Z)" disabled><svg><use href="#i-undo"/></svg></button>
-    <button class="tbtn icononly" id="redoBtn" aria-label="Redo" data-tip="Redo (Ctrl+Y)" disabled><svg><use href="#i-redo"/></svg></button>
+    <button class="tbtn icononly" id="undoBtn" aria-label="Undo" data-tip="Undo (Ctrl+Z)" disabled data-say-attr="aria-label data-tip"><svg><use href="#i-undo"/></svg></button>
+    <button class="tbtn icononly" id="redoBtn" aria-label="Redo" data-tip="Redo (Ctrl+Y)" disabled data-say-attr="aria-label data-tip"><svg><use href="#i-redo"/></svg></button>
   </nav>
 
   <div class="main">
     <div class="mapwrap" id="mapwrap">
       <canvas id="map3d" hidden aria-hidden="true"></canvas>
-      <canvas id="map" aria-label="Area map. Use the tools above to paint terrain, place items and draw habitat zones."></canvas>
+      <canvas id="map" aria-label="Area map. Use the tools above to paint terrain, place items and draw habitat zones." data-say-attr="aria-label"></canvas>
       <div class="optbar" id="optbar"></div>
       <div class="status" id="status"></div>
       <div class="zoomctl">
-        <button class="iconbtn" id="zlayers" aria-label="Layers (L)" data-tip="Layers (L)"><svg><use href="#i-layers"/></svg></button>
-        <span class="sysw"><button class="iconbtn" id="zsys" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="sysmenu" aria-label="Show on the map (S)" data-tip="Show on the map (S)"><svg><use href="#i-sys"/></svg></button><div class="sysmenu" id="sysmenu" role="menu" aria-label="Show on the map" hidden></div></span>
-        <button class="iconbtn" id="zturn" hidden aria-label="Turn the view (. or ,)" data-tip="Turn the view (. or ,)"><svg><use href="#i-rotate"/></svg></button>
-        <span class="sysw" id="tiltw" hidden><button class="iconbtn" id="ztilt" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="viewmenu" aria-label="View (T)" data-tip="View (T)"><svg><use href="#i-top"/></svg></button><div class="sysmenu viewmenu" id="viewmenu" role="menu" aria-label="View" hidden></div></span>
-        <button class="iconbtn" id="zin" aria-label="Zoom in" data-tip="Zoom in"><svg><use href="#i-plus"/></svg></button>
-        <button class="iconbtn" id="zout" aria-label="Zoom out" data-tip="Zoom out"><svg><use href="#i-minus"/></svg></button>
-        <button class="iconbtn" id="zfit" aria-label="Fit plan on screen" data-tip="Fit on screen"><svg><use href="#i-fit"/></svg></button>
+        <button class="iconbtn" id="zlayers" aria-label="Layers (L)" data-tip="Layers (L)" data-say-attr="aria-label data-tip"><svg><use href="#i-layers"/></svg></button>
+        <span class="sysw"><button class="iconbtn" id="zsys" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="sysmenu" aria-label="Show on the map (S)" data-tip="Show on the map (S)" data-say-attr="aria-label data-tip"><svg><use href="#i-sys"/></svg></button><div class="sysmenu" id="sysmenu" role="menu" aria-label="Show on the map" data-say-attr="aria-label" hidden></div></span>
+        <button class="iconbtn" id="zturn" hidden aria-label="Turn the view (. or ,)" data-tip="Turn the view (. or ,)" data-say-attr="aria-label data-tip"><svg><use href="#i-rotate"/></svg></button>
+        <span class="sysw" id="tiltw" hidden><button class="iconbtn" id="ztilt" aria-pressed="false" aria-expanded="false" aria-haspopup="true" aria-controls="viewmenu" aria-label="View (T)" data-tip="View (T)" data-say-attr="aria-label data-tip"><svg><use href="#i-top"/></svg></button><div class="sysmenu viewmenu" id="viewmenu" role="menu" aria-label="View" data-say-attr="aria-label" hidden></div></span>
+        <button class="iconbtn" id="zin" aria-label="Zoom in" data-tip="Zoom in" data-say-attr="aria-label data-tip"><svg><use href="#i-plus"/></svg></button>
+        <button class="iconbtn" id="zout" aria-label="Zoom out" data-tip="Zoom out" data-say-attr="aria-label data-tip"><svg><use href="#i-minus"/></svg></button>
+        <button class="iconbtn" id="zfit" aria-label="Fit plan on screen" data-tip="Fit on screen" data-say-attr="aria-label data-tip"><svg><use href="#i-fit"/></svg></button>
       </div>
-      <div class="inspector" id="inspector" role="dialog" aria-label="Selection details"></div>
+      <div class="inspector" id="inspector" role="dialog" aria-label="Selection details" data-say-attr="aria-label"></div>
       <div class="minidlg" id="minidlg" hidden></div>
     </div>
 
     <aside class="panel" id="panel">
-      <button class="handle" id="handle" aria-label="Resize panel"></button>
+      <button class="handle" id="handle" aria-label="Resize panel" data-say-attr="aria-label"></button>
       <div class="tabs" role="tablist">
-        <button class="tab" role="tab" data-tab="build" aria-selected="true"><svg><use href="#i-cube"/></svg>Build</button>
-        <button class="tab" role="tab" data-tab="layers" aria-selected="false"><svg><use href="#i-layers"/></svg>Layers</button>
-        <button class="tab" role="tab" data-tab="materials" aria-selected="false"><svg><use href="#i-list"/></svg>Materials</button>
-        <button class="tab" role="tab" data-tab="habitats" aria-selected="false"><svg><use href="#i-leaf"/></svg>Habitats</button>
-        <button class="tab" role="tab" data-tab="pokemon" aria-selected="false"><svg><use href="#i-ball"/></svg>Pokémon</button>
-        <button class="tab" role="tab" data-tab="plans" aria-selected="false"><svg><use href="#i-map"/></svg>Plans</button>
+        <button class="tab" role="tab" data-tab="build" aria-selected="true" data-say><svg><use href="#i-cube"/></svg>Build</button>
+        <button class="tab" role="tab" data-tab="layers" aria-selected="false" data-say><svg><use href="#i-layers"/></svg>Layers</button>
+        <button class="tab" role="tab" data-tab="materials" aria-selected="false" data-say><svg><use href="#i-list"/></svg>Materials</button>
+        <button class="tab" role="tab" data-tab="habitats" aria-selected="false" data-say><svg><use href="#i-leaf"/></svg>Habitats</button>
+        <button class="tab" role="tab" data-tab="pokemon" aria-selected="false" data-say><svg><use href="#i-ball"/></svg>Pokémon</button>
+        <button class="tab" role="tab" data-tab="plans" aria-selected="false" data-say><svg><use href="#i-map"/></svg>Plans</button>
       </div>
       <section class="tabbody" id="tab-build" role="tabpanel"></section>
       <section class="tabbody" id="tab-layers" role="tabpanel" hidden></section>

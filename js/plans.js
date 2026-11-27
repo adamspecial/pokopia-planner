@@ -108,9 +108,9 @@ function deletePlanDialog(id) {
   }, true);
 }
 
-const SET_SECS = [['look', 'Appearance', 'eye'], ['map', 'Map', 'map'], ['controls', 'Controls', 'hand'], ['notices', 'Notices', 'info'], ['layout', 'Layout', 'expand'], ['updates', 'Updates and offline', 'down'], ['rules', 'Game rules', 'filter'], ['data', 'Data', 'list']];
-const ACCENT_NAMES = { purple: ['Purple', '#9b55c9'], blue: ['Blue', '#3a6ad4'], teal: ['Teal', '#137677'], pink: ['Pink', '#bc3c74'], orange: ['Orange', '#b0521a'] };
-const KEYS = [['H', 'Pan'], ['V', 'Select'], ['B', 'Place'], ['R', 'Fill'], ['E', 'Erase'], ['Z', 'Zone'], ['I', 'Pick an item from the map'], ['Q', 'Turn what you\'re placing, pasting or have selected (Shift: the other way)'], ['F', 'Flip the selection or what you\'re pasting (Shift: top to bottom)'], ['[| |]', 'Smaller or bigger brush'], ['A', 'Every home\'s active area'], ['S', 'Show on the map'], ['Enter', 'Pour the liquid you previewed'], ['L', 'Layers'], [',| |.', 'Turn the 3D view'], ['T', 'Look from the top, at an angle, from a low angle or side on (Shift: the other way)'], ['Right button|drag', 'Turn and tilt the 3D view'], ['Page Up|/|Page Down', 'Work a level up or down'], ['Space|+|drag', 'Pan with any tool'], ['Ctrl|+|Z', 'Undo'], ['Ctrl|+|Y', 'Redo'], ['Shift|+|click', 'Add an item to the selection or take it away'], ['Shift|+|drag', 'Add an area to the selection'], ['Ctrl|+|A', 'Select everything'], ['Ctrl|+|C', 'Copy the selection'], ['Ctrl|+|V', 'Paste'], ['Ctrl|+|D', 'Duplicate the selection'], ['Arrow keys', 'Nudge the selection (Shift: 5 squares)'], ['Delete', 'Delete what\'s selected'], ['Esc', 'Close or cancel']];
+const SET_SECS = [['look', say('Appearance'), 'eye'], ['map', say('Map'), 'map'], ['controls', say('Controls'), 'hand'], ['notices', say('Notices'), 'info'], ['layout', say('Layout'), 'expand'], ['updates', say('Updates and offline'), 'down'], ['rules', say('Game rules'), 'filter'], ['data', say('Data'), 'list']];
+const ACCENT_NAMES = { purple: [say('Purple'), '#9b55c9'], blue: [say('Blue'), '#3a6ad4'], teal: [say('Teal'), '#137677'], pink: [say('Pink'), '#bc3c74'], orange: [say('Orange'), '#b0521a'] };
+const KEYS = [['H', say('Pan')], ['V', say('Select')], ['B', say('Place')], ['R', say('Fill')], ['E', say('Erase')], ['Z', say('Zone')], ['I', say('Pick an item from the map')], ['Q', say('Turn what you\'re placing, pasting or have selected (Shift: the other way)')], ['F', say('Flip the selection or what you\'re pasting (Shift: top to bottom)')], ['[| |]', say('Smaller or bigger brush')], ['A', say('Every home\'s active area')], ['S', say('Show on the map')], ['Enter', say('Pour the liquid you previewed')], ['L', say('Layers')], [',| |.', say('Turn the 3D view')], ['T', say('Look from the top, at an angle, from a low angle or side on (Shift: the other way)')], ['Right button|drag', say('Turn and tilt the 3D view')], ['Page Up|/|Page Down', say('Work a level up or down')], ['Space|+|drag', say('Pan with any tool')], ['Ctrl|+|Z', say('Undo')], ['Ctrl|+|Y', say('Redo')], ['Shift|+|click', say('Add an item to the selection or take it away')], ['Shift|+|drag', say('Add an area to the selection')], ['Ctrl|+|A', say('Select everything')], ['Ctrl|+|C', say('Copy the selection')], ['Ctrl|+|V', say('Paste')], ['Ctrl|+|D', say('Duplicate the selection')], ['Arrow keys', say('Nudge the selection (Shift: 5 squares)')], ['Delete', say('Delete what\'s selected')], ['Esc', say('Close or cancel')]];
 let setsBack = null, setsAfter = null, setsWant = null;
 const setsOpen = () => !$('#sets').hidden;
 function applyLook() { pokopiaLook(S); readTheme(); }
@@ -145,9 +145,9 @@ atStart(() => { addEventListener('popstate', () => { if (setsOpen()) { const el 
 function setsJump(id, now) { const sc = $('#sets .sscroll'), sec = document.getElementById('sets-' + id); setsWant = id; if (sc && sec) sc.scrollTo({ top: sec.offsetTop - 2, behavior: now || calm() ? 'auto' : 'smooth' }); }
 function renderSettings() {
   const el = $('#sets'), keep = el.querySelector('.sscroll'), top = keep ? keep.scrollTop : 0; el.textContent = '';
-  const scroll = h('div', { class: 'sscroll' }), nav = h('nav', { class: 'snav', 'aria-label': 'Sections' });
+  const scroll = h('div', { class: 'sscroll' }), nav = h('nav', { class: 'snav', 'aria-label': say('Sections') });
   el.append(h('div', { class: 'win', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'setsTitle', tabindex: '-1' },
-    h('div', { class: 'shead' }, h('h2', { id: 'setsTitle' }, 'Settings'), h('span', { class: 'note' }, 'Saved on this device'), h('button', { class: 'close', type: 'button', 'aria-label': 'Close settings', 'data-tip': 'Close (Esc)', onclick: () => closeSettings() }, icon('close'))),
+    h('div', { class: 'shead' }, h('h2', { id: 'setsTitle' }, say('Settings')), h('span', { class: 'note' }, say('Saved on this device')), h('button', { class: 'close', type: 'button', 'aria-label': say('Close settings'), 'data-tip': say('Close (Esc)'), onclick: () => closeSettings() }, icon('close'))),
     h('div', { class: 'sbody' }, nav, scroll)));
   el.onclick = (e) => { if (e.target === el) closeSettings(); };
   const seg = (k, opts, label) => {
@@ -163,56 +163,56 @@ function renderSettings() {
   };
   const row = (title, note, ...ctl) => h('div', { class: 'srow' }, h('div', { class: 'stxt' }, typeof note === 'string' ? h('b', { class: 'hrow' }, title, tipBtn(note)) : h('b', null, title), typeof note === 'string' ? '' : note || ''), ctl.length ? h('div', { class: 'sctl' }, ...ctl) : '');
   const sec = (id, ...rows) => { const [, t, ic] = SET_SECS.find(q => q[0] === id), tip = typeof rows[0] === 'string' ? rows.shift() : ''; scroll.append(h('section', { class: 'ssec', id: 'sets-' + id, 'aria-labelledby': 'setsH-' + id }, h('h3', { id: 'setsH-' + id }, icon(ic), t, tipBtn(tip)), ...rows)); nav.append(h('button', { type: 'button', 'data-sec': id, onclick: () => setsJump(id) }, icon(ic), t)); };
-  const sws = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Accent colour' });
+  const sws = h('div', { class: 'swatches', role: 'group', 'aria-label': say('Accent colour') });
   const paintSw = () => { for (const b of sws.children) b.setAttribute('aria-pressed', b.dataset.v === S.accent ? 'true' : 'false'); };
   for (const [v, [n, c]] of Object.entries(ACCENT_NAMES)) sws.append(h('button', { type: 'button', 'data-v': v, 'aria-label': n, 'data-tip': n, style: '--c:' + c, onclick: () => { setPref('accent', v); paintSw(); } }));
   paintSw();
   sec('look',
-    row('Theme', 'System follows your device\'s light or dark mode.', seg('theme', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], 'Theme')),
-    row('Accent colour', 'Buttons, the chosen tool and highlights on the map.', sws),
-    row('Animations', 'System follows your device\'s reduce-motion setting. Off also skips the zoom glide, sliding panels and sparkles.', seg('motion', [['system', 'System'], ['on', 'On'], ['off', 'Off']], 'Animations')));
+    row(say('Theme'), say('System follows your device\'s light or dark mode.'), seg('theme', [['system', say('System')], ['light', say('Light')], ['dark', say('Dark')]], say('Theme'))),
+    row(say('Accent colour'), say('Buttons, the chosen tool and highlights on the map.'), sws),
+    row(say('Animations'), say('System follows your device\'s reduce-motion setting. Off also skips the zoom glide, sliding panels and sparkles.'), seg('motion', [['system', say('System')], ['on', say('On')], ['off', say('Off')]], say('Animations'))));
   sec('map',
-    row('3D view', gl2ok() ? 'The map in 3D: turn it, tilt it and see inside houses. It opens looking straight down. Off shows the flat map.' : 'This browser doesn\'t have WebGL 2, so the planner uses the flat map.', gl2ok() ? sw('map3d', '3D view') : ''),
-    row('Grid lines', 'Thin lines between tiles, and stronger ones every 8 tiles.', seg('grid', [['all', 'All'], ['blocks', 'Every 8 tiles'], ['off', 'None']], 'Grid lines')),
-    row('Height shading', 'On the flat map: lighter high ground, darker low ground, shadows below cliffs and level numbers when zoomed in.', sw('shade', 'Height shading')),
-    row('Pictures on the map', 'Item and terrain pictures from the game. Off draws simple shapes and colours, which is quicker on older phones.', sw('pics', 'Pictures on the map')),
-    row('Portraits on homes', 'Faces of the Pokémon living in each house and kit home.', sw('faces', 'Portraits on homes')),
-    row('Labels on zones and houses', 'The name and status above each zone and each house you built.', sw('labels', 'Labels on zones and houses')),
-    row('Every home\'s active area', 'The dotted line 4 tiles around each home. Show on the map, by the zoom controls, or A, does the same.', sw(null, 'Every home\'s active area', () => showAreas, v => setShowAreas(v))),
-    row('Info at the bottom of the map', 'Tile position, what\'s under the pointer and the zoom level.', sw('status', 'Info at the bottom of the map')));
+    row('3D view', gl2ok() ? say('The map in 3D: turn it, tilt it and see inside houses. It opens looking straight down. Off shows the flat map.') : say('This browser doesn\'t have WebGL 2, so the planner uses the flat map.'), gl2ok() ? sw('map3d', '3D view') : ''),
+    row(say('Grid lines'), say('Thin lines between tiles, and stronger ones every 8 tiles.'), seg('grid', [['all', say('All')], ['blocks', say('Every 8 tiles')], ['off', say('None')]], say('Grid lines'))),
+    row(say('Height shading'), say('On the flat map: lighter high ground, darker low ground, shadows below cliffs and level numbers when zoomed in.'), sw('shade', say('Height shading'))),
+    row(say('Pictures on the map'), say('Item and terrain pictures from the game. Off draws simple shapes and colours, which is quicker on older phones.'), sw('pics', say('Pictures on the map'))),
+    row(say('Portraits on homes'), say('Faces of the Pokémon living in each house and kit home.'), sw('faces', say('Portraits on homes'))),
+    row(say('Labels on zones and houses'), say('The name and status above each zone and each house you built.'), sw('labels', say('Labels on zones and houses'))),
+    row(say('Every home\'s active area'), say('The dotted line 4 tiles around each home. Show on the map, by the zoom controls, or A, does the same.'), sw(null, say('Every home\'s active area'), () => showAreas, v => setShowAreas(v))),
+    row(say('Info at the bottom of the map'), say('Tile position, what\'s under the pointer and the zoom level.'), sw('status', say('Info at the bottom of the map'))));
   sec('controls',
-    row('Default tool', 'The tool when the app opens, and after you finish stamping, pasting or moving. Pan: dragging moves the map and a tap shows details. Select: dragging moves items or selects an area.', seg('tool', [['pan', 'Pan'], ['select', 'Select']], 'Default tool')),
-    row('Mouse wheel', 'Scrolls: the wheel moves the map, and Ctrl + wheel or a touchpad pinch zooms.', seg('wheel', [['zoom', 'Zooms'], ['pan', 'Scrolls']], 'Mouse wheel')),
-    row('Tooltips', 'A tip when you point at a button with the mouse or long-press it. Off: only the ⓘ buttons show tips.', sw('tips', 'Tooltips')),
-    row('Vibration', 'A short buzz on Android when you pick up a Pokémon to drag it.', sw('buzz', 'Vibration')),
-    h('details', null, h('summary', null, 'Keyboard shortcuts'), h('div', { class: 'keys' }, KEYS.flatMap(([k, t]) => [h('span', null, k.split('|').map(p => p === ' ' ? ' ' : ['+', '/', 'drag', 'click'].includes(p) ? ' ' + p + ' ' : h('kbd', null, p))), h('span', null, t)]))));
+    row(say('Default tool'), say('The tool when the app opens, and after you finish stamping, pasting or moving. Pan: dragging moves the map and a tap shows details. Select: dragging moves items or selects an area.'), seg('tool', [['pan', say('Pan')], ['select', say('Select')]], say('Default tool'))),
+    row(say('Mouse wheel'), say('Scrolls: the wheel moves the map, and Ctrl + wheel or a touchpad pinch zooms.'), seg('wheel', [['zoom', say('Zooms')], ['pan', say('Scrolls')]], say('Mouse wheel'))),
+    row(say('Tooltips'), say('A tip when you point at a button with the mouse or long-press it. Off: only the ⓘ buttons show tips.'), sw('tips', say('Tooltips'))),
+    row(say('Vibration'), say('A short buzz on Android when you pick up a Pokémon to drag it.'), sw('buzz', say('Vibration'))),
+    h('details', null, h('summary', null, say('Keyboard shortcuts')), h('div', { class: 'keys' }, KEYS.flatMap(([k, t]) => [h('span', null, k.split('|').map(p => p === ' ' ? ' ' : ['+', '/', 'drag', 'click'].includes(p) ? ' ' + p + ' ' : h('kbd', null, p))), h('span', null, t)]))));
   sec('notices',
-    row('How long notices stay', 'Notices with a button, such as Undo, stay longer either way, and pointing at one keeps it open.', seg('toast', [['short', 'Short'], ['normal', 'Normal'], ['long', 'Long']], 'How long notices stay'), h('button', { class: 'btn sm', type: 'button', onclick: () => toast('This is how long a notice stays', 2400, null, 'try') }, 'Try it')),
-    row('Celebrate new habitats', 'Sparkles on the map when a habitat forms or a house becomes habitable. The notice shows either way.', sw('party', 'Celebrate new habitats')));
+    row(say('How long notices stay'), say('Notices with a button, such as Undo, stay longer either way, and pointing at one keeps it open.'), seg('toast', [['short', say('Short')], ['normal', say('Normal')], ['long', say('Long')]], say('How long notices stay')), h('button', { class: 'btn sm', type: 'button', onclick: () => toast(say('This is how long a notice stays'), 2400, null, 'try') }, say('Try it'))),
+    row(say('Celebrate new habitats'), say('Sparkles on the map when a habitat forms or a house becomes habitable. The notice shows either way.'), sw('party', say('Celebrate new habitats'))));
   sec('layout',
-    row('Panel side', 'On wide screens, such as a PC or a tablet held sideways.', seg('side', [['left', 'Left'], ['right', 'Right']], 'Panel side')),
-    row('Panel width', 'On wide screens.', seg('width', [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']], 'Panel width')),
-    row('Phone panel', 'On phones and narrow windows: how far the panel opens when you tap a tab.', seg('sheet', [['half', 'Halfway'], ['full', 'Full height']], 'Phone panel')),
-    row('Open on', 'The tab that shows when the app opens.', seg('start', [['last', 'Last tab used'], ['build', 'Build']], 'Open on')));
+    row(say('Panel side'), say('On wide screens, such as a PC or a tablet held sideways.'), seg('side', [['left', say('Left')], ['right', say('Right')]], say('Panel side'))),
+    row(say('Panel width'), say('On wide screens.'), seg('width', [['narrow', say('Narrow')], ['normal', say('Normal')], ['wide', say('Wide')]], say('Panel width'))),
+    row(say('Phone panel'), say('On phones and narrow windows: how far the panel opens when you tap a tab.'), seg('sheet', [['half', say('Halfway')], ['full', say('Full height')]], say('Phone panel'))),
+    row(say('Open on'), say('The tab that shows when the app opens.'), seg('start', [['last', say('Last tab used')], ['build', say('Build')]], say('Open on'))));
   sec('updates',
-    row('New versions', 'Ask me: a notice with Open it. Straight away: the new version opens as soon as it\'s ready, unless you\'re in the middle of something.', seg('updates', [['ask', 'Ask me'], ['auto', 'Straight away']], 'New versions')),
-    row('Version ' + appVersion(), 'Looks for a newer version now.', h('button', { class: 'btn sm', type: 'button', onclick: updateNow }, 'Check for updates')),
-    row('Save pictures for offline use', h('span', null, h('span', { class: 'note picline' }), h('span', { id: 'setsPicN', class: 'acts', style: 'margin-top:6px' })), sw('offline', 'Save pictures for offline use')));
+    row(say('New versions'), say('Ask me: a notice with Open it. Straight away: the new version opens as soon as it\'s ready, unless you\'re in the middle of something.'), seg('updates', [['ask', say('Ask me')], ['auto', say('Straight away')]], say('New versions'))),
+    row(say('Version {v}', { v: appVersion() }), say('Looks for a newer version now.'), h('button', { class: 'btn sm', type: 'button', onclick: updateNow }, say('Check for updates'))),
+    row(say('Save pictures for offline use'), h('span', null, h('span', { class: 'note picline' }), h('span', { id: 'setsPicN', class: 'acts', style: 'margin-top:6px' })), sw('offline', say('Save pictures for offline use'))));
   const segN = (k, opts, label) => { const g = h('span', { class: 'seg', role: 'group', 'aria-label': label }), paint = () => { for (const b of g.children) b.setAttribute('aria-pressed', b.dataset.v === String(S[k]) ? 'true' : 'false'); }; for (const [v, t] of opts) g.append(h('button', { type: 'button', 'data-v': String(v), onclick: () => { setPref(k, v); paint(); } }, t)); paint(); return g; };
   sec('rules',
-    'Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.',
-    row('Story Pokémon', 'Professor Tangrowth, Peakychu, Mosslax, Hoppip, Skiploom and Jumpluff. PokoTraqr\'s calculator, from one player\'s tests, says story Pokémon and the Hoppip line add nothing to the environment level; which Pokémon count as story ones is a reading.', segN('gStory', [['zero', 'Add nothing'], ['count', 'Count normally']], 'Story Pokémon')),
-    row('Items a Pokémon must reach', 'In a house you built, which items only count toward comfort when the resident can walk to them from the door, stepping up or down 1 level at a time. ぽこポケ学会 says items it can\'t get to don\'t count, without saying which; players\' tests point to the ones it uses, rest items and toys. Decorations it only looks at, such as wall hangings.', segN('gReach', [['rt', 'Rest and toys'], ['r', 'Rest only'], ['all', 'Everything']], 'Items a Pokémon must reach')),
-    row('Laser sensor reach', 'How many tiles in front of a laser sensor it watches. 2 per GameWith and 攻略大百科; 1 per ぽこポケ学会\'s diagram.', segN('gSensor', [[2, '2 tiles'], [1, '1 tile']], 'Laser sensor reach')),
-    row('Sprinkler reach', 'How far a sprinkler waters, counted along each axis and added up. 5 per GameWith, 攻略大百科 and Serebii (61 tiles); ぽこポケ学会 points to 4 (41 tiles), and Game8 says one tile less.', segN('gSprinkler', [[5, '5 tiles'], [4, '4 tiles']], 'Sprinkler reach')),
-    row('Smooth Rock reach', 'How far a Smooth Rock dries the ground. 4 per ぽこポケ学会 (41 tiles, 1 level up and 2 down); GameWith gives 6.', segN('gRock', [[4, '4 tiles'], [6, '6 tiles']], 'Smooth Rock reach')),
-    row('Generator to transmitter', 'How far a generator reaches its transmitter. 10 per a player\'s tests, Serebii and GameWith\'s electricity page; GameWith\'s utility-pole page says 7.', segN('gGen', [[10, '10 tiles'], [7, '7 tiles']], 'Generator to transmitter')));
+    say('Where guides and players disagree, pick the reading the planner uses. The first choice is the one most sources give.'),
+    row(say('Story Pokémon'), say('Professor Tangrowth, Peakychu, Mosslax, Hoppip, Skiploom and Jumpluff. PokoTraqr\'s calculator, from one player\'s tests, says story Pokémon and the Hoppip line add nothing to the environment level; which Pokémon count as story ones is a reading.'), segN('gStory', [['zero', say('Add nothing')], ['count', say('Count normally')]], say('Story Pokémon'))),
+    row(say('Items a Pokémon must reach'), say('In a house you built, which items only count toward comfort when the resident can walk to them from the door, stepping up or down 1 level at a time. ぽこポケ学会 says items it can\'t get to don\'t count, without saying which; players\' tests point to the ones it uses, rest items and toys. Decorations it only looks at, such as wall hangings.'), segN('gReach', [['rt', say('Rest and toys')], ['r', say('Rest only')], ['all', say('Everything')]], say('Items a Pokémon must reach'))),
+    row(say('Laser sensor reach'), say('How many tiles in front of a laser sensor it watches. 2 per GameWith and 攻略大百科; 1 per ぽこポケ学会\'s diagram.'), segN('gSensor', [[2, '2 tiles'], [1, '1 tile']], say('Laser sensor reach'))),
+    row(say('Sprinkler reach'), say('How far a sprinkler waters, counted along each axis and added up. 5 per GameWith, 攻略大百科 and Serebii (61 tiles); ぽこポケ学会 points to 4 (41 tiles), and Game8 says one tile less.'), segN('gSprinkler', [[5, '5 tiles'], [4, '4 tiles']], say('Sprinkler reach'))),
+    row(say('Smooth Rock reach'), say('How far a Smooth Rock dries the ground. 4 per ぽこポケ学会 (41 tiles, 1 level up and 2 down); GameWith gives 6.'), segN('gRock', [[4, '4 tiles'], [6, '6 tiles']], say('Smooth Rock reach'))),
+    row(say('Generator to transmitter'), say('How far a generator reaches its transmitter. 10 per a player\'s tests, Serebii and GameWith\'s electricity page; GameWith\'s utility-pole page says 7.'), segN('gGen', [[10, '10 tiles'], [7, '7 tiles']], say('Generator to transmitter'))));
   sec('data',
-    row('Storage', h('span', { class: 'note', id: 'setsUse' }, 'Checking…')),
+    row(say('Storage'), h('span', { class: 'note', id: 'setsUse' }, say('Checking…'))),
     h('div', { id: 'setsKeep' }),
-    row('Game data', 'Items, Pokémon and habitats match the game\'s Ver. ' + (DATA.gv || '?') + '. They\'re checked against Serebii every week, and new game data is added as it\'s found.', h('span', { class: 'note' }, 'Ver. ' + (DATA.gv || '?'))),
-    row('Plans, backups and sync', 'Export, import and Google sync are in the Plans tab.', h('button', { class: 'btn sm', type: 'button', onclick: () => closeSettings(() => { showTab('plans'); if (innerWidth < 900 && sheetState === 'peek') setSheet(S.sheet); }) }, icon('map'), 'Open Plans')),
-    row('Reset settings', 'Puts everything on this page back as it was at the start. Your plans stay as they are.', h('button', { class: 'btn sm danger', type: 'button', onclick: resetSettingsDialog }, 'Reset')));
+    row(say('Game data'), say('Items, Pokémon and habitats match the game\'s Ver. {v}. They\'re checked against Serebii every week, and new game data is added as it\'s found.', { v: DATA.gv || '?' }), h('span', { class: 'note' }, say('Ver. {v}', { v: DATA.gv || '?' }))),
+    row(say('Plans, backups and sync'), say('Export, import and Google sync are in the Plans tab.'), h('button', { class: 'btn sm', type: 'button', onclick: () => closeSettings(() => { showTab('plans'); if (innerWidth < 900 && sheetState === 'peek') setSheet(S.sheet); }) }, icon('map'), say('Open Plans'))),
+    row(say('Reset settings'), say('Puts everything on this page back as it was at the start. Your plans stay as they are.'), h('button', { class: 'btn sm danger', type: 'button', onclick: resetSettingsDialog }, say('Reset'))));
   let cur = '';
   const spy = () => { const r = scroll.getBoundingClientRect(), t = r.top + 48, end = scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 4; let now = SET_SECS[0][0]; for (const [id] of SET_SECS) { const s = document.getElementById('sets-' + id); if (s && s.getBoundingClientRect().top <= t) now = id; } if (end && scroll.scrollTop > 0) { const w = setsWant && document.getElementById('sets-' + setsWant); now = w && w.getBoundingClientRect().top < r.bottom ? setsWant : SET_SECS[SET_SECS.length - 1][0]; } if (now === cur) return; cur = now; for (const b of nav.children) { const on = b.dataset.sec === now; b.setAttribute('aria-current', on ? 'true' : 'false'); if (on && nav.scrollWidth > nav.clientWidth) nav.scrollTo({ left: b.offsetLeft - 8, behavior: calm() ? 'auto' : 'smooth' }); } };
   scroll.addEventListener('scroll', spy, { passive: true }); scroll.addEventListener('pointerdown', () => { setsWant = null; }); scroll.addEventListener('wheel', () => { setsWant = null; }, { passive: true }); setsWant = null;
@@ -221,21 +221,21 @@ function renderSettings() {
 async function setsPics() {
   const el = document.getElementById('setsPicN'); if (!el) return;
   let n = 0; try { if ('caches' in window && !S.offline) n = (await (await caches.open(PIC_CACHE)).keys()).length; } catch (e) { }
-  el.textContent = ''; if (!S.offline && n) el.append(h('button', { class: 'btn sm danger', type: 'button', onclick: dropPics }, icon('trash'), 'Remove ' + fmt(n) + ' saved pictures'));
+  el.textContent = ''; if (!S.offline && n) el.append(h('button', { class: 'btn sm danger', type: 'button', onclick: dropPics }, icon('trash'), sayN('Remove {n} saved picture', 'Remove {n} saved pictures', n)));
 }
-async function dropPics() { picFill.force = false; try { await caches.delete(PIC_CACHE); } catch (e) { } picFill.done = 0; picFill.total = 0; picUI(); setsPics(); setsStore(); toast('Saved pictures removed. They load again when you\'re online.'); }
+async function dropPics() { picFill.force = false; try { await caches.delete(PIC_CACHE); } catch (e) { } picFill.done = 0; picFill.total = 0; picUI(); setsPics(); setsStore(); toast(say('Saved pictures removed. They load again when you\'re online.')); }
 async function setsStore() {
   const use = document.getElementById('setsUse'), keep = document.getElementById('setsKeep'), st = navigator.storage; if (!use) return;
-  let txt = 'Plans are saved in this browser.', kept = null;
-  try { if (st && st.estimate) { const e = await st.estimate(); if (e && e.usage != null) txt = 'About ' + fmt(Math.max(1, Math.round(e.usage / 1e6))) + ' MB on this device: the app, your plans and saved pictures.'; } } catch (e) { }
+  let txt = say('Plans are saved in this browser.'), kept = null;
+  try { if (st && st.estimate) { const e = await st.estimate(); if (e && e.usage != null) txt = say('About {mb} MB on this device: the app, your plans and saved pictures.', { mb: Math.max(1, Math.round(e.usage / 1e6)) }); } } catch (e) { }
   try { if (st && st.persisted) kept = await st.persisted(); } catch (e) { }
   use.textContent = txt; if (!keep) return; keep.textContent = ''; if (kept === null) return;
-  keep.append(h('div', { class: 'srow' }, h('div', { class: 'stxt' }, h('b', null, 'Keep saved data safe'), h('span', { class: 'note' }, kept ? 'On: the browser won\'t clear your plans to free up space.' : 'Off: if the device runs low on space, the browser may clear what\'s saved here. Export or sync your plans as a backup.')),
-    h('div', { class: 'sctl' }, kept ? h('span', { class: 'chip good' }, '✓ On') : h('button', { class: 'btn sm', type: 'button', onclick: async () => { let ok = false; try { ok = await st.persist(); } catch (e) { } toast(ok ? 'Saved data is kept safe' : 'The browser said no for now. Installing the app usually allows it.', 4000); setsStore(); } }, 'Turn on'))));
+  keep.append(h('div', { class: 'srow' }, h('div', { class: 'stxt' }, h('b', null, say('Keep saved data safe')), h('span', { class: 'note' }, kept ? say('On: the browser won\'t clear your plans to free up space.') : say('Off: if the device runs low on space, the browser may clear what\'s saved here. Export or sync your plans as a backup.'))),
+    h('div', { class: 'sctl' }, kept ? h('span', { class: 'chip good' }, '✓ On') : h('button', { class: 'btn sm', type: 'button', onclick: async () => { let ok = false; try { ok = await st.persist(); } catch (e) { } toast(ok ? say('Saved data is kept safe') : say('The browser said no for now. Installing the app usually allows it.'), 4000); setsStore(); } }, say('Turn on')))));
 }
 function resetSettingsDialog() {
-  modal('Reset settings?', (box) => box.append(h('p', { class: 'sub' }, 'Every setting goes back as it was at the start. Your plans stay as they are.')), 'Reset', () => {
-    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); enter3d(); setShowAreas(false); $('#status').hidden = !S.status && !PROBS.length; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast('Settings reset');
+  modal(say('Reset settings?'), (box) => box.append(h('p', { class: 'sub' }, say('Every setting goes back as it was at the start. Your plans stay as they are.'))), say('Reset'), () => {
+    S = Object.assign({}, SET_DEF); savePrefs(); picFill.force = false; applyLook(); enter3d(); setShowAreas(false); $('#status').hidden = !S.status && !PROBS.length; if (['pan', 'select'].includes(tool)) setTool(S.tool); tipHide(); requestDraw(); renderSettings(); toast(say('Settings reset'));
   }, true);
 }
 atStart(() => { $('#setBtn').onclick = () => openSettings(); });

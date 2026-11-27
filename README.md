@@ -442,6 +442,7 @@ The planner is plain HTML, CSS and JavaScript, with no build step. `index.html` 
 
 | File | What it holds |
 |---|---|
+| `strings.js` | `say()` and `sayN()`, which show on-screen text in the chosen language |
 | `base.js` | Page helpers, tips and toasts, settings, and the index of the game data |
 | `plan.js` | A plan in memory and as saved, levels and layers, placing and removing things, undo and redo |
 | `homes.js` | Habitat zones, houses and kit homes, Pokémon pictures and sizes, residents, light, warmth, humidity, roofs and reach |
@@ -461,6 +462,17 @@ The planner is plain HTML, CSS and JavaScript, with no build step. `index.html` 
 
 The files share one scope and load one after another, in the order of `APP_JS` in `index.html`. While it loads, a file can use only what earlier files define. Anything that starts listening or schedules work, such as an event listener, a timer or an observer, goes inside `atStart(() => { … })`. That runs once every file has loaded, so nothing fires before the code it needs exists.
 
+**On-screen text.** Text the planner shows goes through `say()`, so it can be shown in other languages later:
+
+- **Plain text:** `say('Check for updates')`.
+- **Text with values:** `say('Version {v}', { v: appVersion() })`, rather than joining pieces, so a translation can put the value where its language needs it.
+- **Counts:** `sayN('Remove {n} saved picture', 'Remove {n} saved pictures', n)`.
+- **Text in `index.html`:** an element with `data-say` has its text translated. `data-say-attr="aria-label data-tip"` translates those attributes.
+
+The English text is the key. `strings/en.json` lists every piece of text and where it's used, and translations will map it to each language. After changing text, run `node strings.js --write` in `tests/` to update the list.
+
+Settings and the page's own buttons and tabs use `say()` so far. The rest of the text moves over area by area, before the Japanese version. `tests/strings-baseline.json` counts the text still written straight into each file. A file can never go above its count, so new text always goes through `say()`.
+
 ## Tests
 
 GitHub tests every pull request and every change to `main` (`.github/workflows/tests.yml`):
@@ -468,7 +480,8 @@ GitHub tests every pull request and every change to `main` (`.github/workflows/t
 - **Data and code rules.**
   - `tools/data_lint.py` checks that `data.json` holds together: every recipe's materials exist, every habitat's Pokémon and parts exist, every favourite is a known kind, and every group, default and processing step points at something real.
   - `tests/no-comments.js` fails on any comment in the code: `//`, `/* */`, `#`, `<!-- -->` and docstrings.
-  - `tests/load-order.js` checks the two rules above for the files in `js/`.
+  - `tests/load-order.js` checks the two loading rules for the files in `js/`.
+  - `tests/strings.js` checks that `strings/en.json` is up to date and that no file has more text outside `say()` than before.
 - **Android phone and Windows window.** The app opens in Chrome as a Pixel 7 and as a 1366×768 window. The tests use only what's on screen, so they don't depend on how the code is split up. They check that it:
   - starts
   - opens every tab
